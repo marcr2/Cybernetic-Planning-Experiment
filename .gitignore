@@ -144,3 +144,16 @@ data/processed/
 outputs/
 logs/
 *.log
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# USA data files (large)
+raw_data/USA_*.zip
+raw_data/USA_*/*.xlsx
+raw_data/USA_*/*.pdf
+
+# Processed data files (keep structure but ignore large files)
+data/*.json

@@ -44,6 +44,23 @@ An AI-enhanced central planning software system that generates comprehensive 5-y
 
 ## Quick Start
 
+### Using the GUI
+
+1. **Run the GUI**:
+   ```bash
+   .\run_gui.bat
+   ```
+
+2. **Load Data**:
+   - Click "Process USA Zip File" to process USA I-O data
+   - Click "Load from File" to load existing processed data
+   - Click "Generate Synthetic Data" for testing
+
+3. **Create Plans**:
+   - Enter policy goals in the Planning Configuration tab
+   - Click "Create Plan" to generate economic plans
+   - View results in the Results & Analysis tab
+
 ### Basic Usage
 
 ```python
@@ -52,7 +69,7 @@ from src.cybernetic_planning.planning_system import CyberneticPlanningSystem
 # Initialize the planning system
 system = CyberneticPlanningSystem()
 
-# Create synthetic data for demonstration
+# Create synthetic data for testing
 data = system.create_synthetic_data(n_sectors=8, technology_density=0.4)
 
 # Create an economic plan
@@ -69,19 +86,23 @@ report = system.generate_report()
 print(report)
 ```
 
-### Running the Demo
+### Processing Real Data
 
 ```python
-# Run the complete demonstration
-demo_results = system.run_demo()
+# Process USA Input-Output data from zip file
+from usa_zip_processor import USAZipProcessor
+
+processor = USAZipProcessor()
+result_file = processor.process_zip_file("usa_data.zip")
+system.load_data_from_file(result_file)
 ```
 
 This will:
-1. Create synthetic economic data
-2. Generate a 5-year economic plan
-3. Create visualizations
-4. Generate a comprehensive markdown report
-5. Save results to files
+1. Automatically detect USA I-O files in the zip
+2. Select the most recent year (2024)
+3. Process USE, Final Demand, and Make tables
+4. Create a ready-to-use JSON file in the data/ folder
+5. Load the data into the planning system
 
 ## Project Structure
 
