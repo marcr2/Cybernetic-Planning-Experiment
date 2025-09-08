@@ -33,6 +33,10 @@ mypy>=1.5.0
 # openai>=1.0.0
 # langchain>=0.1.0
 
-# Optional: Additional data sources
-# requests>=2.31.0  # For downloading data from APIs
-# beautifulsoup4>=4.12.0  # For web scraping data sources
+# Web scraping and data collection
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Data processing and validation
+jsonschema>=4.17.0

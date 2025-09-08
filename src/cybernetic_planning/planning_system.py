@@ -13,7 +13,7 @@ from datetime import datetime
 
 from .core import LeontiefModel, LaborValueCalculator, ConstrainedOptimizer, DynamicPlanner
 from .agents import ManagerAgent, EconomicsAgent, ResourceAgent, PolicyAgent, WriterAgent
-from .data import IOParser, MatrixBuilder, DataValidator
+from .data import IOParser, MatrixBuilder, DataValidator, EnhancedDataLoader
 
 
 class CyberneticPlanningSystem:
@@ -37,6 +37,7 @@ class CyberneticPlanningSystem:
         self.parser = IOParser()
         self.matrix_builder = MatrixBuilder()
         self.validator = DataValidator()
+        self.enhanced_loader = EnhancedDataLoader()
         
         # Initialize agents
         self.manager_agent = ManagerAgent()
@@ -121,6 +122,46 @@ class CyberneticPlanningSystem:
         )
         
         self.current_data = data
+        return data
+    
+    def load_comprehensive_data(self, 
+                               year: int = 2024,
+                               use_real_data: bool = True,
+                               eia_api_key: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Load comprehensive economic planning data with real resource constraints.
+        
+        Args:
+            year: Year for data collection
+            use_real_data: Whether to collect real resource data
+            eia_api_key: EIA API key for enhanced data access
+            
+        Returns:
+            Comprehensive data dictionary
+        """
+        # Update enhanced loader with API key if provided
+        if eia_api_key:
+            self.enhanced_loader.data_collector.scrapers['eia'].api_key = eia_api_key
+        
+        # Load comprehensive data
+        data = self.enhanced_loader.load_comprehensive_data(
+            year=year,
+            use_real_data=use_real_data
+        )
+        
+        # Extract BEA data for compatibility
+        bea_data = data.get('bea_data', {})
+        self.current_data = {
+            'technology_matrix': bea_data.get('technology_matrix'),
+            'final_demand': bea_data.get('final_demand'),
+            'labor_input': bea_data.get('labor_input'),
+            'sectors': bea_data.get('sectors', []),
+            'sector_count': bea_data.get('sector_count', 175),
+            'resource_matrix': data.get('resource_matrices', {}).get('combined_resource_matrix'),
+            'max_resources': data.get('resource_matrices', {}).get('resource_constraints'),
+            'comprehensive_data': data  # Store full data
+        }
+        
         return data
     
     def create_plan(self, policy_goals: Optional[List[str]] = None,

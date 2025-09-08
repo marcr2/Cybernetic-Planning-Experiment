@@ -44,9 +44,6 @@ class CyberneticPlanningGUI:
         # Create GUI elements
         self.create_widgets()
         self.setup_layout()
-        
-        # Load demo data by default
-        self.load_demo_data()
     
     def create_widgets(self):
         """Create all GUI widgets."""
@@ -55,6 +52,8 @@ class CyberneticPlanningGUI:
         
         # Create tabs
         self.create_data_tab()
+        self.create_web_scraper_tab()
+        self.create_api_keys_tab()
         self.create_planning_tab()
         self.create_results_tab()
         self.create_export_tab()
@@ -71,10 +70,12 @@ class CyberneticPlanningGUI:
         
         ttk.Button(source_frame, text="Load from File", 
                   command=self.load_data_from_file).pack(side="left", padx=5)
+        ttk.Button(source_frame, text="Process USA Zip File", 
+                  command=self.process_usa_zip).pack(side="left", padx=5)
+        ttk.Button(source_frame, text="Web Scraper", 
+                  command=self.open_web_scraper).pack(side="left", padx=5)
         ttk.Button(source_frame, text="Generate Synthetic Data", 
                   command=self.generate_synthetic_data).pack(side="left", padx=5)
-        ttk.Button(source_frame, text="Load Demo Data", 
-                  command=self.load_demo_data).pack(side="left", padx=5)
         
         # Data configuration
         config_frame = ttk.LabelFrame(self.data_frame, text="Synthetic Data Configuration", padding=10)
@@ -105,6 +106,114 @@ class CyberneticPlanningGUI:
         # Data status
         self.data_status = ttk.Label(display_frame, text="No data loaded", foreground="red")
         self.data_status.pack(pady=5)
+    
+    def create_web_scraper_tab(self):
+        """Create web scraper tab."""
+        self.scraper_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.scraper_frame, text="Web Scraper")
+        
+        # Country selection
+        country_frame = ttk.LabelFrame(self.scraper_frame, text="Select Country/Region", padding=10)
+        country_frame.pack(fill="x", padx=10, pady=5)
+        
+        self.country_var = tk.StringVar(value="USA")
+        countries = ["USA", "Russia", "EU", "China", "India"]
+        
+        for i, country in enumerate(countries):
+            ttk.Radiobutton(country_frame, text=country, variable=self.country_var, 
+                           value=country).grid(row=0, column=i, padx=10, sticky="w")
+        
+        # Data source configuration
+        config_frame = ttk.LabelFrame(self.scraper_frame, text="Data Sources", padding=10)
+        config_frame.pack(fill="x", padx=10, pady=5)
+        
+        # Checkboxes for different data types
+        self.energy_var = tk.BooleanVar(value=True)
+        self.material_var = tk.BooleanVar(value=True)
+        self.labor_var = tk.BooleanVar(value=True)
+        self.environmental_var = tk.BooleanVar(value=True)
+        
+        ttk.Checkbutton(config_frame, text="Energy Data", variable=self.energy_var).grid(row=0, column=0, sticky="w", padx=5)
+        ttk.Checkbutton(config_frame, text="Material Data", variable=self.material_var).grid(row=0, column=1, sticky="w", padx=5)
+        ttk.Checkbutton(config_frame, text="Labor Data", variable=self.labor_var).grid(row=1, column=0, sticky="w", padx=5)
+        ttk.Checkbutton(config_frame, text="Environmental Data", variable=self.environmental_var).grid(row=1, column=1, sticky="w", padx=5)
+        
+        # API configuration
+        api_frame = ttk.LabelFrame(self.scraper_frame, text="API Configuration", padding=10)
+        api_frame.pack(fill="x", padx=10, pady=5)
+        
+        ttk.Label(api_frame, text="EIA API Key (optional):").grid(row=0, column=0, sticky="w", padx=5)
+        self.eia_api_key_var = tk.StringVar()
+        ttk.Entry(api_frame, textvariable=self.eia_api_key_var, width=40, show="*").grid(row=0, column=1, padx=5, sticky="ew")
+        
+        ttk.Label(api_frame, text="Year:").grid(row=1, column=0, sticky="w", padx=5)
+        self.scraper_year_var = tk.StringVar(value="2024")
+        ttk.Entry(api_frame, textvariable=self.scraper_year_var, width=10).grid(row=1, column=1, sticky="w", padx=5)
+        
+        api_frame.columnconfigure(1, weight=1)
+        
+        # Scraping controls
+        control_frame = ttk.Frame(self.scraper_frame)
+        control_frame.pack(fill="x", padx=10, pady=10)
+        
+        self.start_scraping_button = ttk.Button(control_frame, text="Start Data Collection", 
+                                              command=self.start_web_scraping, style="Accent.TButton")
+        self.start_scraping_button.pack(side="left", padx=5)
+        
+        self.scraper_progress = ttk.Progressbar(control_frame, mode='indeterminate')
+        self.scraper_progress.pack(side="left", padx=10, fill="x", expand=True)
+        
+        self.scraper_status = ttk.Label(control_frame, text="Ready to collect data")
+        self.scraper_status.pack(side="right", padx=5)
+        
+        # Data sources info
+        info_frame = ttk.LabelFrame(self.scraper_frame, text="Data Sources by Country", padding=10)
+        info_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        self.scraper_info_text = scrolledtext.ScrolledText(info_frame, height=15, width=80)
+        self.scraper_info_text.pack(fill="both", expand=True)
+        
+        # Load country-specific information
+        self.update_country_info()
+        
+        # Bind country selection change
+        self.country_var.trace('w', self.update_country_info)
+    
+    def create_api_keys_tab(self):
+        """Create API keys management tab."""
+        self.api_keys_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.api_keys_frame, text="API Keys")
+        
+        # API Keys Status
+        status_frame = ttk.LabelFrame(self.api_keys_frame, text="API Keys Status", padding=10)
+        status_frame.pack(fill="x", padx=10, pady=5)
+        
+        self.api_status = ttk.Label(status_frame, text="Checking API keys...", foreground="blue")
+        self.api_status.pack(pady=5)
+        
+        # API Keys Information
+        info_frame = ttk.LabelFrame(self.api_keys_frame, text="API Keys Information", padding=10)
+        info_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        # Create scrollable text widget for API key information
+        self.api_info_text = scrolledtext.ScrolledText(info_frame, height=20, width=80)
+        self.api_info_text.pack(fill="both", expand=True)
+        
+        # Buttons
+        button_frame = ttk.Frame(self.api_keys_frame)
+        button_frame.pack(fill="x", padx=10, pady=5)
+        
+        ttk.Button(button_frame, text="Check API Keys", 
+                  command=self.check_api_keys).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Show Setup Instructions", 
+                  command=self.show_api_setup_instructions).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Create Environment Template", 
+                  command=self.create_env_template).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Refresh Status", 
+                  command=self.refresh_api_status).pack(side="left", padx=5)
+        
+        # Initialize API key status
+        self.refresh_api_status()
     
     def create_planning_tab(self):
         """Create planning configuration tab."""
@@ -284,6 +393,15 @@ Features:
 • Resource constraint management
 • Environmental impact assessment
 • Comprehensive report generation
+• Real-time web scraping for economic data
+• Multi-country data collection support
+
+Data Collection:
+• USA: EIA, USGS, BLS, EPA data sources
+• Russia: Government statistical agencies
+• EU: Eurostat and European Commission data
+• China: National Bureau of Statistics and ministries
+• India: Various government departments and agencies
 
 Agents:
 • Manager Agent: Central coordination and plan orchestration
@@ -294,7 +412,7 @@ Agents:
 
 The system can create both single-year and five-year economic plans,
 incorporating policy goals and resource constraints to generate
-optimal economic strategies.
+optimal economic strategies using real-world data from multiple countries.
         """
         
         about_label = ttk.Label(self.about_frame, text=about_text, justify="left")
@@ -310,6 +428,29 @@ optimal economic strategies.
     
     def load_data_from_file(self):
         """Load data from a file."""
+        # First check if there are any processed files in the data folder
+        data_folder = Path("data")
+        if data_folder.exists():
+            json_files = list(data_folder.glob("*.json"))
+            if json_files:
+                # Show a dialog to choose from existing files or browse for new ones
+                choice = messagebox.askyesnocancel(
+                    "Load Data", 
+                    f"Found {len(json_files)} processed data files in the data folder.\n\n"
+                    f"Click 'Yes' to choose from existing files\n"
+                    f"Click 'No' to browse for a different file\n"
+                    f"Click 'Cancel' to cancel"
+                )
+                
+                if choice is True:  # Choose from existing files
+                    self.choose_from_existing_files(json_files)
+                    return
+                elif choice is False:  # Browse for new file
+                    pass  # Continue with file dialog
+                else:  # Cancel
+                    return
+        
+        # Browse for file
         file_path = filedialog.askopenfilename(
             title="Select Data File",
             filetypes=[
@@ -329,11 +470,30 @@ optimal economic strategies.
                     # Load processed data directly
                     self.planning_system.load_data_from_file(file_path)
                     self.current_data = self.planning_system.current_data
+                    
+                    # Ensure data is properly converted to numpy arrays
+                    self._ensure_numpy_arrays()
+                    
                     self.update_data_display()
                     self.data_status.config(text="Data loaded successfully", foreground="green")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load data: {str(e)}")
                 self.data_status.config(text="Error loading data", foreground="red")
+    
+    def _ensure_numpy_arrays(self):
+        """Ensure all data arrays are numpy arrays"""
+        if not self.current_data:
+            return
+        
+        import numpy as np
+        
+        # Convert lists to numpy arrays
+        array_fields = ['technology_matrix', 'final_demand', 'labor_input', 'resource_matrix', 'max_resources']
+        
+        for field in array_fields:
+            if field in self.current_data and isinstance(self.current_data[field], list):
+                self.current_data[field] = np.array(self.current_data[field])
+                print(f"✅ Converted {field} to numpy array")
     
     def generate_synthetic_data(self):
         """Generate synthetic data based on configuration."""
@@ -348,6 +508,10 @@ optimal economic strategies.
                 resource_count=n_resources
             )
             self.current_data = self.planning_system.current_data
+            
+            # Ensure data is properly converted to numpy arrays
+            self._ensure_numpy_arrays()
+            
             self.update_data_display()
             self.data_status.config(text="Synthetic data generated", foreground="green")
         except ValueError as e:
@@ -355,15 +519,195 @@ optimal economic strategies.
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate data: {str(e)}")
     
-    def load_demo_data(self):
-        """Load demo data."""
+    def check_api_keys(self):
+        """Check API key status."""
         try:
-            self.planning_system.create_synthetic_data(n_sectors=8, technology_density=0.4, resource_count=3)
+            from api_keys_config import APIKeyManager
+            
+            manager = APIKeyManager()
+            status = manager.check_api_key_status()
+            
+            # Update status label
+            if status.get('api_manager_available', False):
+                required_missing = status.get('required_keys', [])
+                optional_missing = status.get('optional_keys', [])
+                
+                if not required_missing:
+                    self.api_status.config(text="✅ All required API keys are configured", foreground="green")
+                else:
+                    self.api_status.config(text=f"❌ Missing {len(required_missing)} required API keys", foreground="red")
+            else:
+                self.api_status.config(text="❌ API key manager not available", foreground="red")
+            
+            # Update information text
+            self.api_info_text.delete(1.0, tk.END)
+            manager.print_api_key_status()
+            
+            # Get the output from the print function
+            import io
+            import sys
+            old_stdout = sys.stdout
+            sys.stdout = buffer = io.StringIO()
+            manager.print_api_key_status()
+            sys.stdout = old_stdout
+            self.api_info_text.insert(tk.END, buffer.getvalue())
+            
+        except Exception as e:
+            self.api_status.config(text=f"❌ Error checking API keys: {str(e)}", foreground="red")
+            messagebox.showerror("Error", f"Failed to check API keys: {str(e)}")
+    
+    def show_api_setup_instructions(self):
+        """Show API key setup instructions."""
+        try:
+            from api_keys_config import APIKeyManager
+            
+            manager = APIKeyManager()
+            
+            # Clear and update information text
+            self.api_info_text.delete(1.0, tk.END)
+            
+            # Get the output from the print function
+            import io
+            import sys
+            old_stdout = sys.stdout
+            sys.stdout = buffer = io.StringIO()
+            manager.print_setup_instructions()
+            sys.stdout = old_stdout
+            self.api_info_text.insert(tk.END, buffer.getvalue())
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to show setup instructions: {str(e)}")
+    
+    def create_env_template(self):
+        """Create environment template file."""
+        try:
+            from api_keys_config import APIKeyManager
+            
+            manager = APIKeyManager()
+            manager.create_env_template()
+            
+            messagebox.showinfo("Success", "Environment template created successfully!\n\nFile: .env.template\n\nCopy this file to .env and fill in your actual API keys.")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to create environment template: {str(e)}")
+    
+    def refresh_api_status(self):
+        """Refresh API key status."""
+        self.check_api_keys()
+    
+    def process_usa_zip(self):
+        """Process USA data from zip file."""
+        zip_path = filedialog.askopenfilename(
+            title="Select USA Data Zip File",
+            filetypes=[("Zip files", "*.zip"), ("All files", "*.*")]
+        )
+        
+        if not zip_path:
+            return
+        
+        try:
+            # Import the zip processor
+            from usa_zip_processor import USAZipProcessor
+            
+            # Update status
+            self.data_status.config(text="Processing USA zip file...", foreground="blue")
+            self.root.update()
+            
+            # Create processor and process zip
+            processor = USAZipProcessor()
+            result_file = processor.process_zip_file(zip_path)
+            
+            if result_file:
+                # Load the processed data
+                self.planning_system.load_data_from_file(result_file)
+                self.current_data = self.planning_system.current_data
+                
+                # Ensure data is properly converted to numpy arrays
+                self._ensure_numpy_arrays()
+                
+                self.update_data_display()
+                self.data_status.config(text="USA data processed and loaded successfully", foreground="green")
+                
+                # Show success message
+                messagebox.showinfo("Success", 
+                    f"USA data processed successfully!\n\n"
+                    f"Saved to: {result_file}\n"
+                    f"Sectors: {len(self.current_data.get('sectors', []))}")
+            else:
+                self.data_status.config(text="Failed to process USA zip file", foreground="red")
+                messagebox.showerror("Error", "Failed to process the USA zip file")
+                
+        except Exception as e:
+            self.data_status.config(text="Error processing USA zip file", foreground="red")
+            messagebox.showerror("Error", f"Failed to process USA zip file: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def choose_from_existing_files(self, json_files):
+        """Choose from existing processed files in data folder."""
+        # Create a simple dialog to choose files
+        choice_window = tk.Toplevel(self.root)
+        choice_window.title("Choose Data File")
+        choice_window.geometry("500x400")
+        choice_window.transient(self.root)
+        choice_window.grab_set()
+        
+        # Center the window
+        choice_window.geometry("+%d+%d" % (self.root.winfo_rootx() + 50, self.root.winfo_rooty() + 50))
+        
+        ttk.Label(choice_window, text="Select a processed data file:", font=("Arial", 12, "bold")).pack(pady=10)
+        
+        # Create listbox with scrollbar
+        frame = ttk.Frame(choice_window)
+        frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        listbox = tk.Listbox(frame, height=15)
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=listbox.yview)
+        listbox.configure(yscrollcommand=scrollbar.set)
+        
+        # Add files to listbox
+        for i, file_path in enumerate(json_files):
+            file_name = file_path.name
+            file_size = file_path.stat().st_size
+            file_time = datetime.fromtimestamp(file_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            display_text = f"{file_name} ({file_size//1024}KB, {file_time})"
+            listbox.insert(tk.END, display_text)
+        
+        listbox.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Buttons
+        button_frame = ttk.Frame(choice_window)
+        button_frame.pack(fill="x", padx=10, pady=10)
+        
+        def load_selected():
+            selection = listbox.curselection()
+            if selection:
+                selected_file = json_files[selection[0]]
+                choice_window.destroy()
+                self.load_specific_file(selected_file)
+            else:
+                messagebox.showwarning("Warning", "Please select a file")
+        
+        def cancel():
+            choice_window.destroy()
+        
+        ttk.Button(button_frame, text="Load Selected", command=load_selected).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Cancel", command=cancel).pack(side="left", padx=5)
+        
+        # Double-click to load
+        listbox.bind("<Double-Button-1>", lambda e: load_selected())
+    
+    def load_specific_file(self, file_path):
+        """Load a specific file."""
+        try:
+            self.planning_system.load_data_from_file(str(file_path))
             self.current_data = self.planning_system.current_data
             self.update_data_display()
-            self.data_status.config(text="Demo data loaded", foreground="green")
+            self.data_status.config(text=f"Data loaded from {file_path.name}", foreground="green")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to load demo data: {str(e)}")
+            messagebox.showerror("Error", f"Failed to load data: {str(e)}")
+            self.data_status.config(text="Error loading data", foreground="red")
     
     def is_raw_data_file(self, file_path):
         """Check if the file is a raw data file that needs processing."""
@@ -678,6 +1022,300 @@ Year-by-Year Summary:
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+    
+    def open_web_scraper(self):
+        """Open the web scraper tab."""
+        self.notebook.select(self.scraper_frame)
+    
+    def update_country_info(self, *args):
+        """Update country-specific data source information."""
+        country = self.country_var.get()
+        
+        country_info = {
+            "USA": """
+USA Data Sources:
+================
+
+Energy Data:
+- Energy Information Administration (EIA)
+  * Energy consumption by sector
+  * Electricity generation and consumption
+  * Renewable energy statistics
+  * Energy intensity data
+
+Material Data:
+- US Geological Survey (USGS)
+  * Mineral production and consumption
+  * Critical materials assessment
+  * Material flow studies
+  * Supply chain analysis
+
+Labor Data:
+- Bureau of Labor Statistics (BLS)
+  * Employment by sector and occupation
+  * Wage and salary data
+  * Labor productivity statistics
+  * Occupational skills data (O*NET)
+
+Environmental Data:
+- Environmental Protection Agency (EPA)
+  * Carbon emissions by sector
+  * Water usage statistics
+  * Waste generation data
+  * Environmental impact assessments
+
+Note: Some data sources may require API keys for enhanced access.
+            """,
+            "Russia": """
+Russia Data Sources:
+===================
+
+Energy Data:
+- Ministry of Energy of the Russian Federation
+  * Energy production and consumption
+  * Oil and gas statistics
+  * Nuclear energy data
+  * Renewable energy development
+
+Material Data:
+- Ministry of Natural Resources and Environment
+  * Mineral resource statistics
+  * Mining production data
+  * Critical materials assessment
+  * Resource extraction data
+
+Labor Data:
+- Federal State Statistics Service (Rosstat)
+  * Employment statistics by sector
+  * Wage data by region and sector
+  * Labor productivity indicators
+  * Occupational classifications
+
+Environmental Data:
+- Ministry of Natural Resources and Environment
+  * Environmental monitoring data
+  * Emissions statistics
+  * Water resource usage
+  * Waste management data
+
+Note: Data availability may be limited due to current geopolitical situation.
+            """,
+            "EU": """
+EU Data Sources:
+===============
+
+Energy Data:
+- Eurostat Energy Statistics
+  * Energy production and consumption
+  * Renewable energy targets and progress
+  * Energy efficiency indicators
+  * Cross-border energy trade
+
+Material Data:
+- European Commission Raw Materials Information System
+  * Critical raw materials assessment
+  * Material flow accounts
+  * Circular economy indicators
+  * Supply chain mapping
+
+Labor Data:
+- Eurostat Labor Force Survey
+  * Employment statistics by sector
+  * Wage and income data
+  * Labor market indicators
+  * Skills and qualifications data
+
+Environmental Data:
+- European Environment Agency (EEA)
+  * Greenhouse gas emissions
+  * Air and water quality data
+  * Waste generation and treatment
+  * Environmental impact assessments
+
+Note: Data is available for all EU member states with harmonized methodologies.
+            """,
+            "China": """
+China Data Sources:
+==================
+
+Energy Data:
+- National Energy Administration (NEA)
+  * Energy production and consumption
+  * Renewable energy development
+  * Energy efficiency programs
+  * Power generation statistics
+
+Material Data:
+- Ministry of Natural Resources
+  * Mineral resource statistics
+  * Rare earth elements data
+  * Critical materials production
+  * Resource utilization rates
+
+Labor Data:
+- National Bureau of Statistics (NBS)
+  * Employment statistics by sector
+  * Urban and rural employment data
+  * Wage and income statistics
+  * Labor productivity indicators
+
+Environmental Data:
+- Ministry of Ecology and Environment
+  * Air quality monitoring data
+  * Water pollution statistics
+  * Carbon emissions data
+  * Environmental protection measures
+
+Note: Some data may be limited or require special access permissions.
+            """,
+            "India": """
+India Data Sources:
+==================
+
+Energy Data:
+- Ministry of Power
+  * Electricity generation and consumption
+  * Renewable energy capacity
+  * Energy access statistics
+  * Power sector reforms
+
+Material Data:
+- Ministry of Mines
+  * Mineral production statistics
+  * Mining sector data
+  * Critical minerals assessment
+  * Resource exploration data
+
+Labor Data:
+- Ministry of Labour and Employment
+  * Employment statistics by sector
+  * Wage and salary data
+  * Labor force participation rates
+  * Skill development programs
+
+Environmental Data:
+- Ministry of Environment, Forest and Climate Change
+  * Air quality index data
+  * Water quality monitoring
+  * Forest cover statistics
+  * Climate change indicators
+
+Note: Data collection methods may vary by state and region.
+            """
+        }
+        
+        info_text = country_info.get(country, "No information available for selected country.")
+        self.scraper_info_text.delete("1.0", tk.END)
+        self.scraper_info_text.insert("1.0", info_text)
+    
+    def start_web_scraping(self):
+        """Start the web scraping process."""
+        country = self.country_var.get()
+        year = int(self.scraper_year_var.get())
+        
+        # Get selected data types
+        data_types = []
+        if self.energy_var.get():
+            data_types.append("energy")
+        if self.material_var.get():
+            data_types.append("material")
+        if self.labor_var.get():
+            data_types.append("labor")
+        if self.environmental_var.get():
+            data_types.append("environmental")
+        
+        if not data_types:
+            messagebox.showwarning("Warning", "Please select at least one data type to collect.")
+            return
+        
+        # Start scraping in a separate thread
+        self.start_scraping_button.config(state="disabled")
+        self.scraper_progress.start()
+        self.scraper_status.config(text="Collecting data...")
+        
+        def scraping_thread():
+            try:
+                # Import the international data collector
+                from src.cybernetic_planning.data.web_scrapers.international_scrapers import InternationalDataCollector
+                
+                # Initialize the international data collector
+                collector = InternationalDataCollector(
+                    cache_dir="cache",
+                    output_dir="data"
+                )
+                
+                # Collect data based on country
+                if country == "USA":
+                    # Use the existing USA scrapers through enhanced data loader
+                    from src.cybernetic_planning.data.enhanced_data_loader import EnhancedDataLoader
+                    eia_api_key = self.eia_api_key_var.get() if self.eia_api_key_var.get() else None
+                    loader = EnhancedDataLoader(
+                        eia_api_key=eia_api_key,
+                        data_dir="data",
+                        cache_dir="cache"
+                    )
+                    data = loader.load_comprehensive_data(
+                        year=year,
+                        use_real_data=True
+                    )
+                else:
+                    # Use international data collector for other countries
+                    data = collector.collect_country_data(
+                        country=country,
+                        year=year,
+                        data_types=data_types
+                    )
+                
+                # Update UI in main thread
+                self.root.after(0, lambda: self.scraping_completed_successfully(data, country, year))
+                
+            except Exception as e:
+                self.root.after(0, lambda: self.scraping_failed(str(e)))
+        
+        threading.Thread(target=scraping_thread, daemon=True).start()
+    
+    def scraping_completed_successfully(self, data, country, year):
+        """Handle successful data collection."""
+        self.start_scraping_button.config(state="normal")
+        self.scraper_progress.stop()
+        self.scraper_status.config(text=f"Data collected successfully for {country} {year}", foreground="green")
+        
+        # Load the collected data into the planning system
+        try:
+            self.planning_system.load_comprehensive_data(
+                year=year,
+                use_real_data=True,
+                eia_api_key=self.eia_api_key_var.get() if self.eia_api_key_var.get() else None
+            )
+            self.current_data = self.planning_system.current_data
+            
+            # Update data display
+            self.update_data_display()
+            self.data_status.config(text=f"Real data loaded from {country} web scrapers", foreground="green")
+            
+            # Show success message
+            messagebox.showinfo("Success", 
+                f"Data collection completed successfully!\n\n"
+                f"Country: {country}\n"
+                f"Year: {year}\n"
+                f"Data loaded into planning system")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load collected data: {str(e)}")
+    
+    def scraping_completed_with_message(self, message):
+        """Handle data collection with informational message."""
+        self.start_scraping_button.config(state="normal")
+        self.scraper_progress.stop()
+        self.scraper_status.config(text="Data collection completed with message", foreground="blue")
+        messagebox.showinfo("Information", message)
+    
+    def scraping_failed(self, error_msg):
+        """Handle data collection failure."""
+        self.start_scraping_button.config(state="normal")
+        self.scraper_progress.stop()
+        self.scraper_status.config(text="Data collection failed", foreground="red")
+        messagebox.showerror("Error", f"Data collection failed: {error_msg}")
 
 
 def main():
