@@ -29,9 +29,11 @@ black>=23.0.0
 flake8>=6.0.0
 mypy>=1.5.0
 
-# Optional: AI/ML libraries (if you want to extend the system)
-# openai>=1.0.0
-# langchain>=0.1.0
+# AI/ML libraries for economic plan review system
+google-generativeai>=0.3.0
+cryptography>=3.4.0
+PyPDF2>=3.0.0
+python-docx>=0.8.11
 
 # Web scraping and data collection
 requests>=2.31.0
@@ -40,3 +42,6 @@ lxml>=4.9.0
 
 # Data processing and validation
 jsonschema>=4.17.0
+
+# System monitoring and utilities
+psutil>=5.9.0
