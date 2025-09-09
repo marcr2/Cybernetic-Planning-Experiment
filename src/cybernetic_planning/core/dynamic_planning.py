@@ -1,22 +1,21 @@
 """
 Dynamic Planning Implementation
 
-Implements dynamic planning for years 2-5 with capital accumulation
+Implements dynamic planning for years 2 - 5 with capital accumulation
 and technological change.
 """
 
-import numpy as np
 from typing import Dict, List, Optional
 import warnings
-
+import numpy as np
 
 class DynamicPlanner:
     """
-    Handles dynamic planning for multi-year economic plans.
+    Handles dynamic planning for multi - year economic plans.
 
     Implements capital accumulation and technological change over time:
     - x_t = A_t x_t + d_{c,t} + d_{i,t}
-    - K_{t+1} = (I - δ)K_t + M d_{i,t}
+    - K_{t + 1} = (I - δ)K_t + M d_{i,t}
     """
 
     def __init__(
@@ -93,13 +92,13 @@ class DynamicPlanner:
         technological_change_rate: float = 0.02,
     ) -> None:
         """
-        Update technology matrix and labor vector for a given year.
+        Update technology matrix and labor vector for a given year based on Marxist expanded reproduction.
 
         Args:
             year: Year to update
             new_technology_matrix: New technology matrix (if None, applies technological change)
             new_labor_vector: New labor vector (if None, applies productivity growth)
-            technological_change_rate: Rate of technological change (default 2% per year)
+            technological_change_rate: Base rate of technological change (default 2% per year)
         """
         if year < 1:
             raise ValueError("Year must be >= 1")
@@ -108,27 +107,79 @@ class DynamicPlanner:
         if new_technology_matrix is not None:
             self.technology_matrices[year] = np.asarray(new_technology_matrix)
         else:
-            # Apply technological change (reduce input coefficients)
+            # Apply Marxist expanded reproduction: technology improves through capital accumulation
             prev_year = max([y for y in self.technology_matrices.keys() if y < year])
             prev_A = self.technology_matrices[prev_year]
 
-            # Reduce input coefficients by technological change rate
+            # Calculate accumulated investment in Department I (means of production)
+            accumulated_investment = 0.0
+            for prev_year in range(1, year):
+                if prev_year in self.plans:
+                    plan = self.plans[prev_year]
+                    # Sum investment in Department I (sectors 0 - 49)
+                    dept_I_investment = np.sum(plan.get("investment_demand", np.zeros(self.n_sectors))[:50])
+                    accumulated_investment += dept_I_investment
+
+            # Technology improvement based on accumulated investment in Department I
+            # Higher investment in means of production drives technological progress
+            investment_factor = min(1.0 + accumulated_investment / 1000000, 2.0)  # Cap at 2x improvement
+
+            # Apply different improvement rates by Marx's departments
             years_diff = year - prev_year
-            change_factor = (1 - technological_change_rate) ** years_diff
-            self.technology_matrices[year] = prev_A * change_factor
+            improved_A = prev_A.copy()
+
+            for i in range(self.n_sectors):
+                for j in range(self.n_sectors):
+                    if i != j:  # Off - diagonal elements (intermediate inputs)
+                        # Department I (means of production) improves fastest
+                        if i < 50 and j < 50:  # Department I to Department I
+                            change_rate = technological_change_rate * 1.5 * investment_factor
+                        elif i < 50:  # Department I to other departments
+                            change_rate = technological_change_rate * 1.2 * investment_factor
+                        elif i < 100:  # Department II (consumer goods)
+                            change_rate = technological_change_rate * 1.0 * investment_factor
+                        else:  # Department III (services)
+                            change_rate = technological_change_rate * 0.8 * investment_factor
+
+                        change_factor = (1 - change_rate) ** years_diff
+                        improved_A[i, j] *= change_factor
+
+            self.technology_matrices[year] = improved_A
 
         # Update labor vector
         if new_labor_vector is not None:
             self.labor_vectors[year] = np.asarray(new_labor_vector).flatten()
         else:
-            # Apply productivity growth (reduce labor requirements)
+            # Apply productivity growth based on Marx's labor theory of value
             prev_year = max([y for y in self.labor_vectors.keys() if y < year])
             prev_l = self.labor_vectors[prev_year]
 
-            # Reduce labor requirements by productivity growth
+            # Calculate accumulated investment for productivity growth
+            accumulated_investment = 0.0
+            for prev_year in range(1, year):
+                if prev_year in self.plans:
+                    plan = self.plans[prev_year]
+                    dept_I_investment = np.sum(plan.get("investment_demand", np.zeros(self.n_sectors))[:50])
+                    accumulated_investment += dept_I_investment
+
+            investment_factor = min(1.0 + accumulated_investment / 1000000, 2.0)
+
+            # Apply different productivity growth by department
             years_diff = year - prev_year
-            change_factor = (1 - technological_change_rate) ** years_diff
-            self.labor_vectors[year] = prev_l * change_factor
+            improved_l = prev_l.copy()
+
+            for i in range(self.n_sectors):
+                if i < 50:  # Department I - highest productivity growth
+                    change_rate = technological_change_rate * 1.5 * investment_factor
+                elif i < 100:  # Department II - medium productivity growth
+                    change_rate = technological_change_rate * 1.2 * investment_factor
+                else:  # Department III - lower productivity growth
+                    change_rate = technological_change_rate * 1.0 * investment_factor
+
+                change_factor = (1 - change_rate) ** years_diff
+                improved_l[i] *= change_factor
+
+            self.labor_vectors[year] = improved_l
 
     def update_capital_stock(
         self, year: int, investment_vector: np.ndarray, new_capital_stock: Optional[np.ndarray] = None
@@ -147,7 +198,7 @@ class DynamicPlanner:
         if new_capital_stock is not None:
             self.capital_stocks[year] = np.asarray(new_capital_stock).flatten()
         else:
-            # Calculate new capital stock: K_t = (I - δ)K_{t-1} + M d_i
+            # Calculate new capital stock: K_t = (I - δ)K_{t - 1} + M d_i
             prev_year = year - 1
             if prev_year not in self.capital_stocks:
                 raise ValueError(f"Capital stock for year {prev_year} not available")
@@ -185,7 +236,7 @@ class DynamicPlanner:
             # Use constrained optimization
             from .optimization import ConstrainedOptimizer
 
-            optimizer = ConstrainedOptimizer(technology_matrix=A_t, direct_labor=l_t, final_demand=d_t)
+            optimizer = ConstrainedOptimizer(technology_matrix = A_t, direct_labor = l_t, final_demand = d_t)
 
             result = optimizer.solve()
 
@@ -235,11 +286,11 @@ class DynamicPlanner:
         self, consumption_demands: List[np.ndarray], investment_demands: List[np.ndarray], use_optimization: bool = True
     ) -> Dict[int, Dict[str, np.ndarray]]:
         """
-        Create a complete 5-year economic plan.
+        Create a complete 5 - year economic plan.
 
         Args:
-            consumption_demands: List of consumption demand vectors for years 1-5
-            investment_demands: List of investment demand vectors for years 1-5
+            consumption_demands: List of consumption demand vectors for years 1 - 5
+            investment_demands: List of investment demand vectors for years 1 - 5
             use_optimization: Whether to use constrained optimization
 
         Returns:
@@ -252,10 +303,10 @@ class DynamicPlanner:
 
         for year in range(1, 6):
             plan = self.plan_year(
-                year=year,
-                consumption_demand=consumption_demands[year - 1],
-                investment_demand=investment_demands[year - 1],
-                use_optimization=use_optimization,
+                year = year,
+                consumption_demand = consumption_demands[year - 1],
+                investment_demand = investment_demands[year - 1],
+                use_optimization = use_optimization,
             )
             plans[year] = plan
 

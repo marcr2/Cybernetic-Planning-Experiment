@@ -6,10 +6,9 @@ Converts natural language goals into quantitative plan adjustments.
 """
 
 from typing import Dict, Any, List, Optional, Union
-import numpy as np
 import re
+import numpy as np
 from .base import BaseAgent
-
 
 class PolicyAgent(BaseAgent):
     """
@@ -184,14 +183,30 @@ class PolicyAgent(BaseAgent):
                 else:
                     target_value = template["adjustment_factor"]
 
-                # Determine target sectors
+                # Determine target sectors using improved mapping
                 target_sectors = []
                 if template["target_sectors"] == ["all"]:
-                    target_sectors = list(range(len(sector_mapping)))
+                    # Get all sector indices from mapping
+                    target_sectors = [idx for idx in sector_mapping.values() if isinstance(idx, int)]
                 else:
                     for sector_name in template["target_sectors"]:
+                        # Try exact name match first
                         if sector_name in sector_mapping:
-                            target_sectors.append(sector_mapping[sector_name])
+                            if isinstance(sector_mapping[sector_name], int):
+                                target_sectors.append(sector_mapping[sector_name])
+                            elif isinstance(sector_mapping[sector_name], list):
+                                target_sectors.extend(sector_mapping[sector_name])
+                        else:
+                            # Try partial name matching
+                            for mapped_name, mapped_idx in sector_mapping.items():
+                                if isinstance(mapped_name, str) and sector_name.lower() in mapped_name.lower():
+                                    if isinstance(mapped_idx, int):
+                                        target_sectors.append(mapped_idx)
+                                    elif isinstance(mapped_idx, list):
+                                        target_sectors.extend(mapped_idx)
+
+                # Remove duplicates and ensure valid indices
+                target_sectors = list(set([idx for idx in target_sectors if isinstance(idx, int) and idx >= 0]))
 
                 return {
                     "template_name": template_name,
@@ -389,7 +404,7 @@ class PolicyAgent(BaseAgent):
             "labor_efficiency": np.sum(total_output) / (total_labor_cost + 1e-10),
         }
 
-        # Add sector-specific social metrics
+        # Add sector - specific social metrics
         if "sector_social_weights" in social_indicators:
             social_weights = social_indicators["sector_social_weights"]
             if len(social_weights) == len(total_output):
@@ -431,7 +446,7 @@ class PolicyAgent(BaseAgent):
             goal_achievement["output_distribution"] = {
                 "target": distribution_target,
                 "actual": actual_distribution,
-                "achieved": np.allclose(actual_distribution, distribution_target, atol=0.1),
+                "achieved": np.allclose(actual_distribution, distribution_target, atol = 0.1),
                 "achievement_rate": 1.0 - np.mean(np.abs(actual_distribution - distribution_target)),
             }
 
@@ -445,7 +460,7 @@ class PolicyAgent(BaseAgent):
             social_metrics: Social impact metrics
 
         Returns:
-            Social welfare score (0-1, higher is better)
+            Social welfare score (0 - 1, higher is better)
         """
         # Weighted combination of social metrics
         weights = {
@@ -460,7 +475,7 @@ class PolicyAgent(BaseAgent):
 
         for metric, weight in weights.items():
             if metric in social_metrics:
-                # Normalize metric to 0-1 range
+                # Normalize metric to 0 - 1 range
                 normalized_metric = min(max(social_metrics[metric] / 1000, 0), 1)  # Simple normalization
                 welfare_score += weight * normalized_metric
                 total_weight += abs(weight)

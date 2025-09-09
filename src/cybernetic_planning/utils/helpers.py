@@ -4,9 +4,7 @@ Helper utilities for the cybernetic planning system.
 Provides formatting, data manipulation, and other utility functions.
 """
 
-import numpy as np
 from typing import Dict, Any, Union
-
 
 def format_number(value: Union[float, int], decimals: int = 2) -> str:
     """
@@ -21,27 +19,25 @@ def format_number(value: Union[float, int], decimals: int = 2) -> str:
     """
     if isinstance(value, (int, float)):
         if abs(value) >= 1e6:
-            return f"{value/1e6:.{decimals}f}M"
+            return f"{value / 1e6:.{decimals}f}M"
         elif abs(value) >= 1e3:
-            return f"{value/1e3:.{decimals}f}K"
+            return f"{value / 1e3:.{decimals}f}K"
         else:
             return f"{value:.{decimals}f}"
     return str(value)
-
 
 def format_percentage(value: float, decimals: int = 1) -> str:
     """
     Format a value as a percentage.
 
     Args:
-        value: Value to format (0-1 range)
+        value: Value to format (0 - 1 range)
         decimals: Number of decimal places
 
     Returns:
         Formatted percentage string
     """
     return f"{value * 100:.{decimals}f}%"
-
 
 def create_summary_table(data: Dict[str, Any], title: str = "Summary Table") -> str:
     """
@@ -66,7 +62,6 @@ def create_summary_table(data: Dict[str, Any], title: str = "Summary Table") -> 
 
     return "\n".join(table_lines)
 
-
 def calculate_economic_indicators(plan_data: Dict[str, Any]) -> Dict[str, float]:
     """
     Calculate key economic indicators from plan data.
@@ -84,16 +79,15 @@ def calculate_economic_indicators(plan_data: Dict[str, Any]) -> Dict[str, float]
     indicators = {
         "total_economic_output": np.sum(total_output),
         "total_labor_cost": total_labor_cost,
-        "labor_efficiency": np.sum(total_output) / (total_labor_cost + 1e-10),
-        "demand_fulfillment_rate": np.sum(final_demand) / (np.sum(total_output) + 1e-10),
-        "output_inequality": np.std(total_output) / (np.mean(total_output) + 1e-10),
+        "labor_efficiency": np.sum(total_output) / (total_labor_cost + 1e - 10),
+        "demand_fulfillment_rate": np.sum(final_demand) / (np.sum(total_output) + 1e - 10),
+        "output_inequality": np.std(total_output) / (np.mean(total_output) + 1e - 10),
         "average_sector_output": np.mean(total_output),
         "max_sector_output": np.max(total_output),
         "min_sector_output": np.min(total_output),
     }
 
     return indicators
-
 
 def validate_plan_consistency(plan_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -144,7 +138,7 @@ def validate_plan_consistency(plan_data: Dict[str, Any]) -> Dict[str, Any]:
     calculated_labor_cost = np.sum(labor_values * total_output)
     actual_labor_cost = plan_data["total_labor_cost"]
 
-    if not np.isclose(calculated_labor_cost, actual_labor_cost, rtol=1e-6):
+    if not np.isclose(calculated_labor_cost, actual_labor_cost, rtol = 1e - 6):
         results["warnings"].append(
             f"Labor cost mismatch: calculated {calculated_labor_cost:.2f}, " f"stored {actual_labor_cost:.2f}"
         )

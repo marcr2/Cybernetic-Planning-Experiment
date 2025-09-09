@@ -1,7 +1,7 @@
 """
 Labor Value Calculation Implementation
 
-Implements Cockshott's labor-time accounting model for calculating
+Implements Cockshott's labor - time accounting model for calculating
 the total direct and indirect labor embodied in commodities.
 """
 
@@ -9,7 +9,6 @@ import numpy as np
 from scipy.sparse import issparse
 from scipy.sparse.linalg import spsolve
 import warnings
-
 
 class LaborValueCalculator:
     """
@@ -19,9 +18,7 @@ class LaborValueCalculator:
     labor embodied in one unit of each product:
     v = vA + l
     where:
-    - v is the labor value vector
-    - A is the technology matrix
-    - l is the direct labor input vector
+    - v is the labor value vector - A is the technology matrix - l is the direct labor input vector
     """
 
     def __init__(self, technology_matrix: np.ndarray, direct_labor: np.ndarray):
@@ -62,7 +59,7 @@ class LaborValueCalculator:
         spectral_radius = np.max(np.abs(eigenvals))
         if spectral_radius >= 1:
             raise ValueError(f"Economy is not productive (spectral radius = {spectral_radius:.4f} >= 1). "
-                           "Labor values cannot be calculated for non-productive economies.")
+                           "Labor values cannot be calculated for non - productive economies.")
 
     def _compute_labor_values(self) -> None:
         """
@@ -138,7 +135,7 @@ class LaborValueCalculator:
         Compute labor productivity (output per unit labor).
 
         Returns:
-            Labor productivity vector 1/v
+            Labor productivity vector 1 / v
         """
         labor_values = self.get_labor_values()
 

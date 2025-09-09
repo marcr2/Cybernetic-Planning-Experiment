@@ -9,7 +9,6 @@ from typing import Dict, Any, List, Optional
 import numpy as np
 from .base import BaseAgent
 
-
 class ResourceAgent(BaseAgent):
     """
     Resource and environmental specialist agent.
@@ -215,7 +214,7 @@ class ResourceAgent(BaseAgent):
 
         # Find best substitution candidate
         if similarity_scores:
-            best_substitute = max(similarity_scores, key=lambda x: x[1])
+            best_substitute = max(similarity_scores, key = lambda x: x[1])
             if best_substitute[1] > 0.7:  # High similarity threshold
                 return {
                     "bottleneck_resource": resource_idx,
@@ -301,7 +300,7 @@ class ResourceAgent(BaseAgent):
             impacts: Environmental impact vector
 
         Returns:
-            Sustainability score (0-1, higher is better)
+            Sustainability score (0 - 1, higher is better)
         """
         # Normalize impacts (simplified approach)
         normalized_impacts = impacts / (np.sum(impacts) + 1e-10)
@@ -390,7 +389,7 @@ class ResourceAgent(BaseAgent):
             # Calculate sustainability metrics
             sustainability_metrics = self._calculate_sustainability_metrics(environmental_impacts)
 
-            # Assess long-term sustainability
+            # Assess long - term sustainability
             long_term_assessment = self._assess_long_term_sustainability(environmental_impacts)
 
             return {
@@ -430,13 +429,13 @@ class ResourceAgent(BaseAgent):
 
     def _assess_long_term_sustainability(self, impacts: np.ndarray) -> Dict[str, Any]:
         """
-        Assess long-term sustainability implications.
+        Assess long - term sustainability implications.
 
         Args:
             impacts: Environmental impact vector
 
         Returns:
-            Long-term sustainability assessment
+            Long - term sustainability assessment
         """
         # Project impacts over time (simplified model)
         time_horizon = 20  # years
@@ -512,7 +511,7 @@ class ResourceAgent(BaseAgent):
                     )
 
         # Sort by substitution potential
-        substitution_opportunities.sort(key=lambda x: x["substitution_potential"], reverse=True)
+        substitution_opportunities.sort(key = lambda x: x["substitution_potential"], reverse = True)
 
         return {
             "status": "success",

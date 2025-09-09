@@ -5,21 +5,18 @@ Implements linear programming optimization to minimize labor time
 subject to demand fulfillment and resource constraints.
 """
 
+from typing import Optional, Dict, Any
 import numpy as np
 import cvxpy as cp
-from typing import Optional, Dict, Any
 from scipy.optimize import linprog
 import warnings
-
 
 class ConstrainedOptimizer:
     """
     Solves constrained optimization problems for economic planning.
 
     Minimizes total labor cost subject to:
-    - Demand fulfillment: (I - A)x >= d
-    - Resource constraints: Rx <= R_max
-    - Non-negativity: x >= 0
+    - Demand fulfillment: (I - A)x >= d - Resource constraints: Rx <= R_max - Non - negativity: x >= 0
     """
 
     def __init__(
@@ -89,7 +86,7 @@ class ConstrainedOptimizer:
         n = self.A.shape[0]
 
         # Decision variable: total output vector
-        x = cp.Variable(n, nonneg=True)
+        x = cp.Variable(n, nonneg = True)
 
         # Objective: minimize total labor cost
         objective = cp.Minimize(self.l @ x)
@@ -97,9 +94,10 @@ class ConstrainedOptimizer:
         # Constraints
         constraints = []
 
-        # Demand fulfillment: (I - A)x = d (exact fulfillment as per Cockshott)
+        # Demand fulfillment: (I - A)x >= d (meet or exceed demand as per cybernetic principles)
+        # This allows for surplus production and proper feedback loops
         I = np.eye(n)
-        constraints.append((I - self.A) @ x == self.d)
+        constraints.append((I - self.A) @ x >= self.d)
 
         # Resource constraints: Rx <= R_max
         if self.R is not None and self.R_max is not None:
@@ -115,17 +113,19 @@ class ConstrainedOptimizer:
         # Objective: minimize total labor cost
         c = self.l
 
-        # Constraints: (I - A)x = d, so we need equality constraints
+        # Constraints: (I - A)x >= d, so we need inequality constraints
         I = np.eye(n)
-        A_eq = (I - self.A)
-        b_eq = self.d
+        A_ub = -(I - self.A)  # Negative because scipy uses A_ub @ x <= b_ub
+        b_ub = -self.d
 
         # Add resource constraints if provided
-        A_ub = None
-        b_ub = None
         if self.R is not None and self.R_max is not None:
-            A_ub = self.R
-            b_ub = self.R_max
+            # Combine demand and resource constraints
+            A_ub_combined = np.vstack([A_ub, self.R])
+            b_ub_combined = np.hstack([b_ub, self.R_max])
+        else:
+            A_ub_combined = A_ub
+            b_ub_combined = b_ub
 
         # Bounds: x >= 0
         bounds = [(0, None) for _ in range(n)]
@@ -133,10 +133,8 @@ class ConstrainedOptimizer:
         # Store problem parameters
         self._scipy_params = {
             "c": c,
-            "A_eq": A_eq,
-            "b_eq": b_eq,
-            "A_ub": A_ub,
-            "b_ub": b_ub,
+            "A_ub": A_ub_combined,
+            "b_ub": b_ub_combined,
             "bounds": bounds,
             "method": "highs",  # Use HiGHS solver
         }
@@ -147,7 +145,7 @@ class ConstrainedOptimizer:
 
         Args:
             use_cvxpy: Whether to use CVXPY (True) or scipy.optimize (False)
-            solver: CVXPY solver to use (if use_cvxpy=True)
+            solver: CVXPY solver to use (if use_cvxpy = True)
 
         Returns:
             Dictionary with solution information
@@ -165,7 +163,7 @@ class ConstrainedOptimizer:
             solver = cp.ECOS  # Default solver
 
         try:
-            self._problem.solve(solver=solver)
+            self._problem.solve(solver = solver)
             self._status = self._problem.status
 
             if self._status == cp.OPTIMAL:
@@ -273,7 +271,7 @@ class ConstrainedOptimizer:
             resource_usage = self.R @ solution
             resource_violations = np.maximum(0, resource_usage - self.R_max)
 
-        # Check non-negativity
+        # Check non - negativity
         negativity_violations = np.maximum(0, -solution)
 
         return {
@@ -289,4 +287,3 @@ class ConstrainedOptimizer:
                 and np.allclose(negativity_violations, 0, atol=1e-6)
             ),
         }
-

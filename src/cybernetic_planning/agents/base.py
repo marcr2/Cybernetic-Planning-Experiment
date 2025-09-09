@@ -1,17 +1,16 @@
 """
 Base Agent Class
 
-Provides the foundation for all specialized agents in the multi-agent system.
+Provides the foundation for all specialized agents in the multi - agent system.
 """
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 
-
 @dataclass
 class AgentMessage:
-    """Message structure for inter-agent communication."""
+    """Message structure for inter - agent communication."""
 
     sender: str
     recipient: str
@@ -19,10 +18,9 @@ class AgentMessage:
     content: Dict[str, Any]
     timestamp: float
 
-
 class BaseAgent(ABC):
     """
-    Base class for all agents in the multi-agent system.
+    Base class for all agents in the multi - agent system.
 
     Provides common functionality for agent communication, state management,
     and task execution.
@@ -34,7 +32,7 @@ class BaseAgent(ABC):
 
         Args:
             agent_id: Unique identifier for the agent
-            name: Human-readable name for the agent
+            name: Human - readable name for the agent
         """
         self.agent_id = agent_id
         self.name = name
@@ -54,7 +52,7 @@ class BaseAgent(ABC):
         import time
 
         message = AgentMessage(
-            sender=self.agent_id, recipient=recipient, message_type=message_type, content=content, timestamp=time.time()
+            sender = self.agent_id, recipient = recipient, message_type = message_type, content = content, timestamp = time.time()
         )
         # In a real implementation, this would be sent through a message broker
         # For now, we'll just store it locally

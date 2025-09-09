@@ -2,7 +2,7 @@
 Bureau of Labor Statistics (BLS) Data Scraper
 
 Scrapes labor data including employment, wages, and labor intensity by sector
-from BLS databases and O*NET occupational information.
+from BLS databases and O * NET occupational information.
 """
 
 from typing import Dict, Any, List, Optional
@@ -11,21 +11,18 @@ import os
 
 from .base_scraper import BaseScraper
 
-
 class BLSScraper(BaseScraper):
     """
     Scraper for Bureau of Labor Statistics labor data.
 
     Collects labor capacity and intensity data including:
-    - Employment by sector and occupation
-    - Wage rates by skill level
-    - Labor intensity coefficients (labor hours per unit output)
+    - Employment by sector and occupation - Wage rates by skill level - Labor intensity coefficients (labor hours per unit output)
     - Occupational skill requirements
     """
 
     def __init__(self, api_key: Optional[str] = None, **kwargs):
         """Initialize BLS scraper."""
-        super().__init__(base_url="https://api.bls.gov/publicAPI/v2", rate_limit=1.0, **kwargs)
+        super().__init__(base_url="https://api.bls.gov / publicAPI / v2", rate_limit = 1.0, **kwargs)
 
         # Use provided API key or try to get from environment
         self.api_key = api_key or os.getenv("BLS_API_KEY")
@@ -113,7 +110,7 @@ class BLSScraper(BaseScraper):
             {
                 "id": "occupational_skills",
                 "name": "Occupational Skill Requirements",
-                "description": "Skill requirements by occupation from O*NET",
+                "description": "Skill requirements by occupation from O * NET",
                 "category": "skills",
                 "frequency": "annual",
                 "start_year": 2010,
@@ -144,7 +141,7 @@ class BLSScraper(BaseScraper):
                 return self._scrape_public_employment_data(year)
 
             # Use BLS API v2 for employment data
-            url = f"{self.base_url}/timeseries/data/"
+            url = f"{self.base_url}/timeseries / data/"
 
             # Prepare request data
             request_data = {
@@ -154,7 +151,7 @@ class BLSScraper(BaseScraper):
                 "registrationkey": self.api_key,
             }
 
-            response = self.make_request(url, method="POST", json_data=request_data)
+            response = self.make_request(url, method="POST", json_data = request_data)
 
             # Parse JSON response
             if response and response.status_code == 200:
@@ -184,7 +181,7 @@ class BLSScraper(BaseScraper):
         """Scrape employment data from public BLS sources."""
         try:
             # Use BLS public API (no key required)
-            url = f"{self.base_url}/timeseries/data/"
+            url = f"{self.base_url}/timeseries / data/"
 
             request_data = {
                 "seriesid": self.series_ids["employment_by_industry"],
@@ -192,7 +189,7 @@ class BLSScraper(BaseScraper):
                 "endyear": str(year),
             }
 
-            response = self.make_request(url, method="POST", json_data=request_data)
+            response = self.make_request(url, method="POST", json_data = request_data)
 
             # Parse JSON response
             if response and response.status_code == 200:
@@ -249,7 +246,7 @@ class BLSScraper(BaseScraper):
                 return self._scrape_public_wage_data(year)
 
             # Use BLS API v2 for wage data
-            url = f"{self.base_url}/timeseries/data/"
+            url = f"{self.base_url}/timeseries / data/"
 
             request_data = {
                 "seriesid": self.series_ids["wage_rates"],
@@ -258,7 +255,7 @@ class BLSScraper(BaseScraper):
                 "registrationkey": self.api_key,
             }
 
-            response = self.make_request(url, method="POST", json_data=request_data)
+            response = self.make_request(url, method="POST", json_data = request_data)
 
             # Parse JSON response
             if response and response.status_code == 200:
@@ -287,11 +284,11 @@ class BLSScraper(BaseScraper):
     def _scrape_public_wage_data(self, year: int) -> Dict[str, Any]:
         """Scrape wage data from public BLS sources."""
         try:
-            url = f"{self.base_url}/timeseries/data/"
+            url = f"{self.base_url}/timeseries / data/"
 
             request_data = {"seriesid": self.series_ids["wage_rates"], "startyear": str(year), "endyear": str(year)}
 
-            response = self.make_request(url, method="POST", json_data=request_data)
+            response = self.make_request(url, method="POST", json_data = request_data)
 
             # Parse JSON response
             if response and response.status_code == 200:
@@ -459,7 +456,7 @@ class BLSScraper(BaseScraper):
 
         for dataset in datasets:
             try:
-                data = self.scrape_dataset(dataset["id"], year=year)
+                data = self.scrape_dataset(dataset["id"], year = year)
                 all_data[dataset["id"]] = data
                 all_data["metadata"]["data_sources"].append(dataset["id"])
             except Exception as e:

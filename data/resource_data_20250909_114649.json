@@ -1,6 +1,5 @@
 {
   "year": 2024,
-  "synchronization_timestamp": "2025-09-09T11:47:16.983715",
   "energy_data": {
     "dataset_id": "empty_energy_data",
     "year": 2024,
@@ -8,7 +7,7 @@
     "metadata": {
       "source": "none",
       "data_quality": "none",
-      "sync_timestamp": "2025-09-09T11:47:16.983718"
+      "sync_timestamp": "2025-09-09T11:46:49.758862"
     }
   },
   "material_data": {
@@ -18,7 +17,7 @@
     "metadata": {
       "source": "none",
       "data_quality": "none",
-      "sync_timestamp": "2025-09-09T11:47:16.983721"
+      "sync_timestamp": "2025-09-09T11:46:49.758864"
     }
   },
   "labor_data": {
@@ -28,7 +27,7 @@
     "metadata": {
       "source": "none",
       "data_quality": "none",
-      "sync_timestamp": "2025-09-09T11:47:16.983723"
+      "sync_timestamp": "2025-09-09T11:46:49.758866"
     }
   },
   "environmental_data": {
@@ -38,25 +37,26 @@
     "metadata": {
       "source": "none",
       "data_quality": "none",
-      "sync_timestamp": "2025-09-09T11:47:16.983725"
+      "sync_timestamp": "2025-09-09T11:46:49.758868"
     }
   },
+  "resource_matrices": {},
   "metadata": {
     "sync_method": "multi_source_weighted_average",
     "data_sources": [
-      "material_intensity",
-      "mineral_production",
-      "renewable_energy_by_sector",
-      "supply_chain_analysis",
-      "wage_rates",
-      "occupational_skills",
-      "labor_intensity",
-      "material_consumption",
-      "energy_intensity_by_sector",
-      "employment_by_sector",
       "critical_materials",
+      "wage_rates",
+      "electricity_consumption_by_sector",
       "energy_consumption_by_sector",
-      "electricity_consumption_by_sector"
+      "renewable_energy_by_sector",
+      "labor_intensity",
+      "occupational_skills",
+      "material_consumption",
+      "employment_by_sector",
+      "supply_chain_analysis",
+      "energy_intensity_by_sector",
+      "material_intensity",
+      "mineral_production"
     ],
     "quality_metrics": {
       "overall_quality": "low",
@@ -66,5 +66,6 @@
       "confidence_scores": {}
     },
     "conflicts_resolved": 0
-  }
+  },
+  "synchronization_timestamp": "2025-09-09T11:46:49.758859"
 }

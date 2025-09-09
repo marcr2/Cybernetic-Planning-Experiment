@@ -1,5 +1,5 @@
 """
-Inter-Agent Communication System
+Inter - Agent Communication System
 
 Facilitates structured communication between economic review agents,
 enabling knowledge sharing, consensus building, and conflict resolution.
@@ -15,12 +15,11 @@ import logging
 from collections import defaultdict
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level = logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 class MessageType(Enum):
-    """Types of inter-agent messages."""
+    """Types of inter - agent messages."""
 
     FINDING = "finding"
     QUESTION = "question"
@@ -32,7 +31,6 @@ class MessageType(Enum):
     COORDINATION = "coordination"
     STATUS_UPDATE = "status_update"
 
-
 class MessagePriority(Enum):
     """Message priority levels."""
 
@@ -40,7 +38,6 @@ class MessagePriority(Enum):
     NORMAL = 2
     HIGH = 3
     URGENT = 4
-
 
 @dataclass
 class AgentMessage:
@@ -57,8 +54,7 @@ class AgentMessage:
     requires_response: bool = False
     response_deadline: Optional[float] = None
     conversation_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
+    metadata: Dict[str, Any] = field(default_factory = dict)
 
 @dataclass
 class ConversationThread:
@@ -72,7 +68,6 @@ class ConversationThread:
     last_activity: float
     status: str  # 'active', 'resolved', 'archived'
 
-
 @dataclass
 class ConsensusItem:
     """Represents an item being evaluated for consensus."""
@@ -80,16 +75,15 @@ class ConsensusItem:
     item_id: str
     topic: str
     statement: str
-    agent_positions: Dict[str, Any]  # agent_id -> position/vote
+    agent_positions: Dict[str, Any]  # agent_id -> position / vote
     consensus_threshold: float
     created_time: float
     deadline: Optional[float]
     status: str  # 'pending', 'achieved', 'failed'
 
-
 class CommunicationHub:
     """
-    Central communication hub for inter-agent messaging.
+    Central communication hub for inter - agent messaging.
 
     Manages message routing, conversation threads, consensus building,
     and conflict resolution between economic review agents.
@@ -111,7 +105,7 @@ class CommunicationHub:
         # Thread safety
         self._lock = threading.RLock()
 
-        # Auto-cleanup settings
+        # Auto - cleanup settings
         self.max_message_history = 1000
         self.conversation_timeout = 3600  # 1 hour
 
@@ -199,7 +193,7 @@ class CommunicationHub:
                 return None
 
             queue = self.message_queues[agent_id]
-            return queue.get(timeout=timeout)
+            return queue.get(timeout = timeout)
 
         except Empty:
             return None
@@ -239,12 +233,12 @@ class CommunicationHub:
 
         with self._lock:
             thread = ConversationThread(
-                thread_id=thread_id,
-                participants=set(participants + [initiator_id]),
-                subject=subject,
+                thread_id = thread_id,
+                participants = set(participants + [initiator_id]),
+                subject = subject,
                 messages=[],
-                created_time=time.time(),
-                last_activity=time.time(),
+                created_time = time.time(),
+                last_activity = time.time(),
                 status="active",
             )
 
@@ -290,13 +284,13 @@ class CommunicationHub:
         deadline = time.time() + deadline_seconds if deadline_seconds else None
 
         consensus_item = ConsensusItem(
-            item_id=item_id,
-            topic=topic,
-            statement=statement,
+            item_id = item_id,
+            topic = topic,
+            statement = statement,
             agent_positions={},
-            consensus_threshold=threshold,
-            created_time=time.time(),
-            deadline=deadline,
+            consensus_threshold = threshold,
+            created_time = time.time(),
+            deadline = deadline,
             status="pending",
         )
 
@@ -307,12 +301,12 @@ class CommunicationHub:
         for participant_id in participants:
             if participant_id != requester_id and participant_id in self.agents:
                 message = AgentMessage(
-                    message_id=f"consensus_req_{item_id}_{participant_id}",
-                    sender_id=requester_id,
-                    recipient_id=participant_id,
-                    message_type=MessageType.CONSENSUS_REQUEST,
-                    priority=MessagePriority.HIGH,
-                    subject=f"Consensus Request: {topic}",
+                    message_id = f"consensus_req_{item_id}_{participant_id}",
+                    sender_id = requester_id,
+                    recipient_id = participant_id,
+                    message_type = MessageType.CONSENSUS_REQUEST,
+                    priority = MessagePriority.HIGH,
+                    subject = f"Consensus Request: {topic}",
                     content={
                         "consensus_id": item_id,
                         "topic": topic,
@@ -320,9 +314,9 @@ class CommunicationHub:
                         "threshold": threshold,
                         "deadline": deadline,
                     },
-                    timestamp=time.time(),
-                    requires_response=True,
-                    response_deadline=deadline,
+                    timestamp = time.time(),
+                    requires_response = True,
+                    response_deadline = deadline,
                 )
                 self.send_message(message)
 
@@ -567,10 +561,10 @@ class CommunicationHub:
         # Start a consensus process
         consensus_id = self.request_consensus(
             requester_id="system",
-            topic=conflict["type"],
-            statement=conflict["description"],
-            participants=conflict["agents"],
-            threshold=0.6,
+            topic = conflict["type"],
+            statement = conflict["description"],
+            participants = conflict["agents"],
+            threshold = 0.6,
         )
 
         return {"status": "in_progress", "method": "consensus", "consensus_id": consensus_id}
@@ -585,38 +579,35 @@ class CommunicationHub:
         """Resolve conflict by majority vote."""
         return {"status": "resolved", "method": "majority_vote", "resolution": "Majority position adopted"}
 
-
 # Utility functions for message creation
 def create_finding_message(sender_id: str, recipient_id: str, finding: Dict[str, Any]) -> AgentMessage:
     """Create a finding sharing message."""
     return AgentMessage(
-        message_id=f"finding_{int(time.time())}_{sender_id}",
-        sender_id=sender_id,
-        recipient_id=recipient_id,
-        message_type=MessageType.FINDING,
-        priority=MessagePriority.NORMAL,
-        subject=f"Finding: {finding.get('topic', 'Economic Analysis')}",
-        content=finding,
-        timestamp=time.time(),
+        message_id = f"finding_{int(time.time())}_{sender_id}",
+        sender_id = sender_id,
+        recipient_id = recipient_id,
+        message_type = MessageType.FINDING,
+        priority = MessagePriority.NORMAL,
+        subject = f"Finding: {finding.get('topic', 'Economic Analysis')}",
+        content = finding,
+        timestamp = time.time(),
     )
-
 
 def create_question_message(
     sender_id: str, recipient_id: str, question: str, context: Dict[str, Any] = None
 ) -> AgentMessage:
     """Create a question message."""
     return AgentMessage(
-        message_id=f"question_{int(time.time())}_{sender_id}",
-        sender_id=sender_id,
-        recipient_id=recipient_id,
-        message_type=MessageType.QUESTION,
-        priority=MessagePriority.NORMAL,
-        subject=f"Question from {sender_id}",
+        message_id = f"question_{int(time.time())}_{sender_id}",
+        sender_id = sender_id,
+        recipient_id = recipient_id,
+        message_type = MessageType.QUESTION,
+        priority = MessagePriority.NORMAL,
+        subject = f"Question from {sender_id}",
         content={"question": question, "context": context or {}},
-        timestamp=time.time(),
-        requires_response=True,
+        timestamp = time.time(),
+        requires_response = True,
     )
-
 
 def create_coordination_message(
     sender_id: str, recipients: List[str], coordination_request: Dict[str, Any]
@@ -626,15 +617,15 @@ def create_coordination_message(
 
     for recipient_id in recipients:
         message = AgentMessage(
-            message_id=f"coord_{int(time.time())}_{sender_id}_{recipient_id}",
-            sender_id=sender_id,
-            recipient_id=recipient_id,
-            message_type=MessageType.COORDINATION,
-            priority=MessagePriority.HIGH,
-            subject=f"Coordination Request: {coordination_request.get('task', 'Unknown')}",
-            content=coordination_request,
-            timestamp=time.time(),
-            requires_response=True,
+            message_id = f"coord_{int(time.time())}_{sender_id}_{recipient_id}",
+            sender_id = sender_id,
+            recipient_id = recipient_id,
+            message_type = MessageType.COORDINATION,
+            priority = MessagePriority.HIGH,
+            subject = f"Coordination Request: {coordination_request.get('task', 'Unknown')}",
+            content = coordination_request,
+            timestamp = time.time(),
+            requires_response = True,
         )
         messages.append(message)
 

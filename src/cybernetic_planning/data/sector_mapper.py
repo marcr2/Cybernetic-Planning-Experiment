@@ -1,23 +1,18 @@
 """
 Sector Mapping and Data Integration
 
-Maps data from various sources to the 175-sector BEA classification
+Maps data from various sources to the 175 - sector BEA classification
 and handles data normalization and integration.
 """
 
-import numpy as np
-from typing import Dict, Any, Optional
-
+from typing import Dict, Any, Optional, List
 
 class SectorMapper:
     """
-    Maps data from various sources to BEA 175-sector classification.
+    Maps data from various sources to BEA 175 - sector classification.
 
     Handles:
-    - Cross-walking between different sector classifications
-    - Data normalization and unit conversion
-    - Missing data estimation and interpolation
-    - Quality assessment and validation
+    - Cross - walking between different sector classifications - Data normalization and unit conversion - Missing data estimation and interpolation - Quality assessment and validation
     """
 
     def __init__(self, mapping_config: Optional[Dict[str, Any]] = None):
@@ -55,18 +50,46 @@ class SectorMapper:
         }
 
     def _load_bea_sector_definitions(self) -> Dict[int, Dict[str, Any]]:
-        """Load BEA 175-sector definitions."""
-        # This would typically load from a configuration file
-        # For now, create a simplified structure
+        """Load BEA 175 - sector definitions based on Marx's reproduction schemes."""
         sectors = {}
 
-        for i in range(1, 176):
+        # Department I: Means of production (sectors 1 - 50)
+        for i in range(1, 51):
             sectors[i] = {
                 "sector_id": i,
                 "naics_code": f"NAICS_{i:03d}",
-                "sector_name": f"Sector {i}",
-                "category": self._categorize_sector(i),
-                "description": f"Economic sector {i} description",
+                "sector_name": f"Dept_I_Sector_{i}",
+                "category": "means_of_production",
+                "description": f"Means of production sector {i} - heavy industry, machinery, raw materials",
+                "marx_department": "I",
+                "labor_intensity": "high",
+                "capital_intensity": "high"
+            }
+
+        # Department II: Consumer goods (sectors 51 - 100)
+        for i in range(51, 101):
+            sectors[i] = {
+                "sector_id": i,
+                "naics_code": f"NAICS_{i:03d}",
+                "sector_name": f"Dept_II_Sector_{i - 50}",
+                "category": "consumer_goods",
+                "description": f"Consumer goods sector {i - 50} - manufactured goods for consumption",
+                "marx_department": "II",
+                "labor_intensity": "medium",
+                "capital_intensity": "medium"
+            }
+
+        # Department III: Services and other (sectors 101 - 175)
+        for i in range(101, 176):
+            sectors[i] = {
+                "sector_id": i,
+                "naics_code": f"NAICS_{i:03d}",
+                "sector_name": f"Dept_III_Sector_{i - 100}",
+                "category": "services",
+                "description": f"Services sector {i - 100} - services, trade, transportation, etc.",
+                "marx_department": "III",
+                "labor_intensity": "variable",
+                "capital_intensity": "low"
             }
 
         return sectors
@@ -97,16 +120,58 @@ class SectorMapper:
             "epa_to_bea": self._create_epa_mapping(),
         }
 
+    def get_sector_mapping(self) -> Dict[str, int]:
+        """Get comprehensive sector name to index mapping."""
+        mapping = {}
+
+        # Add mapping for all sectors
+        for sector_id, sector_info in self.bea_sectors.items():
+            # Map by sector name
+            mapping[sector_info["sector_name"]] = sector_id - 1  # Convert to 0 - based index
+
+            # Map by category
+            category = sector_info["category"]
+            if category not in mapping:
+                mapping[category] = []
+            mapping[category].append(sector_id - 1)
+
+            # Map by Marx department
+            dept = sector_info["marx_department"]
+            dept_key = f"department_{dept.lower()}"
+            if dept_key not in mapping:
+                mapping[dept_key] = []
+            mapping[dept_key].append(sector_id - 1)
+
+        return mapping
+
+    def get_sector_by_name(self, sector_name: str) -> Optional[Dict[str, Any]]:
+        """Get sector information by name."""
+        for sector_id, sector_info in self.bea_sectors.items():
+            if sector_info["sector_name"] == sector_name:
+                return sector_info
+        return None
+
+    def get_sectors_by_department(self, department: str) -> List[int]:
+        """Get sector indices by Marx department (I, II, III)."""
+        dept_key = f"department_{department.lower()}"
+        mapping = self.get_sector_mapping()
+        return mapping.get(dept_key, [])
+
+    def get_sectors_by_category(self, category: str) -> List[int]:
+        """Get sector indices by category."""
+        mapping = self.get_sector_mapping()
+        return mapping.get(category, [])
+
     def _create_naics_mapping(self) -> Dict[str, int]:
         """Create NAICS to BEA sector mapping."""
         # Simplified mapping - in practice would be more detailed
         mapping = {}
 
-        # Manufacturing sectors (NAICS 31-33)
+        # Manufacturing sectors (NAICS 31 - 33)
         for naics in range(311, 340):
             mapping[f"NAICS_{naics}"] = (naics - 311) % 20 + 1
 
-        # Services sectors (NAICS 51-92)
+        # Services sectors (NAICS 51 - 92)
         for naics in range(510, 930):
             mapping[f"NAICS_{naics}"] = (naics - 510) % 125 + 21
 
@@ -116,11 +181,11 @@ class SectorMapper:
         """Create SIC to BEA sector mapping."""
         mapping = {}
 
-        # Manufacturing (SIC 20-39)
+        # Manufacturing (SIC 20 - 39)
         for sic in range(200, 400):
             mapping[f"SIC_{sic}"] = (sic - 200) % 20 + 1
 
-        # Services (SIC 40-89)
+        # Services (SIC 40 - 89)
         for sic in range(400, 900):
             mapping[f"SIC_{sic}"] = (sic - 400) % 125 + 21
 
@@ -188,7 +253,7 @@ class SectorMapper:
 
     def map_data_to_bea_sectors(self, data: Dict[str, Any], source_type: str, data_type: str) -> Dict[str, Any]:
         """
-        Map data from source classification to BEA 175-sector classification.
+        Map data from source classification to BEA 175 - sector classification.
 
         Args:
             data: Source data dictionary
@@ -590,7 +655,7 @@ class SectorMapper:
             Data with normalized units
         """
         # This would implement unit conversion logic
-        # For now, return data as-is
+        # For now, return data as - is
         return data
 
     def get_mapping_summary(self) -> Dict[str, Any]:

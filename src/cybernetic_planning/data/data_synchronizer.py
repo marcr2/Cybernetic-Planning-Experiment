@@ -13,17 +13,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 class DataSynchronizer:
     """
     Synchronizes data from multiple sources and creates unified datasets.
 
     Features:
-    - Multi-source data aggregation
-    - Intelligent averaging and interpolation
-    - Data quality assessment
-    - Conflict resolution
-    - Temporal alignment
+    - Multi - source data aggregation - Intelligent averaging and interpolation - Data quality assessment - Conflict resolution - Temporal alignment
     """
 
     def __init__(self, cache_dir: str = "cache", output_dir: str = "data"):
@@ -36,8 +31,8 @@ class DataSynchronizer:
         """
         self.cache_dir = Path(cache_dir)
         self.output_dir = Path(output_dir)
-        self.cache_dir.mkdir(exist_ok=True)
-        self.output_dir.mkdir(exist_ok=True)
+        self.cache_dir.mkdir(exist_ok = True)
+        self.output_dir.mkdir(exist_ok = True)
 
         # Synchronization settings
         self.sync_settings = {
@@ -269,7 +264,7 @@ class DataSynchronizer:
             output_file = self.output_dir / f"synchronized_resource_data_{synchronized_data['year']}.json"
 
             with open(output_file, "w") as f:
-                json.dump(synchronized_data, f, indent=2, default=str)
+                json.dump(synchronized_data, f, indent = 2, default = str)
 
             logger.info(f"Synchronized data saved to {output_file}")
 

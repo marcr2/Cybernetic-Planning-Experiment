@@ -14,9 +14,8 @@ import logging
 from .review_manager import ComprehensiveReview, ReviewSession
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level = logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class ReportTemplate:
@@ -29,12 +28,11 @@ class ReportTemplate:
     format_options: Dict[str, Any]
     target_audience: str
 
-
 class ReportFormatter:
     """
     Professional report formatting system.
 
-    Generates high-quality reports in multiple formats with customizable
+    Generates high - quality reports in multiple formats with customizable
     templates for different audiences and purposes.
     """
 
@@ -80,7 +78,7 @@ class ReportFormatter:
         templates["policy"] = ReportTemplate(
             template_id="policy",
             name="Policy Brief",
-            description="Policy-focused brief for government officials",
+            description="Policy - focused brief for government officials",
             sections=[
                 "header",
                 "policy_context",
@@ -184,7 +182,7 @@ class ReportFormatter:
         if "agent_reports" in template.sections:
             report_lines.extend(self._generate_agent_reports_section(session, "text"))
 
-        # Cross-domain analysis section
+        # Cross - domain analysis section
         if "cross_analysis" in template.sections:
             report_lines.extend(self._generate_cross_analysis_section(review, "text"))
 
@@ -254,7 +252,7 @@ class ReportFormatter:
                 "timestamp": report.timestamp,
             }
 
-        return json.dumps(report_data, indent=2, ensure_ascii=False)
+        return json.dumps(report_data, indent = 2, ensure_ascii = False)
 
     def _generate_markdown_report(
         self, review: ComprehensiveReview, session: ReviewSession, template: ReportTemplate, options: Dict[str, Any]
@@ -283,7 +281,7 @@ class ReportFormatter:
 
         # Analysis
         if "detailed_analysis" in template.sections:
-            md_lines.append("## Cross-Domain Analysis")
+            md_lines.append("## Cross - Domain Analysis")
             md_lines.append(review.cross_domain_analysis)
             md_lines.append("")
 
@@ -337,31 +335,31 @@ class ReportFormatter:
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF - 8">
+    <meta name="viewport" content="width = device - width, initial - scale = 1.0">
     <title>Economic Plan Review Report - {review.session_id}</title>
     <style>
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-               line-height: 1.6; margin: 40px; color: #333; }}
-        h1 {{ color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }}
-        h2 {{ color: #34495e; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; }}
+        body {{ font - family: 'Segoe UI', Tahoma, Geneva, Verdana, sans - serif;
+               line - height: 1.6; margin: 40px; color: #333; }}
+        h1 {{ color: #2c3e50; border - bottom: 3px solid #3498db; padding - bottom: 10px; }}
+        h2 {{ color: #34495e; border - bottom: 1px solid #bdc3c7; padding - bottom: 5px; }}
         h3 {{ color: #7f8c8d; }}
-        .metadata {{ background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }}
-        .agent-report {{ background: #fff; border: 1px solid #dee2e6; padding: 20px; 
-                        margin: 15px 0; border-radius: 5px; }}
-        .confidence {{ font-weight: bold; color: #27ae60; }}
-        .recommendation {{ background: #e8f5e8; padding: 10px; margin: 5px 0; 
-                         border-left: 4px solid #27ae60; }}
-        .roadmap-phase {{ background: #f0f8ff; padding: 15px; margin: 10px 0; 
-                         border-left: 4px solid #3498db; }}
-        ul {{ padding-left: 20px; }}
-        .summary {{ font-size: 1.1em; line-height: 1.7; }}
+        .metadata {{ background: #f8f9fa; padding: 20px; border - radius: 5px; margin: 20px 0; }}
+        .agent - report {{ background: #fff; border: 1px solid #dee2e6; padding: 20px;
+                        margin: 15px 0; border - radius: 5px; }}
+        .confidence {{ font - weight: bold; color: #27ae60; }}
+        .recommendation {{ background: #e8f5e8; padding: 10px; margin: 5px 0;
+                         border - left: 4px solid #27ae60; }}
+        .roadmap - phase {{ background: #f0f8ff; padding: 15px; margin: 10px 0;
+                         border - left: 4px solid #3498db; }}
+        ul {{ padding - left: 20px; }}
+        .summary {{ font - size: 1.1em; line - height: 1.7; }}
     </style>
 </head>
 <body>
     <h1>Economic Plan Review Report</h1>
     <h2>{template.name}</h2>
-    
+
     <div class="metadata">
         <h3>Report Information</h3>
         <p><strong>Session ID:</strong> {review.session_id}</p>
@@ -381,9 +379,9 @@ class ReportFormatter:
         # Analysis sections
         if "detailed_analysis" in template.sections:
             html_content += f"""
-    <h2>Cross-Domain Analysis</h2>
+    <h2>Cross - Domain Analysis</h2>
     <p>{self._html_escape(review.cross_domain_analysis)}</p>
-    
+
     <h2>Overall Assessment</h2>
     <p>{self._html_escape(review.overall_assessment)}</p>
 """
@@ -404,7 +402,7 @@ class ReportFormatter:
             html_content += "<h2>Implementation Roadmap</h2>"
             for phase in review.implementation_roadmap:
                 html_content += f"""
-    <div class="roadmap-phase">
+    <div class="roadmap - phase">
         <h3>{phase['phase']}</h3>
         <ul>
 """
@@ -417,16 +415,16 @@ class ReportFormatter:
             html_content += "<h2>Individual Agent Reports</h2>"
             for agent_id, report in session.agent_reports.items():
                 html_content += f"""
-    <div class="agent-report">
+    <div class="agent - report">
         <h3>{report.agent_name}</h3>
         <p><strong>Confidence:</strong> <span class="confidence">{report.confidence_level:.2f}</span></p>
-        
+
         <h4>Executive Summary</h4>
         <p>{self._html_escape(report.executive_summary)}</p>
-        
+
         <h4>Risk Assessment</h4>
         <p>{self._html_escape(report.risk_assessment)}</p>
-        
+
         <h4>Recommendations</h4>
         <ul>
 """
@@ -488,7 +486,7 @@ class ReportFormatter:
         lines = []
 
         if format_type == "text":
-            lines.append("CROSS-DOMAIN ANALYSIS")
+            lines.append("CROSS - DOMAIN ANALYSIS")
             lines.append("-" * 25)
             lines.append("")
             lines.append(review.cross_domain_analysis)
@@ -543,7 +541,7 @@ class ReportFormatter:
         return lines
 
     def _generate_cross_analysis_section(self, review: ComprehensiveReview, format_type: str) -> List[str]:
-        """Generate cross-domain analysis section."""
+        """Generate cross - domain analysis section."""
         lines = []
 
         if format_type == "text":
@@ -629,7 +627,7 @@ class ReportFormatter:
             lines.append("METHODOLOGY")
             lines.append("-" * 12)
             lines.append("")
-            lines.append("This economic plan review was conducted using a multi-agent AI system")
+            lines.append("This economic plan review was conducted using a multi - agent AI system")
             lines.append("with specialized agents analyzing different aspects of the plan:")
             lines.append("")
 
@@ -639,7 +637,7 @@ class ReportFormatter:
                 "material_conditions": "Material dialectics and productive forces evaluation",
                 "distribution": "Socialist distribution mechanisms and social needs analysis",
                 "implementation": "Feasibility and implementation coordination review",
-                "democracy": "Workers' democracy and participatory decision-making assessment",
+                "democracy": "Workers' democracy and participatory decision - making assessment",
                 "social_development": "Social development and class analysis evaluation",
             }
 
@@ -649,7 +647,7 @@ class ReportFormatter:
                     lines.append(f"• {agent_name}: {agent_descriptions[agent_id]}")
 
             lines.append("")
-            lines.append("Each agent provided independent analysis, followed by cross-agent")
+            lines.append("Each agent provided independent analysis, followed by cross - agent")
             lines.append("communication and synthesis to generate this comprehensive review.")
             lines.append("")
 
@@ -706,11 +704,11 @@ class ReportFormatter:
             # Extract immediate actions from roadmap
             immediate_actions = []
             for phase in review.implementation_roadmap:
-                if "Immediate" in phase["phase"] or "0-3 months" in phase["phase"]:
+                if "Immediate" in phase["phase"] or "0 - 3 months" in phase["phase"]:
                     immediate_actions.extend(phase["actions"])
 
             if immediate_actions:
-                lines.append("Immediate Actions (0-3 months):")
+                lines.append("Immediate Actions (0 - 3 months):")
                 for i, action in enumerate(immediate_actions[:5], 1):  # Limit to top 5
                     lines.append(f"  {i}. {action['action']}")
                 lines.append("")
@@ -721,7 +719,7 @@ class ReportFormatter:
             lines.append("  2. Prioritize implementation based on resource availability")
             lines.append("  3. Establish monitoring and evaluation frameworks")
             lines.append("  4. Engage stakeholders in implementation planning")
-            lines.append("  5. Schedule follow-up review sessions")
+            lines.append("  5. Schedule follow - up review sessions")
             lines.append("")
 
         return lines
@@ -735,14 +733,14 @@ class ReportFormatter:
         if duration < 60:
             return f"{duration:.1f} seconds"
         elif duration < 3600:
-            return f"{duration/60:.1f} minutes"
+            return f"{duration / 60:.1f} minutes"
         else:
-            return f"{duration/3600:.1f} hours"
+            return f"{duration / 3600:.1f} hours"
 
     def save_report(self, report_content: str, file_path: str, format_type: str = "text"):
         """Save report to file."""
         try:
-            with open(file_path, "w", encoding="utf-8") as f:
+            with open(file_path, "w", encoding="utf - 8") as f:
                 f.write(report_content)
             logger.info(f"Report saved to {file_path}")
         except Exception as e:
@@ -766,32 +764,27 @@ class ReportFormatter:
         self.templates[template.template_id] = template
         logger.info(f"Added custom template: {template.name}")
 
-
 # Utility functions for report generation
 def create_summary_report(review: ComprehensiveReview, session: ReviewSession) -> str:
     """Create a brief summary report."""
     formatter = ReportFormatter()
     return formatter.generate_report(review, session, template_id="executive", format_type="text")
 
-
 def create_detailed_report(review: ComprehensiveReview, session: ReviewSession) -> str:
     """Create a detailed technical report."""
     formatter = ReportFormatter()
     return formatter.generate_report(review, session, template_id="technical", format_type="text")
 
-
 def create_policy_brief(review: ComprehensiveReview, session: ReviewSession) -> str:
-    """Create a policy-focused brief."""
+    """Create a policy - focused brief."""
     formatter = ReportFormatter()
     return formatter.generate_report(review, session, template_id="policy", format_type="text")
-
 
 def export_as_html(review: ComprehensiveReview, session: ReviewSession, file_path: str):
     """Export review as HTML file."""
     formatter = ReportFormatter()
     html_content = formatter.generate_report(review, session, template_id="technical", format_type="html")
     formatter.save_report(html_content, file_path, "html")
-
 
 def export_as_markdown(review: ComprehensiveReview, session: ReviewSession, file_path: str):
     """Export review as Markdown file."""

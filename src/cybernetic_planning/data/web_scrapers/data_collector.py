@@ -2,16 +2,17 @@
 Resource Data Collector
 
 Orchestrates the collection of resource constraint data from all sources
-and integrates it with the existing BEA Input-Output data.
+and integrates it with the existing BEA Input - Output data.
 """
 
-import numpy as np
 from typing import Dict, Any, Optional
 from datetime import datetime
 import json
 from pathlib import Path
 import os
 import sys
+import numpy as np
+import pandas as pd
 
 # Add project root to path for API key manager
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
@@ -26,13 +27,12 @@ except ImportError:
     # Fallback if API key manager is not available
     APIKeyManager = None
 
-
 class ResourceDataCollector:
     """
     Main data collection orchestrator for resource constraint data.
 
     Coordinates data collection from all sources and integrates with
-    existing BEA Input-Output data to create comprehensive resource
+    existing BEA Input - Output data to create comprehensive resource
     constraint matrices for the cybernetic planning system.
     """
 
@@ -56,8 +56,8 @@ class ResourceDataCollector:
         """
         self.cache_dir = Path(cache_dir)
         self.output_dir = Path(output_dir)
-        self.cache_dir.mkdir(exist_ok=True)
-        self.output_dir.mkdir(exist_ok=True)
+        self.cache_dir.mkdir(exist_ok = True)
+        self.output_dir.mkdir(exist_ok = True)
 
         # Initialize API key manager
         self.api_manager = APIKeyManager() if APIKeyManager else None
@@ -74,15 +74,15 @@ class ResourceDataCollector:
 
         # Initialize scrapers
         self.scrapers = {
-            "eia": EIAScraper(api_key=eia_key, cache_dir=str(self.cache_dir)),
-            "bls": BLSScraper(api_key=bls_key, cache_dir=str(self.cache_dir)),
-            "usgs": USGSScraper(api_key=usgs_key, cache_dir=str(self.cache_dir)),
+            "eia": EIAScraper(api_key = eia_key, cache_dir = str(self.cache_dir)),
+            "bls": BLSScraper(api_key = bls_key, cache_dir = str(self.cache_dir)),
+            "usgs": USGSScraper(api_key = usgs_key, cache_dir = str(self.cache_dir)),
         }
 
         # Initialize data synchronizer
         from ..data_synchronizer import DataSynchronizer
 
-        self.synchronizer = DataSynchronizer(cache_dir=str(self.cache_dir), output_dir=str(self.output_dir))
+        self.synchronizer = DataSynchronizer(cache_dir = str(self.cache_dir), output_dir = str(self.output_dir))
 
         # Data storage
         self.collected_data = {}
@@ -163,11 +163,11 @@ class ResourceDataCollector:
         # Synchronize data from all sources
         # Synchronizing data from all sources
         synchronized_data = self.synchronizer.synchronize_resource_data(
-            energy_data=all_data["energy_data"],
-            material_data=all_data["material_data"],
-            labor_data=all_data["labor_data"],
-            environmental_data=all_data["environmental_data"],
-            year=year,
+            energy_data = all_data["energy_data"],
+            material_data = all_data["material_data"],
+            labor_data = all_data["labor_data"],
+            environmental_data = all_data["environmental_data"],
+            year = year,
         )
 
         # Update all_data with synchronized data
@@ -241,7 +241,7 @@ class ResourceDataCollector:
                 if "sector_intensities" in intensity_data:
                     for sector_id, intensities in intensity_data["sector_intensities"].items():
                         if isinstance(sector_id, int) and 1 <= sector_id <= 175:
-                            sector_idx = sector_id - 1  # Convert to 0-based index
+                            sector_idx = sector_id - 1  # Convert to 0 - based index
 
                             for i, energy_type in enumerate(energy_types):
                                 if energy_type in intensities:
@@ -392,7 +392,7 @@ class ResourceDataCollector:
         # Save complete dataset
         complete_file = self.output_dir / f"resource_data_{timestamp}.json"
         with open(complete_file, "w") as f:
-            json.dump(data, f, indent=2, default=str)
+            json.dump(data, f, indent = 2, default = str)
 
         # Save resource matrices separately
         if "resource_matrices" in data:
@@ -406,7 +406,7 @@ class ResourceDataCollector:
                     matrices_data[name] = matrix
 
             with open(matrices_file, "w") as f:
-                json.dump(matrices_data, f, indent=2)
+                json.dump(matrices_data, f, indent = 2)
 
         # Data saved successfully
 

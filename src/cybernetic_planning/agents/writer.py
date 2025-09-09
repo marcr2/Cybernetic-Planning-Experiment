@@ -6,10 +6,9 @@ Creates detailed economic planning reports with mathematical transparency.
 """
 
 from typing import Dict, Any, List, Optional
-import numpy as np
 from datetime import datetime
+import numpy as np
 from .base import BaseAgent
-
 
 class WriterAgent(BaseAgent):
     """
@@ -89,7 +88,7 @@ class WriterAgent(BaseAgent):
         executive_summary = self._generate_executive_summary_section(plan_data)
         sections.append(executive_summary)
 
-        # Sector-by-Sector Analysis
+        # Sector - by - Sector Analysis
         sector_analysis = self._generate_sector_analysis_section(plan_data)
         sections.append(sector_analysis)
 
@@ -138,12 +137,11 @@ class WriterAgent(BaseAgent):
 **Root Cause**: This indicates a fundamental problem with either:
 1. The synthetic data generation algorithm
 2. The optimization solver
-3. The input-output matrix structure
+3. The input - output matrix structure
 
-**Immediate Action Required**: 
+**Immediate Action Required**:
 - Review the technology matrix for productivity (spectral radius < 1)
-- Check that final demand values are positive
-- Verify the optimization constraints are properly formulated
+- Check that final demand values are positive - Verify the optimization constraints are properly formulated
 
 **Status**: Plan is not viable for implementation.""",
                 "metrics": {"error": "negative_outputs"}
@@ -159,24 +157,18 @@ class WriterAgent(BaseAgent):
 ### Key Targets
 - **Total Economic Output**: {total_economic_output:,.2f} units
 - **Final Demand Target**: {np.sum(final_demand):,.2f} units
-- **Total Labor Cost**: {total_labor_cost:,.2f} person-hours
-- **Labor Efficiency**: {labor_efficiency:.2f} units per person-hour
+- **Total Labor Cost**: {total_labor_cost:,.2f} person - hours
+- **Labor Efficiency**: {labor_efficiency:.2f} units per person - hour
 - **Demand Fulfillment Rate**: {demand_fulfillment:.2%}
 
 ### Plan Overview
-This 5-year economic plan has been generated using cybernetic planning principles, 
-combining Input-Output analysis with labor-time accounting. The plan optimizes for 
+This 5 - year economic plan has been generated using cybernetic planning principles,
+combining Input - Output analysis with labor - time accounting. The plan optimizes for
 labor efficiency while ensuring all final demand targets are met.
-
-### Key Achievements
-- All final demand requirements are satisfied
-- Labor costs are minimized through optimization
-- Resource constraints are respected
-- Plan provides a solid foundation for economic growth
 
 ### Next Steps
 1. Implement the plan with careful monitoring
-2. Adjust based on real-world feedback
+2. Adjust based on real - world feedback
 3. Update technology matrices as needed
 4. Monitor resource utilization closely
 """
@@ -193,8 +185,8 @@ labor efficiency while ensuring all final demand targets are met.
         }
 
     def _generate_sector_analysis_section(self, plan_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate sector-by-sector analysis section."""
-        title = "Sector-by-Sector Analysis"
+        """Generate sector - by - sector analysis section."""
+        title = "Sector - by - Sector Analysis"
 
         total_output = plan_data.get("total_output", np.array([]))
         labor_values = plan_data.get("labor_values", np.array([]))
@@ -220,11 +212,6 @@ labor efficiency while ensuring all final demand targets are met.
 - **Lowest Output Sector**: Sector {np.argmin(total_output)} ({np.min(total_output):,.2f} units)
 - **Output Standard Deviation**: {np.std(total_output):,.2f} units
 
-### Key Insights
-- The plan requires significant output from {np.argmax(total_output)} sectors
-- Labor-intensive sectors show higher labor values
-- Final demand drives the required output levels
-- Some sectors may require capacity expansion
 """
 
         return {
@@ -293,10 +280,6 @@ labor efficiency while ensuring all final demand targets are met.
 - **Total Resources Used**: {np.sum(resource_usage):,.2f} units
 - **Resource Utilization**: {np.sum(resource_usage) / np.sum(max_resources):.2%}
 
-### Recommendations
-- Monitor high-utilization resources closely
-- Consider capacity expansion for bottleneck resources
-- Optimize resource allocation for better efficiency
 """
 
         return {
@@ -356,22 +339,20 @@ labor efficiency while ensuring all final demand targets are met.
 {labor_table}
 
 ### Labor Cost Analysis
-- **Total Labor Cost**: {total_labor_cost:,.2f} person-hours
-- **Direct Labor Cost**: {total_direct_labor:,.2f} person-hours
-- **Indirect Labor Cost**: {total_labor_cost - total_direct_labor:,.2f} person-hours
-- **Average Labor Value**: {avg_labor_value:.4f} person-hours per unit
+- **Total Labor Cost**: {total_labor_cost:,.2f} person - hours
+- **Direct Labor Cost**: {total_direct_labor:,.2f} person - hours
+- **Indirect Labor Cost**: {total_labor_cost - total_direct_labor:,.2f} person - hours
+- **Average Labor Value**: {avg_labor_value:.4f} person - hours per unit
 
 ### Labor Efficiency Metrics
-- **Labor Productivity**: {np.sum(total_output) / (total_labor_cost + 1e-10):.2f} units per person-hour
-- **Most Labor-Intensive Sector**: Sector {np.argmax(labor_values)} ({np.max(labor_values):.4f} person-hours/unit)
-- **Least Labor-Intensive Sector**: Sector {np.argmin(labor_values)} ({np.min(labor_values):.4f} person-hours/unit)
+- **Labor Productivity**: {np.sum(total_output) / (total_labor_cost + 1e-10):.2f} units per person - hour
+- **Most Labor - Intensive Sector**: Sector {np.argmax(labor_values)} ({np.max(labor_values):.4f} person - hours / unit)
+- **Least Labor - Intensive Sector**: Sector {np.argmin(labor_values)} ({np.min(labor_values):.4f} person - hours / unit)
 
 ### Labor Value Breakdown
-The labor value represents the total direct and indirect labor embodied in one unit of each product. 
+The labor value represents the total direct and indirect labor embodied in one unit of each product.
 This includes:
-- Direct labor: Labor directly used in production
-- Indirect labor: Labor embodied in intermediate inputs
-- Total labor value: Sum of direct and indirect labor
+- Direct labor: Labor directly used in production - Indirect labor: Labor embodied in intermediate inputs - Total labor value: Sum of direct and indirect labor
 """
 
         return {
@@ -435,11 +416,7 @@ The plan's sensitivity to changes in key parameters has been analyzed:
 4. **Technology Updates**: Regular updates to technology matrices
 5. **Contingency Planning**: Prepare for supply chain disruptions
 
-### Monitoring Recommendations
-- Track key performance indicators monthly
-- Update technology matrices quarterly
-- Review resource constraints annually
-- Conduct sensitivity analysis biannually
+### Monitoring Recommendations - Track key performance indicators monthly - Update technology matrices quarterly - Review resource constraints annually - Conduct sensitivity analysis biannually
 """
 
         return {
@@ -514,7 +491,7 @@ The plan's sensitivity to changes in key parameters has been analyzed:
         if "non_negativity_violations" in constraint_violations:
             neg_viols = constraint_violations["non_negativity_violations"]
             if len(neg_viols) > 0:
-                violations_text.append(f"- **Non-Negativity Violations**: {len(neg_viols)} sectors")
+                violations_text.append(f"- **Non - Negativity Violations**: {len(neg_viols)} sectors")
 
         if violations_text:
             return "\n".join(violations_text)
@@ -527,7 +504,7 @@ The plan's sensitivity to changes in key parameters has been analyzed:
         report_lines = [
             "# Cybernetic Central Planning Report",
             f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"**Report Type**: 5-Year Economic Plan",
+            f"**Report Type**: 5 - Year Economic Plan",
             "",
             "---",
             "",

@@ -11,15 +11,13 @@ import os
 
 from .base_scraper import BaseScraper
 
-
 class USGSScraper(BaseScraper):
     """
     Scraper for US Geological Survey material resource data.
 
     Collects material consumption and production data including:
     - Critical materials (rare earth elements, lithium, cobalt, etc.)
-    - Mineral production by sector
-    - Material intensity coefficients (materials per unit economic output)
+    - Mineral production by sector - Material intensity coefficients (materials per unit economic output)
     - Supply chain material requirements
     """
 
@@ -31,7 +29,7 @@ class USGSScraper(BaseScraper):
             api_key: USGS API key for enhanced data access
             **kwargs: Additional arguments for BaseScraper
         """
-        super().__init__(base_url="https://mrdata.usgs.gov/api", rate_limit=1.0, **kwargs)  # Conservative rate limiting
+        super().__init__(base_url="https://mrdata.usgs.gov / api", rate_limit = 1.0, **kwargs)  # Conservative rate limiting
 
         # Use provided API key or try to get from environment
         self.api_key = api_key or os.getenv("USGS_API_KEY")
@@ -42,145 +40,145 @@ class USGSScraper(BaseScraper):
                 "usgs_commodity": "lithium",
                 "units": "metric_tons",
                 "priority": "high",
-                "endpoint": "/commodity/lithium/",
-                "mcs_endpoint": "/mcs/lithium/",
+                "endpoint": "/commodity / lithium/",
+                "mcs_endpoint": "/mcs / lithium/",
             },
             "cobalt": {
                 "usgs_commodity": "cobalt",
                 "units": "metric_tons",
                 "priority": "high",
-                "endpoint": "/commodity/cobalt/",
-                "mcs_endpoint": "/mcs/cobalt/",
+                "endpoint": "/commodity / cobalt/",
+                "mcs_endpoint": "/mcs / cobalt/",
             },
             "rare_earth_elements": {
-                "usgs_commodity": "rare-earths",
+                "usgs_commodity": "rare - earths",
                 "units": "metric_tons",
                 "priority": "high",
-                "endpoint": "/commodity/rare-earths/",
-                "mcs_endpoint": "/mcs/rare-earths/",
+                "endpoint": "/commodity / rare - earths/",
+                "mcs_endpoint": "/mcs / rare - earths/",
             },
             "copper": {
                 "usgs_commodity": "copper",
                 "units": "metric_tons",
                 "priority": "high",
-                "endpoint": "/commodity/copper/",
-                "mcs_endpoint": "/mcs/copper/",
+                "endpoint": "/commodity / copper/",
+                "mcs_endpoint": "/mcs / copper/",
             },
             "aluminum": {
                 "usgs_commodity": "aluminum",
                 "units": "metric_tons",
                 "priority": "high",
-                "endpoint": "/commodity/aluminum/",
-                "mcs_endpoint": "/mcs/aluminum/",
+                "endpoint": "/commodity / aluminum/",
+                "mcs_endpoint": "/mcs / aluminum/",
             },
             "steel": {
-                "usgs_commodity": "iron-ore",
+                "usgs_commodity": "iron - ore",
                 "units": "metric_tons",
                 "priority": "high",
-                "endpoint": "/commodity/iron-ore/",
-                "mcs_endpoint": "/mcs/iron-ore/",
+                "endpoint": "/commodity / iron - ore/",
+                "mcs_endpoint": "/mcs / iron - ore/",
             },
             "nickel": {
                 "usgs_commodity": "nickel",
                 "units": "metric_tons",
                 "priority": "medium",
-                "endpoint": "/commodity/nickel/",
-                "mcs_endpoint": "/mcs/nickel/",
+                "endpoint": "/commodity / nickel/",
+                "mcs_endpoint": "/mcs / nickel/",
             },
             "manganese": {
                 "usgs_commodity": "manganese",
                 "units": "metric_tons",
                 "priority": "medium",
-                "endpoint": "/commodity/manganese/",
-                "mcs_endpoint": "/mcs/manganese/",
+                "endpoint": "/commodity / manganese/",
+                "mcs_endpoint": "/mcs / manganese/",
             },
             "chromium": {
                 "usgs_commodity": "chromium",
                 "units": "metric_tons",
                 "priority": "medium",
-                "endpoint": "/commodity/chromium/",
-                "mcs_endpoint": "/mcs/chromium/",
+                "endpoint": "/commodity / chromium/",
+                "mcs_endpoint": "/mcs / chromium/",
             },
             "tungsten": {
                 "usgs_commodity": "tungsten",
                 "units": "metric_tons",
                 "priority": "medium",
-                "endpoint": "/commodity/tungsten/",
-                "mcs_endpoint": "/mcs/tungsten/",
+                "endpoint": "/commodity / tungsten/",
+                "mcs_endpoint": "/mcs / tungsten/",
             },
             "molybdenum": {
                 "usgs_commodity": "molybdenum",
                 "units": "metric_tons",
                 "priority": "medium",
-                "endpoint": "/commodity/molybdenum/",
-                "mcs_endpoint": "/mcs/molybdenum/",
+                "endpoint": "/commodity / molybdenum/",
+                "mcs_endpoint": "/mcs / molybdenum/",
             },
             "vanadium": {
                 "usgs_commodity": "vanadium",
                 "units": "metric_tons",
                 "priority": "medium",
-                "endpoint": "/commodity/vanadium/",
-                "mcs_endpoint": "/mcs/vanadium/",
+                "endpoint": "/commodity / vanadium/",
+                "mcs_endpoint": "/mcs / vanadium/",
             },
             "gallium": {
                 "usgs_commodity": "gallium",
                 "units": "metric_tons",
                 "priority": "high",
-                "endpoint": "/commodity/gallium/",
-                "mcs_endpoint": "/mcs/gallium/",
+                "endpoint": "/commodity / gallium/",
+                "mcs_endpoint": "/mcs / gallium/",
             },
             "germanium": {
                 "usgs_commodity": "germanium",
                 "units": "metric_tons",
                 "priority": "high",
-                "endpoint": "/commodity/germanium/",
-                "mcs_endpoint": "/mcs/germanium/",
+                "endpoint": "/commodity / germanium/",
+                "mcs_endpoint": "/mcs / germanium/",
             },
             "indium": {
                 "usgs_commodity": "indium",
                 "units": "metric_tons",
                 "priority": "high",
-                "endpoint": "/commodity/indium/",
-                "mcs_endpoint": "/mcs/indium/",
+                "endpoint": "/commodity / indium/",
+                "mcs_endpoint": "/mcs / indium/",
             },
             "tellurium": {
                 "usgs_commodity": "tellurium",
                 "units": "metric_tons",
                 "priority": "high",
-                "endpoint": "/commodity/tellurium/",
-                "mcs_endpoint": "/mcs/tellurium/",
+                "endpoint": "/commodity / tellurium/",
+                "mcs_endpoint": "/mcs / tellurium/",
             },
             "selenium": {
                 "usgs_commodity": "selenium",
                 "units": "metric_tons",
                 "priority": "medium",
-                "endpoint": "/commodity/selenium/",
-                "mcs_endpoint": "/mcs/selenium/",
+                "endpoint": "/commodity / selenium/",
+                "mcs_endpoint": "/mcs / selenium/",
             },
             "cadmium": {
                 "usgs_commodity": "cadmium",
                 "units": "metric_tons",
                 "priority": "low",
-                "endpoint": "/commodity/cadmium/",
-                "mcs_endpoint": "/mcs/cadmium/",
+                "endpoint": "/commodity / cadmium/",
+                "mcs_endpoint": "/mcs / cadmium/",
             },
             "antimony": {
                 "usgs_commodity": "antimony",
                 "units": "metric_tons",
                 "priority": "medium",
-                "endpoint": "/commodity/antimony/",
-                "mcs_endpoint": "/mcs/antimony/",
+                "endpoint": "/commodity / antimony/",
+                "mcs_endpoint": "/mcs / antimony/",
             },
         }
 
         # Alternative data sources for backup
         self.alternative_sources = {
             "world_bank": {
-                "base_url": "https://api.worldbank.org/v2/country/US/indicator",
+                "base_url": "https://api.worldbank.org / v2 / country / US / indicator",
                 "indicators": {"copper": "NY.GDP.MKTP.CD", "aluminum": "NY.GDP.MKTP.CD"},  # GDP for scaling
             },
             "fred": {
-                "base_url": "https://api.stlouisfed.org/fred/series/observations",
+                "base_url": "https://api.stlouisfed.org / fred / series / observations",
                 "series": {"copper_price": "PCOPPUSDM", "aluminum_price": "PALUMUSDM"},
             },
         }
@@ -452,7 +450,7 @@ class USGSScraper(BaseScraper):
                 if wb_data:
                     production_data[material] = wb_data
 
-            # Try FRED data for price-based estimates
+            # Try FRED data for price - based estimates
             if material in ["copper", "aluminum"]:
                 fred_data = self._scrape_fred_data(material, year)
                 if fred_data:
@@ -491,13 +489,12 @@ class USGSScraper(BaseScraper):
 
         base_production = estimates.get(material, 0)
 
-        # Apply year-based growth factor (simplified)
+        # Apply year - based growth factor (simplified)
         if year > 2020:
             growth_factor = 1.0 + (year - 2020) * 0.02  # 2% annual growth
             return base_production * growth_factor
         else:
             return base_production
-
 
     def _create_empty_dataset(self, dataset_id: str, year: int) -> Dict[str, Any]:
         """Create empty dataset structure for failed scrapes."""
@@ -541,7 +538,7 @@ class USGSScraper(BaseScraper):
 
         for dataset in datasets:
             try:
-                data = self.scrape_dataset(dataset["id"], year=year)
+                data = self.scrape_dataset(dataset["id"], year = year)
                 all_data[dataset["id"]] = data
                 all_data["metadata"]["data_sources"].append(dataset["id"])
             except Exception as e:
