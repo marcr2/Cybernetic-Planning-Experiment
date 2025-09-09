@@ -104,6 +104,10 @@ class WriterAgent(BaseAgent):
         risk_assessment = self._generate_risk_assessment_section(plan_data)
         sections.append(risk_assessment)
 
+        # Automatic Analysis Integration
+        automatic_analysis = self._generate_automatic_analysis_section(plan_data)
+        sections.append(automatic_analysis)
+
         # Combine sections
         full_report = self._combine_report_sections(sections, report_options)
 
@@ -150,7 +154,16 @@ class WriterAgent(BaseAgent):
         # Calculate summary statistics
         total_economic_output = np.sum(total_output)
         labor_efficiency = total_economic_output / (total_labor_cost + 1e-10) if total_labor_cost > 0 else 0
-        demand_fulfillment = np.sum(final_demand) / (np.sum(total_output) + 1e-10) if np.sum(total_output) > 0 else 0
+        
+        # Calculate demand fulfillment correctly using net output
+        technology_matrix = plan_data.get("technology_matrix")
+        if technology_matrix is not None:
+            I = np.eye(technology_matrix.shape[0])
+            net_output = (I - technology_matrix) @ total_output
+            demand_fulfillment = np.sum(net_output) / (np.sum(final_demand) + 1e-10) if np.sum(final_demand) > 0 else 0
+        else:
+            # Fallback: assume perfect fulfillment if no technology matrix
+            demand_fulfillment = 1.0
 
         content = f"""## {title}
 
@@ -578,3 +591,121 @@ The plan's sensitivity to changes in key parameters has been analyzed:
     def _create_risk_assessment_template(self) -> str:
         """Create risk assessment template."""
         return "Risk assessment template"
+
+    def _generate_automatic_analysis_section(self, plan_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate automatic analysis section."""
+        title = "Automatic Analysis Results"
+        
+        # Get automatic analysis results from the planning system
+        automatic_analyses = plan_data.get("automatic_analyses", {})
+        
+        if not automatic_analyses or "error" in automatic_analyses:
+            return {
+                "title": title,
+                "content": f"""## {title}
+
+### Analysis Status
+⚠️ **No automatic analysis results available**
+
+The system was unable to run automatic analyses. This may be due to:
+- Missing data or configuration
+- Analysis errors during execution
+- System initialization issues
+
+**Recommendation**: Check system logs and ensure all required data is properly loaded.""",
+                "metrics": {"status": "unavailable"}
+            }
+        
+        # Build analysis content
+        content_parts = [f"## {title}\n"]
+        
+        # Marxist Analysis
+        if "marxist" in automatic_analyses:
+            marxist_data = automatic_analyses["marxist"]
+            if "error" not in marxist_data:
+                content_parts.append("### Marxist Economic Analysis")
+                content_parts.append("**Labor Value Analysis**:")
+                if "labor_values" in marxist_data:
+                    labor_values = marxist_data["labor_values"]
+                    content_parts.append(f"- Average labor value: {np.mean(labor_values):.4f}")
+                    content_parts.append(f"- Labor value range: {np.min(labor_values):.4f} - {np.max(labor_values):.4f}")
+                
+                if "surplus_value" in marxist_data:
+                    surplus_value = marxist_data["surplus_value"]
+                    content_parts.append(f"- Total surplus value: {surplus_value:.2f}")
+                
+                content_parts.append("")
+            else:
+                content_parts.append("### Marxist Economic Analysis")
+                content_parts.append(f"❌ **Error**: {marxist_data['error']}")
+                content_parts.append("")
+        
+        # Cybernetic Analysis
+        if "cybernetic" in automatic_analyses:
+            cybernetic_data = automatic_analyses["cybernetic"]
+            if "error" not in cybernetic_data:
+                content_parts.append("### Cybernetic Feedback Analysis")
+                if "converged" in cybernetic_data:
+                    content_parts.append(f"- **Convergence Status**: {'✓ Converged' if cybernetic_data['converged'] else '⚠️ Did not converge'}")
+                
+                if "iterations" in cybernetic_data:
+                    content_parts.append(f"- **Iterations**: {cybernetic_data['iterations']}")
+                
+                if "final_demand" in cybernetic_data:
+                    final_demand = cybernetic_data["final_demand"]
+                    content_parts.append(f"- **Adjusted Final Demand**: {np.sum(final_demand):.2f} total")
+                
+                content_parts.append("")
+            else:
+                content_parts.append("### Cybernetic Feedback Analysis")
+                content_parts.append(f"❌ **Error**: {cybernetic_data['error']}")
+                content_parts.append("")
+        
+        # Mathematical Validation
+        if "mathematical" in automatic_analyses:
+            math_data = automatic_analyses["mathematical"]
+            if "error" not in math_data:
+                content_parts.append("### Mathematical Validation")
+                if "overall_valid" in math_data:
+                    content_parts.append(f"- **Overall Validity**: {'✓ Valid' if math_data['overall_valid'] else '❌ Invalid'}")
+                
+                if "component_results" in math_data:
+                    comp_results = math_data["component_results"]
+                    for component, result in comp_results.items():
+                        if isinstance(result, dict) and "valid" in result:
+                            status = "✓" if result["valid"] else "❌"
+                            content_parts.append(f"- **{component.replace('_', ' ').title()}**: {status}")
+                
+                content_parts.append("")
+            else:
+                content_parts.append("### Mathematical Validation")
+                content_parts.append(f"❌ **Error**: {math_data['error']}")
+                content_parts.append("")
+        
+        # Summary
+        content_parts.append("### Analysis Summary")
+        successful_analyses = sum(1 for analysis in automatic_analyses.values() 
+                                if isinstance(analysis, dict) and "error" not in analysis)
+        total_analyses = len(automatic_analyses)
+        
+        content_parts.append(f"- **Successful Analyses**: {successful_analyses}/{total_analyses}")
+        content_parts.append(f"- **Analysis Coverage**: {(successful_analyses/total_analyses)*100:.1f}%")
+        
+        if successful_analyses == total_analyses:
+            content_parts.append("- **Status**: ✅ All analyses completed successfully")
+        elif successful_analyses > 0:
+            content_parts.append("- **Status**: ⚠️ Partial analysis completion")
+        else:
+            content_parts.append("- **Status**: ❌ All analyses failed")
+        
+        content = "\n".join(content_parts)
+        
+        return {
+            "title": title,
+            "content": content,
+            "metrics": {
+                "successful_analyses": successful_analyses,
+                "total_analyses": total_analyses,
+                "coverage_percentage": (successful_analyses/total_analyses)*100 if total_analyses > 0 else 0
+            }
+        }

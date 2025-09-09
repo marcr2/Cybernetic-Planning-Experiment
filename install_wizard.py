@@ -47,10 +47,10 @@ class InstallationWizard:
         """Print the installation wizard banner."""
         banner = """
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                    CYBERNETIC PLANNING SYSTEM                               ║
-║                        Installation Wizard                                  ║
+║                    CYBERNETIC PLANNING SYSTEM                                ║
+║                        Installation Wizard                                   ║
 ║                                                                              ║
-║  AI - enhanced central planning software system using Input - Output analysis  ║
+║  AI - enhanced central planning software system using Input - Output analysis║
 ║  Implements Leontief models and labor - time accounting principles           ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
         """
@@ -360,7 +360,7 @@ fi
         """Print installation success message."""
         success_message = """
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                        INSTALLATION COMPLETE!                               ║
+║                        INSTALLATION COMPLETE!                                ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 🎉 The Cybernetic Planning System has been successfully installed!

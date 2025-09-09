@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 import threading
 from datetime import datetime
+import numpy as np
 
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
@@ -31,8 +32,8 @@ class CyberneticPlanningGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Cybernetic Central Planning System")
-        self.root.geometry("1200x800")
-        self.root.minsize(800, 600)
+        self.root.geometry("1400x900")
+        self.root.minsize(1000, 700)
 
         # Initialize planning system
         self.planning_system = CyberneticPlanningSystem()
@@ -42,6 +43,9 @@ class CyberneticPlanningGUI:
         # Create GUI elements
         self.create_widgets()
         self.setup_layout()
+        
+        # Bind cleanup on window close
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def create_widgets(self):
         """Create all GUI widgets."""
@@ -50,12 +54,10 @@ class CyberneticPlanningGUI:
 
         # Create tabs
         self.create_data_tab()
+        self.create_automatic_analyses_tab()
         self.create_web_scraper_tab()
         self.create_api_keys_tab()
         self.create_planning_tab()
-        self.create_marxist_analysis_tab()
-        self.create_cybernetic_feedback_tab()
-        self.create_mathematical_validation_tab()
         self.create_results_tab()
         self.create_export_tab()
         self.create_about_tab()
@@ -105,6 +107,58 @@ class CyberneticPlanningGUI:
         # Data status
         self.data_status = ttk.Label(display_frame, text="No data loaded", foreground="red")
         self.data_status.pack(pady = 5)
+
+    def create_automatic_analyses_tab(self):
+        """Create automatic analyses results tab."""
+        self.auto_analyses_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.auto_analyses_frame, text="Automatic Analyses")
+
+        # Header
+        header_frame = ttk.LabelFrame(self.auto_analyses_frame, text="Automatic Analysis Results", padding=10)
+        header_frame.pack(fill="x", padx=10, pady=5)
+
+        ttk.Label(header_frame, text="These analyses run automatically when data is loaded:", 
+                 font=("Arial", 10, "bold")).pack(anchor="w")
+        
+        # Refresh button
+        refresh_frame = ttk.Frame(header_frame)
+        refresh_frame.pack(fill="x", pady=5)
+        
+        ttk.Button(refresh_frame, text="Refresh Results", 
+                  command=self.refresh_automatic_analyses).pack(side="left", padx=5)
+        
+        # Status
+        self.auto_analyses_status = ttk.Label(refresh_frame, text="No analyses available", foreground="red")
+        self.auto_analyses_status.pack(side="left", padx=10)
+
+        # Results display
+        results_frame = ttk.LabelFrame(self.auto_analyses_frame, text="Analysis Results", padding=10)
+        results_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        # Create notebook for different analysis types
+        self.analyses_notebook = ttk.Notebook(results_frame)
+        self.analyses_notebook.pack(fill="both", expand=True)
+
+        # Marxist analysis tab
+        self.marxist_auto_frame = ttk.Frame(self.analyses_notebook)
+        self.analyses_notebook.add(self.marxist_auto_frame, text="Marxist Analysis")
+        
+        self.marxist_auto_text = scrolledtext.ScrolledText(self.marxist_auto_frame, height=15, width=80)
+        self.marxist_auto_text.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # Cybernetic analysis tab
+        self.cybernetic_auto_frame = ttk.Frame(self.analyses_notebook)
+        self.analyses_notebook.add(self.cybernetic_auto_frame, text="Cybernetic Feedback")
+        
+        self.cybernetic_auto_text = scrolledtext.ScrolledText(self.cybernetic_auto_frame, height=15, width=80)
+        self.cybernetic_auto_text.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # Mathematical validation tab
+        self.math_auto_frame = ttk.Frame(self.analyses_notebook)
+        self.analyses_notebook.add(self.math_auto_frame, text="Mathematical Validation")
+        
+        self.math_auto_text = scrolledtext.ScrolledText(self.math_auto_frame, height=15, width=80)
+        self.math_auto_text.pack(fill="both", expand=True, padx=5, pady=5)
 
     def create_web_scraper_tab(self):
         """Create web scraper tab."""
@@ -389,9 +443,34 @@ class CyberneticPlanningGUI:
         """Create planning configuration tab."""
         self.planning_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.planning_frame, text="Planning Configuration")
+        
+        # Create a scrollable frame
+        self.planning_canvas = tk.Canvas(self.planning_frame)
+        self.planning_scrollbar = ttk.Scrollbar(self.planning_frame, orient="vertical", command=self.planning_canvas.yview)
+        self.planning_scrollable_frame = ttk.Frame(self.planning_canvas)
+        
+        self.planning_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.planning_canvas.configure(scrollregion=self.planning_canvas.bbox("all"))
+        )
+        
+        self.planning_canvas.create_window((0, 0), window=self.planning_scrollable_frame, anchor="nw")
+        self.planning_canvas.configure(yscrollcommand=self.planning_scrollbar.set)
+        
+        # Pack the scrollable components
+        self.planning_canvas.pack(side="left", fill="both", expand=True)
+        self.planning_scrollbar.pack(side="right", fill="y")
+        
+        # Bind mousewheel to canvas
+        def _on_mousewheel(event):
+            self.planning_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.planning_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # Store the mousewheel binding for cleanup
+        self.mousewheel_binding = _on_mousewheel
 
         # Policy goals
-        goals_frame = ttk.LabelFrame(self.planning_frame, text="Policy Goals", padding = 10)
+        goals_frame = ttk.LabelFrame(self.planning_scrollable_frame, text="Policy Goals", padding = 10)
         goals_frame.pack(fill="x", padx = 10, pady = 5)
 
         ttk.Label(goals_frame, text="Enter policy goals (one per line):").pack(anchor="w")
@@ -407,8 +486,95 @@ class CyberneticPlanningGUI:
         ]
         self.goals_text.insert("1.0", "\n".join(default_goals))
 
+        # Production adjustment controls
+        production_frame = ttk.LabelFrame(self.planning_scrollable_frame, text="Production Adjustment", padding=10)
+        production_frame.pack(fill="x", padx=10, pady=5)
+
+        # Overall production multiplier
+        overall_frame = ttk.Frame(production_frame)
+        overall_frame.pack(fill="x", pady=5)
+        
+        ttk.Label(overall_frame, text="Overall Production Level:").pack(side="left")
+        self.overall_production_var = tk.DoubleVar(value=1.0)
+        self.overall_production_scale = ttk.Scale(
+            overall_frame, 
+            from_=0.1, 
+            to=3.0, 
+            variable=self.overall_production_var, 
+            orient="horizontal",
+            command=self.update_production_labels
+        )
+        self.overall_production_scale.pack(side="left", padx=10, fill="x", expand=True)
+        
+        self.overall_production_label = ttk.Label(overall_frame, text="100% (Normal)")
+        self.overall_production_label.pack(side="left", padx=10)
+
+        # Department-specific production adjustments
+        dept_frame = ttk.LabelFrame(production_frame, text="Department-Specific Adjustments", padding=5)
+        dept_frame.pack(fill="x", pady=5)
+
+        # Department I (Means of Production)
+        dept_I_frame = ttk.Frame(dept_frame)
+        dept_I_frame.pack(fill="x", pady=2)
+        ttk.Label(dept_I_frame, text="Dept I (Means of Production):").pack(side="left")
+        self.dept_I_production_var = tk.DoubleVar(value=1.0)
+        self.dept_I_production_scale = ttk.Scale(
+            dept_I_frame, 
+            from_=0.1, 
+            to=3.0, 
+            variable=self.dept_I_production_var, 
+            orient="horizontal",
+            command=self.update_production_labels
+        )
+        self.dept_I_production_scale.pack(side="left", padx=10, fill="x", expand=True)
+        self.dept_I_production_label = ttk.Label(dept_I_frame, text="100%")
+        self.dept_I_production_label.pack(side="left", padx=10)
+
+        # Department II (Consumer Goods)
+        dept_II_frame = ttk.Frame(dept_frame)
+        dept_II_frame.pack(fill="x", pady=2)
+        ttk.Label(dept_II_frame, text="Dept II (Consumer Goods):").pack(side="left")
+        self.dept_II_production_var = tk.DoubleVar(value=1.0)
+        self.dept_II_production_scale = ttk.Scale(
+            dept_II_frame, 
+            from_=0.1, 
+            to=3.0, 
+            variable=self.dept_II_production_var, 
+            orient="horizontal",
+            command=self.update_production_labels
+        )
+        self.dept_II_production_scale.pack(side="left", padx=10, fill="x", expand=True)
+        self.dept_II_production_label = ttk.Label(dept_II_frame, text="100%")
+        self.dept_II_production_label.pack(side="left", padx=10)
+
+        # Department III (Services)
+        dept_III_frame = ttk.Frame(dept_frame)
+        dept_III_frame.pack(fill="x", pady=2)
+        ttk.Label(dept_III_frame, text="Dept III (Services):").pack(side="left")
+        self.dept_III_production_var = tk.DoubleVar(value=1.0)
+        self.dept_III_production_scale = ttk.Scale(
+            dept_III_frame, 
+            from_=0.1, 
+            to=3.0, 
+            variable=self.dept_III_production_var, 
+            orient="horizontal",
+            command=self.update_production_labels
+        )
+        self.dept_III_production_scale.pack(side="left", padx=10, fill="x", expand=True)
+        self.dept_III_production_label = ttk.Label(dept_III_frame, text="100%")
+        self.dept_III_production_label.pack(side="left", padx=10)
+
+        # Apply reproduction adjustments option
+        self.apply_reproduction_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(production_frame, text="Apply Marxist reproduction adjustments", variable=self.apply_reproduction_var).pack(anchor="w", pady=5)
+
+        # Reset button
+        reset_frame = ttk.Frame(production_frame)
+        reset_frame.pack(fill="x", pady=5)
+        ttk.Button(reset_frame, text="Reset to Normal Production", command=self.reset_production_sliders).pack(side="left")
+
         # Planning options
-        options_frame = ttk.LabelFrame(self.planning_frame, text="Planning Options", padding = 10)
+        options_frame = ttk.LabelFrame(self.planning_scrollable_frame, text="Planning Options", padding = 10)
         options_frame.pack(fill="x", padx = 10, pady = 5)
 
         # Use optimization
@@ -447,7 +613,7 @@ class CyberneticPlanningGUI:
         ttk.Entry(self.five_year_frame, textvariable = self.investment_ratio_var, width = 10).grid(row = 0, column = 3, padx = 5)
 
         # Control buttons
-        control_frame = ttk.Frame(self.planning_frame)
+        control_frame = ttk.Frame(self.planning_scrollable_frame)
         control_frame.pack(fill="x", padx = 10, pady = 10)
 
         self.create_plan_button = ttk.Button(
@@ -461,103 +627,6 @@ class CyberneticPlanningGUI:
         # Status
         self.planning_status = ttk.Label(control_frame, text="Ready to create plan")
         self.planning_status.pack(side="right", padx = 5)
-
-    def create_marxist_analysis_tab(self):
-        """Create Marxist economic analysis tab."""
-        self.marxist_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.marxist_frame, text="Marxist Analysis")
-
-        # Analysis controls
-        controls_frame = ttk.LabelFrame(self.marxist_frame, text="Analysis Controls", padding = 10)
-        controls_frame.pack(fill="x", padx = 10, pady = 5)
-
-        ttk.Button(controls_frame, text="Run Marxist Analysis", command = self.run_marxist_analysis).pack(side="left", padx = 5)
-        ttk.Button(controls_frame, text="Export Analysis", command = self.export_marxist_analysis).pack(side="left", padx = 5)
-
-        # Analysis parameters
-        params_frame = ttk.LabelFrame(self.marxist_frame, text="Analysis Parameters", padding = 10)
-        params_frame.pack(fill="x", padx = 10, pady = 5)
-
-        ttk.Label(params_frame, text="Wage Rate:").grid(row = 0, column = 0, sticky="w", padx = 5)
-        self.wage_rate_var = tk.StringVar(value="1.0")
-        ttk.Entry(params_frame, textvariable = self.wage_rate_var, width = 10).grid(row = 0, column = 1, padx = 5)
-
-        ttk.Label(params_frame, text="Surplus Value Rate:").grid(row = 0, column = 2, sticky="w", padx = 5)
-        self.surplus_rate_var = tk.StringVar(value="1.0")
-        ttk.Entry(params_frame, textvariable = self.surplus_rate_var, width = 10).grid(row = 0, column = 3, padx = 5)
-
-        # Analysis results
-        results_frame = ttk.LabelFrame(self.marxist_frame, text="Marxist Economic Analysis", padding = 10)
-        results_frame.pack(fill="both", expand = True, padx = 10, pady = 5)
-
-        self.marxist_text = scrolledtext.ScrolledText(results_frame, height = 20, width = 80)
-        self.marxist_text.pack(fill="both", expand = True)
-
-        # Status
-        self.marxist_status = ttk.Label(self.marxist_frame, text="No analysis performed")
-        self.marxist_status.pack(pady = 5)
-
-    def create_cybernetic_feedback_tab(self):
-        """Create cybernetic feedback analysis tab."""
-        self.cybernetic_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.cybernetic_frame, text="Cybernetic Feedback")
-
-        # Feedback controls
-        controls_frame = ttk.LabelFrame(self.cybernetic_frame, text="Feedback Controls", padding = 10)
-        controls_frame.pack(fill="x", padx = 10, pady = 5)
-
-        ttk.Button(controls_frame, text="Run Cybernetic Analysis", command = self.run_cybernetic_analysis).pack(side="left", padx = 5)
-        ttk.Button(controls_frame, text="Reset Feedback", command = self.reset_cybernetic_feedback).pack(side="left", padx = 5)
-
-        # Feedback parameters
-        params_frame = ttk.LabelFrame(self.cybernetic_frame, text="Feedback Parameters", padding = 10)
-        params_frame.pack(fill="x", padx = 10, pady = 5)
-
-        ttk.Label(params_frame, text="Feedback Strength:").grid(row = 0, column = 0, sticky="w", padx = 5)
-        self.feedback_strength_var = tk.StringVar(value="0.1")
-        ttk.Entry(params_frame, textvariable = self.feedback_strength_var, width = 10).grid(row = 0, column = 1, padx = 5)
-
-        ttk.Label(params_frame, text="Adaptation Rate:").grid(row = 0, column = 2, sticky="w", padx = 5)
-        self.adaptation_rate_var = tk.StringVar(value="0.05")
-        ttk.Entry(params_frame, textvariable = self.adaptation_rate_var, width = 10).grid(row = 0, column = 3, padx = 5)
-
-        ttk.Label(params_frame, text="Max Iterations:").grid(row = 1, column = 0, sticky="w", padx = 5)
-        self.max_iterations_cybernetic_var = tk.StringVar(value="100")
-        ttk.Entry(params_frame, textvariable = self.max_iterations_cybernetic_var, width = 10).grid(row = 1, column = 1, padx = 5)
-
-        # Feedback results
-        results_frame = ttk.LabelFrame(self.cybernetic_frame, text="Cybernetic Feedback Analysis", padding = 10)
-        results_frame.pack(fill="both", expand = True, padx = 10, pady = 5)
-
-        self.cybernetic_text = scrolledtext.ScrolledText(results_frame, height = 20, width = 80)
-        self.cybernetic_text.pack(fill="both", expand = True)
-
-        # Status
-        self.cybernetic_status = ttk.Label(self.cybernetic_frame, text="No analysis performed")
-        self.cybernetic_status.pack(pady = 5)
-
-    def create_mathematical_validation_tab(self):
-        """Create mathematical validation tab."""
-        self.validation_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.validation_frame, text="Mathematical Validation")
-
-        # Validation controls
-        controls_frame = ttk.LabelFrame(self.validation_frame, text="Validation Controls", padding = 10)
-        controls_frame.pack(fill="x", padx = 10, pady = 5)
-
-        ttk.Button(controls_frame, text="Run Mathematical Validation", command = self.run_mathematical_validation).pack(side="left", padx = 5)
-        ttk.Button(controls_frame, text="Export Validation Report", command = self.export_validation_report).pack(side="left", padx = 5)
-
-        # Validation results
-        results_frame = ttk.LabelFrame(self.validation_frame, text="Mathematical Validation Results", padding = 10)
-        results_frame.pack(fill="both", expand = True, padx = 10, pady = 5)
-
-        self.validation_text = scrolledtext.ScrolledText(results_frame, height = 20, width = 80)
-        self.validation_text.pack(fill="both", expand = True)
-
-        # Status
-        self.validation_status = ttk.Label(self.validation_frame, text="No validation performed")
-        self.validation_status.pack(pady = 5)
 
     def create_results_tab(self):
         """Create results display tab."""
@@ -750,6 +819,8 @@ optimal economic strategies using real - world data from multiple countries.
 
                     self.update_data_display()
                     self.data_status.config(text="Data loaded successfully", foreground="green")
+                    # Refresh automatic analyses
+                    self.refresh_automatic_analyses()
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load data: {str(e)}")
                 self.data_status.config(text="Error loading data", foreground="red")
@@ -797,6 +868,8 @@ optimal economic strategies using real - world data from multiple countries.
 
             self.update_data_display()
             self.data_status.config(text="Synthetic data generated", foreground="green")
+            # Refresh automatic analyses
+            self.refresh_automatic_analyses()
         except ValueError as e:
             messagebox.showerror("Error", f"Invalid configuration: {str(e)}")
         except Exception as e:
@@ -964,6 +1037,8 @@ optimal economic strategies using real - world data from multiple countries.
 
                 self.update_data_display()
                 self.data_status.config(text="USA data processed and loaded successfully", foreground="green")
+                # Refresh automatic analyses
+                self.refresh_automatic_analyses()
 
                 # Show success message
                 messagebox.showinfo(
@@ -1045,6 +1120,8 @@ optimal economic strategies using real - world data from multiple countries.
             self.current_data = self.planning_system.current_data
             self.update_data_display()
             self.data_status.config(text = f"Data loaded from {file_path.name}", foreground="green")
+            # Refresh automatic analyses
+            self.refresh_automatic_analyses()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load data: {str(e)}")
             self.data_status.config(text="Error loading data", foreground="red")
@@ -1174,6 +1251,18 @@ Technology Matrix (first 4x4):
         max_iterations = int(self.max_iterations_var.get())
         plan_type = self.plan_type_var.get()
 
+        # Get production adjustment settings
+        production_multipliers = {
+            "overall": self.overall_production_var.get(),
+            "dept_I": self.dept_I_production_var.get(),
+            "dept_II": self.dept_II_production_var.get(),
+            "dept_III": self.dept_III_production_var.get()
+        }
+        apply_reproduction = self.apply_reproduction_var.get()
+        
+        print(f"Production multipliers: {production_multipliers}")
+        print(f"Apply reproduction: {apply_reproduction}")
+
         # Start planning in a separate thread
         self.create_plan_button.config(state="disabled")
         self.progress_bar.start()
@@ -1181,10 +1270,20 @@ Technology Matrix (first 4x4):
 
         def plan_thread():
             try:
+                print(f"Creating plan with {len(policy_goals)} policy goals")
+                print(f"Data available: {bool(self.current_data)}")
+                
                 if plan_type == "single_year":
                     self.current_plan = self.planning_system.create_plan(
-                        policy_goals = policy_goals, use_optimization = use_optimization, max_iterations = max_iterations
+                        policy_goals = policy_goals, 
+                        use_optimization = use_optimization, 
+                        max_iterations = max_iterations,
+                        production_multipliers = production_multipliers,
+                        apply_reproduction = apply_reproduction
                     )
+                    print(f"Plan created successfully: {type(self.current_plan)}")
+                    if isinstance(self.current_plan, dict):
+                        print(f"Plan keys: {list(self.current_plan.keys())}")
                 else:  # five_year
                     growth_rate = float(self.growth_rate_var.get())
                     investment_ratio = float(self.investment_ratio_var.get())
@@ -1193,13 +1292,19 @@ Technology Matrix (first 4x4):
                         policy_goals = policy_goals,
                         consumption_growth_rate = growth_rate,
                         investment_ratio = investment_ratio,
+                        production_multipliers = production_multipliers,
+                        apply_reproduction = apply_reproduction
                     )
+                    print(f"Five-year plan created successfully: {type(self.current_plan)}")
 
                 # Update UI in main thread
                 self.root.after(0, self.plan_created_successfully)
 
             except Exception as e:
                 error_msg = str(e)
+                print(f"Plan creation failed: {error_msg}")
+                import traceback
+                traceback.print_exc()
                 self.root.after(0, lambda: self.plan_creation_failed(error_msg))
 
         threading.Thread(target = plan_thread, daemon = True).start()
@@ -1213,6 +1318,9 @@ Technology Matrix (first 4x4):
         # Update results display
         self.update_results_display()
 
+        # Switch to results tab to show the plan
+        self.notebook.select(self.results_frame)
+
         # Update export status
         self.export_status.config(text="Plan ready for export", foreground="green")
 
@@ -1223,17 +1331,59 @@ Technology Matrix (first 4x4):
         self.planning_status.config(text="Plan creation failed", foreground="red")
         messagebox.showerror("Error", f"Failed to create plan: {error_msg}")
 
+    def update_production_labels(self, value=None):
+        """Update the production percentage labels when sliders change."""
+        # Update overall production label
+        overall_val = self.overall_production_var.get()
+        if overall_val < 1.0:
+            self.overall_production_label.config(text=f"{overall_val*100:.0f}% (Underproduction)")
+        elif overall_val > 1.0:
+            self.overall_production_label.config(text=f"{overall_val*100:.0f}% (Overproduction)")
+        else:
+            self.overall_production_label.config(text="100% (Normal)")
+        
+        # Update department labels
+        dept_I_val = self.dept_I_production_var.get()
+        self.dept_I_production_label.config(text=f"{dept_I_val*100:.0f}%")
+        
+        dept_II_val = self.dept_II_production_var.get()
+        self.dept_II_production_label.config(text=f"{dept_II_val*100:.0f}%")
+        
+        dept_III_val = self.dept_III_production_var.get()
+        self.dept_III_production_label.config(text=f"{dept_III_val*100:.0f}%")
+
+    def reset_production_sliders(self):
+        """Reset all production sliders to normal (100%) levels."""
+        self.overall_production_var.set(1.0)
+        self.dept_I_production_var.set(1.0)
+        self.dept_II_production_var.set(1.0)
+        self.dept_III_production_var.set(1.0)
+        self.update_production_labels()
+
+    def on_closing(self):
+        """Handle window closing event."""
+        # Unbind mousewheel to prevent memory leaks
+        if hasattr(self, 'mousewheel_binding'):
+            self.planning_canvas.unbind_all("<MouseWheel>")
+        self.root.destroy()
+
     def update_results_display(self):
         """Update the results display."""
+        print(f"update_results_display called, current_plan: {bool(self.current_plan)}")
+        
         if not self.current_plan:
+            print("No current plan available for display")
             return
 
         # Handle different plan structures
         plan = self.current_plan
+        print(f"Plan type: {type(plan)}")
+        print(f"Plan keys: {list(plan.keys()) if isinstance(plan, dict) else 'Not a dict'}")
 
         # Check if plan has nested structure (evaluation result)
         if isinstance(plan, dict) and "plan" in plan and isinstance(plan["plan"], dict):
             plan = plan["plan"]
+            print("Using nested plan structure")
 
         # Update summary
         if isinstance(plan, dict) and "total_output" in plan:
@@ -1293,6 +1443,16 @@ Year - by - Year Summary:
             plan = plan["plan"]
 
         if isinstance(plan, dict) and "total_output" in plan:
+            # Debug: Print plan keys and final_demand info
+            print(f"DEBUG: Plan keys: {list(plan.keys())}")
+            if "final_demand" in plan:
+                final_demand_data = plan["final_demand"]
+                print(f"DEBUG: final_demand type: {type(final_demand_data)}")
+                print(f"DEBUG: final_demand shape/length: {getattr(final_demand_data, 'shape', len(final_demand_data))}")
+                print(f"DEBUG: final_demand first 5 values: {final_demand_data[:5] if hasattr(final_demand_data, '__getitem__') else 'No indexing'}")
+            else:
+                print("DEBUG: No 'final_demand' key in plan")
+            
             # Single year plan
             for i in range(len(plan["total_output"])):
                 # Check if labor_values exists, otherwise use labor_vector
@@ -1306,7 +1466,12 @@ Year - by - Year Summary:
                 labor_cost = labor_value * plan["total_output"][i]
 
                 # Check if final_demand exists
-                final_demand = plan.get("final_demand", [0.0] * len(plan["total_output"]))[i]
+                final_demand_data = plan.get("final_demand", [0.0] * len(plan["total_output"]))
+                # Handle both numpy arrays and lists
+                if hasattr(final_demand_data, 'tolist'):
+                    final_demand = final_demand_data[i]
+                else:
+                    final_demand = final_demand_data[i]
 
                 self.sector_tree.insert(
                     "",
@@ -1314,6 +1479,51 @@ Year - by - Year Summary:
                     text = f"Sector {i}",
                     values=(
                         f"{plan['total_output'][i]:.2f}",
+                        f"{final_demand:.2f}",
+                        f"{labor_value:.4f}",
+                        f"{labor_cost:.2f}",
+                    ),
+                )
+        elif isinstance(plan, dict) and all(isinstance(k, int) for k in plan.keys()):
+            # Multi-year plan (5-year plan) - use first year's data
+            first_year = min(plan.keys())
+            year_data = plan[first_year]
+            
+            print(f"DEBUG: Multi-year plan detected, using year {first_year}")
+            print(f"DEBUG: Year data keys: {list(year_data.keys())}")
+            if "final_demand" in year_data:
+                final_demand_data = year_data["final_demand"]
+                print(f"DEBUG: final_demand type: {type(final_demand_data)}")
+                print(f"DEBUG: final_demand shape/length: {getattr(final_demand_data, 'shape', len(final_demand_data))}")
+                print(f"DEBUG: final_demand first 5 values: {final_demand_data[:5] if hasattr(final_demand_data, '__getitem__') else 'No indexing'}")
+            else:
+                print("DEBUG: No 'final_demand' key in year data")
+            
+            for i in range(len(year_data["total_output"])):
+                # Check if labor_values exists, otherwise use labor_vector
+                if "labor_values" in year_data:
+                    labor_value = year_data["labor_values"][i]
+                elif "labor_vector" in year_data:
+                    labor_value = year_data["labor_vector"][i]
+                else:
+                    labor_value = 0.0
+
+                labor_cost = labor_value * year_data["total_output"][i]
+
+                # Check if final_demand exists
+                final_demand_data = year_data.get("final_demand", [0.0] * len(year_data["total_output"]))
+                # Handle both numpy arrays and lists
+                if hasattr(final_demand_data, 'tolist'):
+                    final_demand = final_demand_data[i]
+                else:
+                    final_demand = final_demand_data[i]
+
+                self.sector_tree.insert(
+                    "",
+                    "end",
+                    text = f"Sector {i}",
+                    values=(
+                        f"{year_data['total_output'][i]:.2f}",
                         f"{final_demand:.2f}",
                         f"{labor_value:.4f}",
                         f"{labor_cost:.2f}",
@@ -1335,7 +1545,12 @@ Year - by - Year Summary:
                 labor_cost = labor_value * plan["total_output"][i]
 
                 # Check if final_demand exists
-                final_demand = plan.get("final_demand", [0.0] * len(plan["total_output"]))[i]
+                final_demand_data = plan.get("final_demand", [0.0] * len(plan["total_output"]))
+                # Handle both numpy arrays and lists
+                if hasattr(final_demand_data, 'tolist'):
+                    final_demand = final_demand_data[i]
+                else:
+                    final_demand = final_demand_data[i]
 
                 self.sector_tree.insert(
                     "",
@@ -1368,7 +1583,16 @@ Year - by - Year Summary:
             else:
                 # Five year plan - generate report for first year
                 first_year = min(self.current_plan.keys())
-                report = self.planning_system.generate_report(self.current_plan[first_year])
+                year_data = self.current_plan[first_year]
+                print(f"DEBUG REPORT: First year data keys: {list(year_data.keys())}")
+                if "final_demand" in year_data:
+                    final_demand_data = year_data["final_demand"]
+                    print(f"DEBUG REPORT: final_demand type: {type(final_demand_data)}")
+                    print(f"DEBUG REPORT: final_demand sum: {np.sum(final_demand_data)}")
+                    print(f"DEBUG REPORT: final_demand first 5 values: {final_demand_data[:5]}")
+                else:
+                    print("DEBUG REPORT: No 'final_demand' key in year data")
+                report = self.planning_system.generate_report(year_data)
 
             self.report_text.delete("1.0", tk.END)
             self.report_text.insert("1.0", report)
@@ -1635,6 +1859,8 @@ Note: Data collection methods may vary by state and region.
             # Update data display
             self.update_data_display()
             self.data_status.config(text = f"Real data loaded from {country} web scrapers", foreground="green")
+            # Refresh automatic analyses
+            self.refresh_automatic_analyses()
 
             # Show success message
             messagebox.showinfo(
@@ -1662,186 +1888,6 @@ Note: Data collection methods may vary by state and region.
         self.scraper_status.config(text="Data collection failed", foreground="red")
         messagebox.showerror("Error", f"Data collection failed: {error_msg}")
 
-    def run_marxist_analysis(self):
-        """Run Marxist economic analysis."""
-        if not self.current_data:
-            messagebox.showerror("Error", "Please load data first")
-            return
-
-        try:
-            # Update parameters if needed
-            wage_rate = float(self.wage_rate_var.get())
-            surplus_rate = float(self.surplus_rate_var.get())
-
-            # Update planning system parameters
-            if self.planning_system.marxist_calculator:
-                self.planning_system.marxist_calculator.update_parameters(
-                    wage_rate = wage_rate, surplus_value_rate = surplus_rate
-                )
-
-            # Run analysis
-            analysis = self.planning_system.get_marxist_analysis()
-
-            if "error" in analysis:
-                self.marxist_status.config(text = analysis["error"], foreground="red")
-                return
-
-            # Display results
-            self.display_marxist_analysis(analysis)
-            self.marxist_status.config(text="Analysis completed successfully", foreground="green")
-
-        except Exception as e:
-            self.marxist_status.config(text = f"Analysis failed: {str(e)}", foreground="red")
-            messagebox.showerror("Error", f"Failed to run Marxist analysis: {str(e)}")
-
-    def display_marxist_analysis(self, analysis):
-        """Display Marxist analysis results."""
-        self.marxist_text.delete("1.0", tk.END)
-
-        # Format the analysis results
-        text = "Marxist Economic Analysis\n"
-        text += "=" * 50 + "\n\n"
-
-        # Aggregate indicators
-        if "aggregate_value_composition" in analysis:
-            agg = analysis["aggregate_value_composition"]
-            text += "Aggregate Value Composition:\n"
-            text += f"  Constant Capital (C): {agg['constant_capital']:.2f}\n"
-            text += f"  Variable Capital (V): {agg['variable_capital']:.2f}\n"
-            text += f"  Surplus Value (S): {agg['surplus_value']:.2f}\n"
-            text += f"  Total Value (W): {agg['total_value']:.2f}\n"
-            text += f"  Organic Composition (C / V): {agg['organic_composition']:.4f}\n"
-            text += f"  Rate of Surplus Value (S / V): {agg['rate_of_surplus_value']:.4f}\n"
-            text += f"  Rate of Profit (S/(C + V)): {agg['rate_of_profit']:.4f}\n\n"
-
-        # Sectoral indicators
-        if "sectoral_indicators" in analysis:
-            sectoral = analysis["sectoral_indicators"]
-            text += "Sectoral Indicators:\n"
-            text += f"  Organic Composition: {sectoral['organic_composition']}\n"
-            text += f"  Rate of Surplus Value: {sectoral['rate_of_surplus_value']}\n"
-            text += f"  Rate of Profit: {sectoral['rate_of_profit']}\n\n"
-
-        # Economy - wide averages
-        if "economy_wide_averages" in analysis:
-            avg = analysis["economy_wide_averages"]
-            text += "Economy - wide Averages:\n"
-            text += f"  Average Organic Composition: {avg['average_organic_composition']:.4f}\n"
-            text += f"  Average Rate of Surplus Value: {avg['average_rate_of_surplus_value']:.4f}\n"
-            text += f"  Average Rate of Profit: {avg['average_rate_of_profit']:.4f}\n"
-
-        self.marxist_text.insert("1.0", text)
-
-    def run_cybernetic_analysis(self):
-        """Run cybernetic feedback analysis."""
-        if not self.current_data:
-            messagebox.showerror("Error", "Please load data first")
-            return
-
-        try:
-            # Update parameters
-            feedback_strength = float(self.feedback_strength_var.get())
-            adaptation_rate = float(self.adaptation_rate_var.get())
-            max_iterations = int(self.max_iterations_cybernetic_var.get())
-
-            # Update cybernetic system parameters
-            if self.planning_system.cybernetic_feedback:
-                self.planning_system.cybernetic_feedback.update_cybernetic_parameters(
-                    feedback_strength = feedback_strength,
-                    adaptation_rate = adaptation_rate,
-                    max_iterations = max_iterations
-                )
-
-            # Run analysis
-            analysis = self.planning_system.get_cybernetic_analysis()
-
-            if "error" in analysis:
-                self.cybernetic_status.config(text = analysis["error"], foreground="red")
-                return
-
-            # Display results
-            self.display_cybernetic_analysis(analysis)
-            self.cybernetic_status.config(text="Analysis completed successfully", foreground="green")
-
-        except Exception as e:
-            self.cybernetic_status.config(text = f"Analysis failed: {str(e)}", foreground="red")
-            messagebox.showerror("Error", f"Failed to run cybernetic analysis: {str(e)}")
-
-    def display_cybernetic_analysis(self, analysis):
-        """Display cybernetic analysis results."""
-        self.cybernetic_text.delete("1.0", tk.END)
-
-        # Format the analysis results
-        text = "Cybernetic Feedback Analysis\n"
-        text += "=" * 50 + "\n\n"
-
-        # Basic results
-        text += f"Converged: {analysis.get('converged', False)}\n"
-        text += f"Iterations: {analysis.get('iterations', 0)}\n\n"
-
-        # Final output
-        if 'final_output' in analysis:
-            text += f"Final Output: {analysis['final_output']}\n\n"
-
-        # Cybernetic metrics
-        if 'cybernetic_metrics' in analysis:
-            metrics = analysis['cybernetic_metrics']
-            text += "Cybernetic Metrics:\n"
-            text += f"  Stability: {metrics.get('stability', 0):.4f}\n"
-            text += f"  Convergence Rate: {metrics.get('convergence_rate', 0):.4f}\n"
-            text += f"  Efficiency: {metrics.get('efficiency', 0):.4f}\n"
-            text += f"  Adaptability: {metrics.get('adaptability', 0):.4f}\n"
-            text += f"  Cybernetic Health: {metrics.get('cybernetic_health', 0):.4f}\n\n"
-
-        # Feedback history
-        if 'feedback_history' in analysis and analysis['feedback_history']:
-            text += "Feedback History (last 5 iterations):\n"
-            for i, hist in enumerate(analysis['feedback_history'][-5:]):
-                text += f"  Iteration {hist.get('iteration', i)}: "
-                text += f"Change={hist.get('output_change', 0):.6f}, "
-                text += f"Convergence={hist.get('convergence_ratio', 0):.6f}\n"
-
-        self.cybernetic_text.insert("1.0", text)
-
-    def run_mathematical_validation(self):
-        """Run mathematical validation."""
-        if not self.current_data:
-            messagebox.showerror("Error", "Please load data first")
-            return
-
-        try:
-            # Run validation
-            validation = self.planning_system.get_mathematical_validation()
-
-            # Display results
-            self.display_mathematical_validation(validation)
-            self.validation_status.config(text="Validation completed successfully", foreground="green")
-
-        except Exception as e:
-            self.validation_status.config(text = f"Validation failed: {str(e)}", foreground="red")
-            messagebox.showerror("Error", f"Failed to run mathematical validation: {str(e)}")
-
-    def display_mathematical_validation(self, validation):
-        """Display mathematical validation results."""
-        self.validation_text.delete("1.0", tk.END)
-
-        # Format the validation results
-        text = "Mathematical Validation Results\n"
-        text += "=" * 50 + "\n\n"
-
-        if isinstance(validation, dict):
-            for key, value in validation.items():
-                text += f"{key}: {value}\n"
-        else:
-            text += str(validation)
-
-        self.validation_text.insert("1.0", text)
-
-    def reset_cybernetic_feedback(self):
-        """Reset cybernetic feedback system."""
-        if self.planning_system.cybernetic_feedback:
-            self.planning_system.cybernetic_feedback.reset_feedback_state()
-            self.cybernetic_status.config(text="Feedback system reset", foreground="blue")
 
     def export_marxist_analysis(self):
         """Export Marxist analysis results."""
@@ -1882,6 +1928,63 @@ Note: Data collection methods may vary by state and region.
                 messagebox.showinfo("Success", f"Report exported to {file_path}")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to export report: {str(e)}")
+
+    def refresh_automatic_analyses(self):
+        """Refresh the automatic analyses display."""
+        try:
+            # Get automatic analyses from planning system
+            analyses = self.planning_system.get_automatic_analyses()
+            
+            if "error" in analyses:
+                self.auto_analyses_status.config(text=analyses["error"], foreground="red")
+                return
+            
+            # Update status
+            self.auto_analyses_status.config(text="Analyses loaded successfully", foreground="green")
+            
+            # Display Marxist analysis
+            marxist_data = analyses.get('marxist', {})
+            marxist_text = self._format_analysis_data(marxist_data, "Marxist Economic Analysis")
+            self.marxist_auto_text.delete("1.0", tk.END)
+            self.marxist_auto_text.insert("1.0", marxist_text)
+            
+            # Display Cybernetic analysis
+            cybernetic_data = analyses.get('cybernetic', {})
+            cybernetic_text = self._format_analysis_data(cybernetic_data, "Cybernetic Feedback Analysis")
+            self.cybernetic_auto_text.delete("1.0", tk.END)
+            self.cybernetic_auto_text.insert("1.0", cybernetic_text)
+            
+            # Display Mathematical validation
+            math_data = analyses.get('mathematical', {})
+            math_text = self._format_analysis_data(math_data, "Mathematical Validation")
+            self.math_auto_text.delete("1.0", tk.END)
+            self.math_auto_text.insert("1.0", math_text)
+            
+        except Exception as e:
+            self.auto_analyses_status.config(text=f"Error refreshing analyses: {str(e)}", foreground="red")
+
+    def _format_analysis_data(self, data, title):
+        """Format analysis data for display."""
+        if not data:
+            return f"{title}\n\nNo data available."
+        
+        if "error" in data:
+            return f"{title}\n\nError: {data['error']}"
+        
+        # Format the data nicely
+        text = f"{title}\n{'='*50}\n\n"
+        
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if isinstance(value, (dict, list)):
+                    text += f"{key}:\n"
+                    text += json.dumps(value, indent=2, default=str) + "\n\n"
+                else:
+                    text += f"{key}: {value}\n"
+        else:
+            text += str(data)
+        
+        return text
 
 def main():
     """Main function to run the GUI."""

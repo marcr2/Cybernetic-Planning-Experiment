@@ -190,7 +190,12 @@ class EnhancedDataLoader:
 
             # If data is in tables format, convert it
             if "tables" in raw_bea_data:
-                raw_bea_data["tables"]
+                tables = raw_bea_data["tables"]
+                
+                # Check if tables are null or empty
+                if not tables or all(v is None for v in tables.values()):
+                    print("⚠️  BEA tables are null/empty, creating sample data")
+                    return self._create_sample_bea_data()
 
                 # Create a simple 175x175 technology matrix
                 n_sectors = 175

@@ -75,12 +75,22 @@ def calculate_economic_indicators(plan_data: Dict[str, Any]) -> Dict[str, float]
     total_output = plan_data["total_output"]
     total_labor_cost = plan_data["total_labor_cost"]
     final_demand = plan_data["final_demand"]
+    technology_matrix = plan_data.get("technology_matrix")
+
+    # Calculate net output (final demand fulfillment)
+    if technology_matrix is not None:
+        I = np.eye(technology_matrix.shape[0])
+        net_output = (I - technology_matrix) @ total_output
+        demand_fulfillment_rate = np.sum(net_output) / (np.sum(final_demand) + 1e-10)
+    else:
+        # Fallback: assume net output equals final demand if no technology matrix
+        demand_fulfillment_rate = 1.0
 
     indicators = {
         "total_economic_output": np.sum(total_output),
         "total_labor_cost": total_labor_cost,
         "labor_efficiency": np.sum(total_output) / (total_labor_cost + 1e - 10),
-        "demand_fulfillment_rate": np.sum(final_demand) / (np.sum(total_output) + 1e - 10),
+        "demand_fulfillment_rate": demand_fulfillment_rate,
         "output_inequality": np.std(total_output) / (np.mean(total_output) + 1e - 10),
         "average_sector_output": np.mean(total_output),
         "max_sector_output": np.max(total_output),

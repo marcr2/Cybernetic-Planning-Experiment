@@ -111,6 +111,7 @@ class PolicyAgent(BaseAgent):
         """
         current_plan = task.get("current_plan")
         policy_goals = task.get("goals", [])
+        sector_mapping = task.get("sector_mapping", {})
 
         if current_plan is None:
             return {"error": "Missing current plan"}
@@ -118,8 +119,8 @@ class PolicyAgent(BaseAgent):
         if not policy_goals:
             return {"status": "success", "message": "No policy goals provided", "adjusted_plan": current_plan}
 
-        # Translate goals into quantitative adjustments
-        goal_adjustments = self._translate_goals_to_adjustments(policy_goals)
+        # Translate goals into quantitative adjustments using sector mapping
+        goal_adjustments = self._translate_goals_to_adjustments(policy_goals, sector_mapping)
 
         # Apply adjustments to the plan
         adjusted_plan = self._apply_goal_adjustments(current_plan, goal_adjustments)
@@ -219,22 +220,26 @@ class PolicyAgent(BaseAgent):
 
         return None
 
-    def _translate_goals_to_adjustments(self, goals: List[Union[str, Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    def _translate_goals_to_adjustments(self, goals: List[Union[str, Dict[str, Any]]], sector_mapping: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """
         Translate structured goals into plan adjustments.
 
         Args:
             goals: List of goals (strings or structured dictionaries)
+            sector_mapping: Mapping from sector names to indices
 
         Returns:
             List of plan adjustments
         """
+        if sector_mapping is None:
+            sector_mapping = {}
+            
         adjustments = []
 
         for goal in goals:
             if isinstance(goal, str):
                 # Translate string goal to structured format first
-                translated_goal = self._translate_single_goal(goal, {})
+                translated_goal = self._translate_single_goal(goal, sector_mapping)
                 if translated_goal:
                     adjustment = {
                         "type": translated_goal["adjustment_type"],

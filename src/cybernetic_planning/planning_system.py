@@ -16,6 +16,7 @@ from .core.validation import EconomicPlanValidator
 from .core.marxist_economics import MarxistEconomicCalculator
 from .core.cybernetic_feedback import CyberneticFeedbackSystem
 from .core.mathematical_validation import MathematicalValidator
+from .core.leontief import LeontiefModel
 from .agents import ManagerAgent, EconomicsAgent, ResourceAgent, PolicyAgent, WriterAgent
 from .data import IOParser, MatrixBuilder, DataValidator, EnhancedDataLoader
 
@@ -74,7 +75,42 @@ class CyberneticPlanningSystem:
             Loaded data dictionary
         """
         try:
-            data = self.parser.parse_file(file_path, format_type)
+            # Use enhanced data loader for better data processing
+            if str(file_path).endswith('.json'):
+                # Load JSON file and process with enhanced loader
+                import json
+                with open(file_path, 'r') as f:
+                    raw_data = json.load(f)
+                
+                # Process with enhanced loader
+                processed_data = self.enhanced_loader._convert_bea_data_format(raw_data)
+                
+                # Convert to numpy arrays
+                technology_matrix = processed_data.get("technology_matrix")
+                if isinstance(technology_matrix, list):
+                    technology_matrix = np.array(technology_matrix)
+                
+                final_demand = processed_data.get("final_demand")
+                if isinstance(final_demand, list):
+                    final_demand = np.array(final_demand)
+                
+                labor_input = processed_data.get("labor_input")
+                if isinstance(labor_input, list):
+                    labor_input = np.array(labor_input)
+                
+                data = {
+                    "technology_matrix": technology_matrix,
+                    "final_demand": final_demand,
+                    "labor_input": labor_input,
+                    "sectors": processed_data.get("sectors", []),
+                    "sector_count": processed_data.get("sector_count", 0),
+                    "year": processed_data.get("year", 2024),
+                    "data_source": processed_data.get("data_source", "file"),
+                    "metadata": processed_data.get("metadata", {})
+                }
+            else:
+                # Use basic parser for other formats
+                data = self.parser.parse_file(file_path, format_type)
 
             # Validate loaded data
             validation_results = self.validator.validate_all(data)
@@ -134,6 +170,16 @@ class CyberneticPlanningSystem:
         data = self.matrix_builder.create_synthetic_data(
             n_sectors = n_sectors, technology_density = technology_density, resource_count = resource_count
         )
+
+        # Debug: Check synthetic data generation
+        print(f"DEBUG SYNTHETIC: Generated data keys: {list(data.keys())}")
+        if "final_demand" in data:
+            final_demand = data["final_demand"]
+            print(f"DEBUG SYNTHETIC: Generated final_demand type: {type(final_demand)}")
+            print(f"DEBUG SYNTHETIC: Generated final_demand sum: {np.sum(final_demand)}")
+            print(f"DEBUG SYNTHETIC: Generated final_demand first 5 values: {final_demand[:5]}")
+        else:
+            print("DEBUG SYNTHETIC: WARNING - No final_demand in generated data!")
 
         self.current_data = data
 
@@ -209,7 +255,12 @@ class CyberneticPlanningSystem:
         return data
 
     def create_plan(
-        self, policy_goals: Optional[List[str]] = None, use_optimization: bool = True, max_iterations: int = 10
+        self, 
+        policy_goals: Optional[List[str]] = None, 
+        use_optimization: bool = True, 
+        max_iterations: int = 10,
+        production_multipliers: Optional[Dict[str, float]] = None,
+        apply_reproduction: bool = True
     ) -> Dict[str, Any]:
         """
         Create a comprehensive economic plan.
@@ -218,6 +269,8 @@ class CyberneticPlanningSystem:
             policy_goals: List of policy goals in natural language
             use_optimization: Whether to use constrained optimization
             max_iterations: Maximum number of planning iterations
+            production_multipliers: Dictionary of production multipliers for different departments
+            apply_reproduction: Whether to apply Marxist reproduction adjustments
 
         Returns:
             Generated economic plan
@@ -249,15 +302,27 @@ class CyberneticPlanningSystem:
                         sector_mapping["department_iii"] = []
                     sector_mapping["department_iii"].append(i)
 
+        # Get original final demand (production multipliers will be applied by reproduction system)
+        final_demand = self.current_data["final_demand"].copy()
+        
+        # Debug: Check the original final_demand from data
+        print(f"DEBUG PLANNING: Original final_demand from data type: {type(final_demand)}")
+        print(f"DEBUG PLANNING: Original final_demand from data shape: {final_demand.shape if hasattr(final_demand, 'shape') else len(final_demand)}")
+        print(f"DEBUG PLANNING: Original final_demand from data sum: {np.sum(final_demand)}")
+        print(f"DEBUG PLANNING: Original final_demand from data first 5 values: {final_demand[:5]}")
+        print(f"DEBUG PLANNING: Number of sectors: {len(self.current_data.get('sectors', []))}")
+        
         # Create initial plan
         plan_task = {
             "type": "create_plan",
             "technology_matrix": self.current_data["technology_matrix"],
-            "final_demand": self.current_data["final_demand"],
+            "final_demand": final_demand,
             "labor_vector": self.current_data["labor_input"],
             "resource_matrix": self.current_data.get("resource_matrix"),
             "max_resources": self.current_data.get("max_resources"),
             "sector_mapping": sector_mapping,  # Pass sector mapping
+            "apply_reproduction": apply_reproduction,  # Pass reproduction setting
+            "production_multipliers": production_multipliers,  # Pass production multipliers
         }
 
         result = self.manager_agent.process_task(plan_task)
@@ -298,11 +363,54 @@ class CyberneticPlanningSystem:
 
         return self.current_plan
 
+    def _apply_production_multipliers(self, final_demand: np.ndarray, production_multipliers: Dict[str, float]) -> np.ndarray:
+        """
+        Apply production multipliers to final demand.
+        
+        Args:
+            final_demand: Original final demand vector
+            production_multipliers: Dictionary with multipliers for 'overall', 'dept_I', 'dept_II', 'dept_III'
+            
+        Returns:
+            Adjusted final demand vector
+        """
+        adjusted_demand = final_demand.copy()
+        n_sectors = len(final_demand)
+        
+        # Apply overall multiplier first
+        overall_multiplier = production_multipliers.get("overall", 1.0)
+        adjusted_demand *= overall_multiplier
+        
+        # Apply department-specific multipliers
+        # Assuming first 50 sectors are Dept I, next 50 are Dept II, rest are Dept III
+        n_dept_I = min(50, n_sectors)
+        n_dept_II = min(50, max(0, n_sectors - 50))
+        n_dept_III = max(0, n_sectors - 100)
+        
+        # Department I multiplier
+        dept_I_multiplier = production_multipliers.get("dept_I", 1.0)
+        if n_dept_I > 0:
+            adjusted_demand[:n_dept_I] *= dept_I_multiplier
+        
+        # Department II multiplier
+        dept_II_multiplier = production_multipliers.get("dept_II", 1.0)
+        if n_dept_II > 0:
+            adjusted_demand[n_dept_I:n_dept_I + n_dept_II] *= dept_II_multiplier
+        
+        # Department III multiplier
+        dept_III_multiplier = production_multipliers.get("dept_III", 1.0)
+        if n_dept_III > 0:
+            adjusted_demand[n_dept_I + n_dept_II:] *= dept_III_multiplier
+        
+        return adjusted_demand
+
     def create_five_year_plan(
         self,
         policy_goals: Optional[List[str]] = None,
         consumption_growth_rate: float = 0.02,
         investment_ratio: float = 0.2,
+        production_multipliers: Optional[Dict[str, float]] = None,
+        apply_reproduction: bool = True
     ) -> Dict[int, Dict[str, Any]]:
         """
         Create a comprehensive 5 - year economic plan.
@@ -311,6 +419,8 @@ class CyberneticPlanningSystem:
             policy_goals: List of policy goals in natural language
             consumption_growth_rate: Annual consumption growth rate
             investment_ratio: Ratio of investment to total output
+            production_multipliers: Dictionary of production multipliers for different departments
+            apply_reproduction: Whether to apply Marxist reproduction adjustments
 
         Returns:
             Dictionary with plans for each year
@@ -325,7 +435,8 @@ class CyberneticPlanningSystem:
         )
 
         # Create consumption and investment demands for each year
-        base_final_demand = self.current_data["final_demand"]
+        base_final_demand = self.current_data["final_demand"].copy()
+        # Note: Production multipliers are handled by the reproduction system in individual year plans
         consumption_demands = []
         investment_demands = []
 
@@ -374,6 +485,10 @@ class CyberneticPlanningSystem:
             if self.current_plan is None:
                 raise ValueError("No plan data available. Please create a plan first.")
             plan_data = self.current_plan
+
+        # Include automatic analysis results in the plan data
+        if hasattr(self, 'automatic_analyses') and self.automatic_analyses:
+            plan_data["automatic_analyses"] = self.automatic_analyses
 
         report_task = {"type": "generate_report", "plan_data": plan_data, "options": report_options or {}}
 
@@ -572,7 +687,7 @@ class CyberneticPlanningSystem:
         self.parser.export_data(self.current_data, output_path, format_type)
 
     def _initialize_new_modules(self):
-        """Initialize new modules with current data."""
+        """Initialize new modules with current data and run automatic analyses."""
         if not self.current_data:
             return
 
@@ -591,6 +706,10 @@ class CyberneticPlanningSystem:
                     final_demand = self.current_data["final_demand"],
                     labor_vector = self.current_data["labor_input"]
                 )
+            
+            # Run automatic analyses after initialization
+            self._run_automatic_analyses()
+            
         except Exception as e:
             print(f"Warning: Could not initialize new modules: {e}")
 
@@ -622,4 +741,74 @@ class CyberneticPlanningSystem:
         if not self.current_data:
             return {"error": "No data loaded for validation."}
 
-        return self.mathematical_validator.validate_all_formulas(self.current_data)
+        # Create system components for comprehensive validation
+        system_components = {
+            "data": self.current_data,
+            "marxist_calculator": self.marxist_calculator,
+            "cybernetic_system": self.cybernetic_feedback,
+        }
+        
+        # Add Leontief model if data is available
+        if all(key in self.current_data for key in ["technology_matrix", "final_demand"]):
+            try:
+                leontief_model = LeontiefModel(
+                    technology_matrix=self.current_data["technology_matrix"],
+                    final_demand=self.current_data["final_demand"]
+                )
+                system_components["leontief_model"] = leontief_model
+            except Exception as e:
+                print(f"Warning: Could not create Leontief model for validation: {e}")
+        
+        # Add cybernetic result if available
+        if self.cybernetic_feedback:
+            try:
+                cybernetic_result = self.get_cybernetic_analysis()
+                system_components["cybernetic_result"] = cybernetic_result
+            except Exception as e:
+                print(f"Warning: Could not get cybernetic result for validation: {e}")
+        
+        # Run comprehensive validation
+        return self.mathematical_validator.validate_all(system_components)
+
+    def _run_automatic_analyses(self):
+        """Run all three analyses automatically when data is loaded."""
+        try:
+            # Store analysis results in the system for easy access
+            self.automatic_analyses = {}
+            
+            # Run Marxist analysis
+            if self.marxist_calculator:
+                try:
+                    marxist_results = self.get_marxist_analysis()
+                    self.automatic_analyses['marxist'] = marxist_results
+                    print("✓ Marxist analysis completed automatically")
+                except Exception as e:
+                    print(f"Warning: Marxist analysis failed: {e}")
+                    self.automatic_analyses['marxist'] = {"error": str(e)}
+            
+            # Run cybernetic feedback analysis
+            if self.cybernetic_feedback:
+                try:
+                    cybernetic_results = self.get_cybernetic_analysis()
+                    self.automatic_analyses['cybernetic'] = cybernetic_results
+                    print("✓ Cybernetic feedback analysis completed automatically")
+                except Exception as e:
+                    print(f"Warning: Cybernetic analysis failed: {e}")
+                    self.automatic_analyses['cybernetic'] = {"error": str(e)}
+            
+            # Run mathematical validation
+            try:
+                validation_results = self.get_mathematical_validation()
+                self.automatic_analyses['mathematical'] = validation_results
+                print("✓ Mathematical validation completed automatically")
+            except Exception as e:
+                print(f"Warning: Mathematical validation failed: {e}")
+                self.automatic_analyses['mathematical'] = {"error": str(e)}
+                
+        except Exception as e:
+            print(f"Warning: Automatic analyses failed: {e}")
+            self.automatic_analyses = {"error": str(e)}
+
+    def get_automatic_analyses(self) -> Dict[str, Any]:
+        """Get results from automatic analyses run on data load."""
+        return getattr(self, 'automatic_analyses', {"error": "No automatic analyses available"})

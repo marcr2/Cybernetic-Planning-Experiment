@@ -273,6 +273,7 @@ class DynamicPlanner:
             "consumption_demand": consumption_demand,
             "investment_demand": investment_demand,
             "total_demand": d_t,
+            "final_demand": d_t,  # Add final_demand for compatibility with report generation
             "total_labor_cost": total_labor_cost,
             "technology_matrix": A_t,
             "labor_vector": l_t,

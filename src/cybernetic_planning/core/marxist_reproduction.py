@@ -213,18 +213,35 @@ class MarxistReproductionSystem:
 
         return adjusted_output
 
-    def calculate_expanded_reproduction_demands(self, base_demand: np.ndarray, growth_rate: float = 0.05) -> np.ndarray:
+    def calculate_expanded_reproduction_demands(self, base_demand: np.ndarray, growth_rate: float = 0.05, production_multipliers: Optional[Dict[str, float]] = None) -> np.ndarray:
         """
         Calculate demands for expanded reproduction.
 
         Args:
             base_demand: Base final demand
             growth_rate: Annual growth rate for expanded reproduction
+            production_multipliers: Optional production multipliers to apply
 
         Returns:
             Expanded reproduction demand vector
         """
         expanded_demand = base_demand.copy()
+
+        # Apply production multipliers first if provided
+        if production_multipliers:
+            # Apply overall multiplier first
+            overall_multiplier = production_multipliers.get("overall", 1.0)
+            expanded_demand *= overall_multiplier
+            
+            # Apply department-specific multipliers
+            dept_I_multiplier = production_multipliers.get("dept_I", 1.0)
+            expanded_demand[self.dept_I_indices] *= dept_I_multiplier
+            
+            dept_II_multiplier = production_multipliers.get("dept_II", 1.0)
+            expanded_demand[self.dept_II_indices] *= dept_II_multiplier
+            
+            dept_III_multiplier = production_multipliers.get("dept_III", 1.0)
+            expanded_demand[self.dept_III_indices] *= dept_III_multiplier
 
         # Department I: Investment demand grows with accumulation
         dept_I_growth = 1 + growth_rate

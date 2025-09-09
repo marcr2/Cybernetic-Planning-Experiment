@@ -281,7 +281,8 @@ class CyberneticFeedbackSystem:
         self,
         feedback_strength: Optional[float] = None,
         adaptation_rate: Optional[float] = None,
-        convergence_threshold: Optional[float] = None
+        convergence_threshold: Optional[float] = None,
+        max_iterations: Optional[int] = None
     ):
         """
         Update cybernetic parameters dynamically.
@@ -290,6 +291,7 @@ class CyberneticFeedbackSystem:
             feedback_strength: New feedback strength
             adaptation_rate: New adaptation rate
             convergence_threshold: New convergence threshold
+            max_iterations: New maximum iterations
         """
         if feedback_strength is not None:
             self.feedback_strength = np.clip(feedback_strength, 0.0, 1.0)
@@ -297,6 +299,8 @@ class CyberneticFeedbackSystem:
             self.adaptation_rate = np.clip(adaptation_rate, 0.0, 1.0)
         if convergence_threshold is not None:
             self.convergence_threshold = max(convergence_threshold, 1e-10)
+        if max_iterations is not None:
+            self.max_iterations = max(max_iterations, 1)
 
     def get_system_diagnostics(self) -> Dict[str, Any]:
         """
