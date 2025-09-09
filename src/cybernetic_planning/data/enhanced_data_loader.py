@@ -1,31 +1,30 @@
 """
 Enhanced Data Loader
 
-Integrates real resource constraint data with existing BEA Input-Output data
+Integrates real resource constraint data with existing BEA Input - Output data
 to provide comprehensive economic planning data for the cybernetic system.
 """
 
-import numpy as np
 from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
 import json
 from datetime import datetime
+import numpy as np
+import pandas as pd
 
 from .io_parser import IOParser
 from .resource_matrix_builder import ResourceMatrixBuilder
 from .sector_mapper import SectorMapper
 from .web_scrapers.data_collector import ResourceDataCollector
 
-
 class EnhancedDataLoader:
     """
-    Enhanced data loader that integrates real resource data with BEA I-O data.
+    Enhanced data loader that integrates real resource data with BEA I - O data.
 
     Provides comprehensive economic planning data including:
-    - BEA Input-Output tables (technology matrix, final demand)
+    - BEA Input - Output tables (technology matrix, final demand)
     - Real resource constraint data (energy, materials, labor, environmental)
-    - Sector mapping and data validation
-    - Data quality assessment and reporting
+    - Sector mapping and data validation - Data quality assessment and reporting
     """
 
     def __init__(
@@ -44,14 +43,14 @@ class EnhancedDataLoader:
             eia_api_key: EIA API key for enhanced data access
             bls_api_key: BLS API key for labor data access
             usgs_api_key: USGS API key for material data access
-            bea_api_key: BEA API key for Input-Output data access
+            bea_api_key: BEA API key for Input - Output data access
             data_dir: Directory for data files
             cache_dir: Directory for cached data
         """
         self.data_dir = Path(data_dir)
         self.cache_dir = Path(cache_dir)
-        self.data_dir.mkdir(exist_ok=True)
-        self.cache_dir.mkdir(exist_ok=True)
+        self.data_dir.mkdir(exist_ok = True)
+        self.cache_dir.mkdir(exist_ok = True)
 
         # Store API keys
         self.bea_api_key = bea_api_key
@@ -60,14 +59,14 @@ class EnhancedDataLoader:
         self.io_parser = IOParser()
         self.sector_mapper = SectorMapper()
         self.data_collector = ResourceDataCollector(
-            eia_api_key=eia_api_key,
-            bls_api_key=bls_api_key,
-            usgs_api_key=usgs_api_key,
-            cache_dir=str(self.cache_dir),
-            output_dir=str(self.data_dir),
+            eia_api_key = eia_api_key,
+            bls_api_key = bls_api_key,
+            usgs_api_key = usgs_api_key,
+            cache_dir = str(self.cache_dir),
+            output_dir = str(self.data_dir),
         )
         self.matrix_builder = ResourceMatrixBuilder(
-            sector_mapper=self.sector_mapper, data_collector=self.data_collector
+            sector_mapper = self.sector_mapper, data_collector = self.data_collector
         )
 
         # Data storage
@@ -97,8 +96,8 @@ class EnhancedDataLoader:
         """
         print(f"Loading comprehensive economic planning data for {year}...")
 
-        # Load BEA Input-Output data
-        print("Loading BEA Input-Output data...")
+        # Load BEA Input - Output data
+        print("Loading BEA Input - Output data...")
         bea_data = self._load_bea_data(bea_data_file)
 
         # Load or collect resource data
@@ -135,11 +134,11 @@ class EnhancedDataLoader:
         return comprehensive_data
 
     def _load_bea_data(self, bea_data_file: Optional[str] = None) -> Dict[str, Any]:
-        """Load BEA Input-Output data."""
+        """Load BEA Input - Output data."""
         from .web_scrapers.bea_scraper import BEAScraper
 
         # Initialize BEA scraper
-        bea_scraper = BEAScraper(api_key=self.bea_api_key, cache_dir=str(self.cache_dir), output_dir=str(self.data_dir))
+        bea_scraper = BEAScraper(api_key = self.bea_api_key, cache_dir = str(self.cache_dir), output_dir = str(self.data_dir))
 
         if bea_data_file is None:
             # First, try to detect existing local BEA data
@@ -156,8 +155,8 @@ class EnhancedDataLoader:
 
             # If no local data found or error loading, try to download
             try:
-                print("Downloading BEA Input-Output data...")
-                bea_data = bea_scraper.scrape_io_data(year=2022)  # Use most recent available year
+                print("Downloading BEA Input - Output data...")
+                bea_data = bea_scraper.scrape_io_data(year = 2022)  # Use most recent available year
                 print("✓ Successfully downloaded BEA data")
                 # Convert from tables format to expected format
                 return self._convert_bea_data_format(bea_data)
@@ -165,7 +164,7 @@ class EnhancedDataLoader:
                 print(f"✗ Error downloading BEA data: {e}")
                 print("Using sample data for testing...")
                 # Fallback to sample data
-                bea_data = bea_scraper.scrape_io_data(year=2022, force_download=True)
+                bea_data = bea_scraper.scrape_io_data(year = 2022, force_download = True)
                 return self._convert_bea_data_format(bea_data)
         else:
             # Use specified file
@@ -204,7 +203,7 @@ class EnhancedDataLoader:
                 labor_input = np.ones(n_sectors) * 0.1  # Simple labor input
 
                 # Create sector names
-                sectors = [f"Sector_{i+1}" for i in range(n_sectors)]
+                sectors = [f"Sector_{i + 1}" for i in range(n_sectors)]
 
                 converted_data = {
                     "year": raw_bea_data.get("year", 2022),
@@ -230,25 +229,93 @@ class EnhancedDataLoader:
             return self._create_sample_bea_data()
 
     def _create_sample_bea_data(self) -> Dict[str, Any]:
-        """Create sample BEA data for testing."""
+        """Create sample BEA data based on Marxist reproduction schemes."""
         n_sectors = 175
 
-        # Create a simple technology matrix (identity with small off-diagonal elements)
-        technology_matrix = np.eye(n_sectors) * 0.1
-        # Add some random off-diagonal elements
+        # Create a more realistic technology matrix based on Marx's reproduction schemes
+        # Department I: Means of production (sectors 1 - 50)
+        # Department II: Consumer goods (sectors 51 - 100)
+        # Department III: Services and other (sectors 101 - 175)
+
+        technology_matrix = np.zeros((n_sectors, n_sectors))
+
+        # Department I: Heavy industry, machinery, raw materials
+        for i in range(50):
+            for j in range(50):  # Heavy industry supplies itself
+                if i == j:
+                    technology_matrix[i, j] = 0.3  # Self - consumption
+                elif j < 20:  # Raw materials
+                    technology_matrix[i, j] = np.random.uniform(0.1, 0.3)
+                else:  # Machinery
+                    technology_matrix[i, j] = np.random.uniform(0.05, 0.15)
+
+            # Department I supplies Department II
+            for j in range(50, 100):
+                technology_matrix[i, j] = np.random.uniform(0.1, 0.4)
+
+        # Department II: Consumer goods production
+        for i in range(50, 100):
+            # Department II uses Department I inputs
+            for j in range(50):
+                technology_matrix[i, j] = np.random.uniform(0.2, 0.5)
+
+            # Department II supplies itself
+            for j in range(50, 100):
+                if i == j:
+                    technology_matrix[i, j] = 0.2
+                else:
+                    technology_matrix[i, j] = np.random.uniform(0.05, 0.15)
+
+        # Department III: Services (minimal material inputs)
+        for i in range(100, n_sectors):
+            for j in range(50):  # Some material inputs
+                technology_matrix[i, j] = np.random.uniform(0.01, 0.1)
+            for j in range(100, n_sectors):  # Service inputs
+                if i == j:
+                    technology_matrix[i, j] = 0.1
+                else:
+                    technology_matrix[i, j] = np.random.uniform(0.01, 0.05)
+
+        # Create final demand based on Marx's reproduction schemes
+        # Department I: Investment demand (means of production)
+        # Department II: Consumption demand (consumer goods)
+        # Department III: Service demand
+        final_demand = np.zeros(n_sectors)
+
+        # Department I: Investment demand (capital accumulation)
+        for i in range(50):
+            final_demand[i] = np.random.uniform(1000, 5000)  # High investment demand
+
+        # Department II: Consumption demand (workers' consumption)
+        for i in range(50, 100):
+            final_demand[i] = np.random.uniform(2000, 8000)  # High consumption demand
+
+        # Department III: Service demand
+        for i in range(100, n_sectors):
+            final_demand[i] = np.random.uniform(500, 2000)  # Moderate service demand
+
+        # Create labor input vector based on Marx's labor theory of value
+        # Department I: High labor intensity (heavy industry)
+        # Department II: Medium labor intensity (manufacturing)
+        # Department III: Variable labor intensity (services)
+        labor_input = np.zeros(n_sectors)
+
+        for i in range(50):  # Department I
+            labor_input[i] = np.random.uniform(0.4, 0.8)  # High labor intensity
+        for i in range(50, 100):  # Department II
+            labor_input[i] = np.random.uniform(0.2, 0.6)  # Medium labor intensity
+        for i in range(100, n_sectors):  # Department III
+            labor_input[i] = np.random.uniform(0.1, 0.4)  # Variable labor intensity
+
+        # Create meaningful sector names based on Marx's departments
+        sectors = []
         for i in range(n_sectors):
-            for j in range(n_sectors):
-                if i != j and np.random.random() < 0.1:  # 10% chance of non-zero
-                    technology_matrix[i, j] = np.random.random() * 0.05
-
-        # Create final demand vector
-        final_demand = np.random.uniform(500, 2000, n_sectors)
-
-        # Create labor input vector
-        labor_input = np.random.uniform(0.05, 0.3, n_sectors)
-
-        # Create sector names
-        sectors = [f"Sector_{i+1}" for i in range(n_sectors)]
+            if i < 50:
+                sectors.append(f"Dept_I_Sector_{i + 1}")  # Means of production
+            elif i < 100:
+                sectors.append(f"Dept_II_Sector_{i - 49}")  # Consumer goods
+            else:
+                sectors.append(f"Dept_III_Sector_{i - 99}")  # Services
 
         return {
             "year": 2022,
@@ -257,11 +324,16 @@ class EnhancedDataLoader:
             "labor_input": labor_input.tolist(),
             "sectors": sectors,
             "sector_count": n_sectors,
-            "data_source": "sample_data",
+            "data_source": "marxist_sample_data",
             "metadata": {
-                "source": "sample_data",
+                "source": "marxist_sample_data",
                 "created_at": datetime.now().isoformat(),
-                "note": "Sample data created due to BEA data conversion issues",
+                "note": "Sample data based on Marx's reproduction schemes and labor theory of value",
+                "departments": {
+                    "department_I": "Means of production (sectors 1 - 50)",
+                    "department_II": "Consumer goods (sectors 51 - 100)",
+                    "department_III": "Services and other (sectors 101 - 175)"
+                }
             },
         }
 
@@ -340,7 +412,7 @@ class EnhancedDataLoader:
         if "combined_resource_matrix" in resource_matrices:
             matrix = resource_matrices["combined_resource_matrix"]
             if matrix is not None and hasattr(matrix, "shape") and len(matrix.shape) == 2:
-                non_zero_sectors = np.count_nonzero(np.sum(matrix, axis=0))
+                non_zero_sectors = np.count_nonzero(np.sum(matrix, axis = 0))
                 quality["sector_coverage"] = non_zero_sectors / matrix.shape[1]
 
         # Determine overall quality
@@ -435,7 +507,7 @@ class EnhancedDataLoader:
         json_data = self._prepare_for_json(self.current_data)
 
         with open(output_file, "w") as f:
-            json.dump(json_data, f, indent=2, default=str)
+            json.dump(json_data, f, indent = 2, default = str)
 
         print(f"Comprehensive data saved to {output_file}")
         return str(output_file)
@@ -512,6 +584,6 @@ class EnhancedDataLoader:
             max_resources = resource_matrices["resource_constraints"]
         else:
             # Estimate constraints
-            max_resources = np.max(resource_matrix, axis=1) * 1.5  # 50% buffer
+            max_resources = np.max(resource_matrix, axis = 1) * 1.5  # 50% buffer
 
         return resource_matrix, max_resources

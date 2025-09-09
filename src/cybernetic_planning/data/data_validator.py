@@ -5,9 +5,9 @@ Validates economic data for consistency, completeness, and mathematical properti
 Ensures data quality for the cybernetic planning system.
 """
 
-import numpy as np
 from typing import Dict, Any
-
+import numpy as np
+import pandas as pd
 
 class DataValidator:
     """
@@ -61,7 +61,7 @@ class DataValidator:
 
         # Check dimensions
         if matrix.ndim != 2:
-            results["errors"].append("Technology matrix must be 2-dimensional")
+            results["errors"].append("Technology matrix must be 2 - dimensional")
             results["valid"] = False
             return results
 
@@ -143,7 +143,7 @@ class DataValidator:
 
         # Check dimensions
         if vector.ndim != 1:
-            results["errors"].append("Final demand vector must be 1-dimensional")
+            results["errors"].append("Final demand vector must be 1 - dimensional")
             results["valid"] = False
             return results
 
@@ -209,7 +209,7 @@ class DataValidator:
 
         # Check dimensions
         if vector.ndim != 1:
-            results["errors"].append("Labor input vector must be 1-dimensional")
+            results["errors"].append("Labor input vector must be 1 - dimensional")
             results["valid"] = False
             return results
 
@@ -275,7 +275,7 @@ class DataValidator:
 
         # Check dimensions
         if matrix.ndim != 2:
-            results["errors"].append("Resource matrix must be 2-dimensional")
+            results["errors"].append("Resource matrix must be 2 - dimensional")
             results["valid"] = False
             return results
 
@@ -339,7 +339,7 @@ class DataValidator:
 
         # Check dimensions
         if vector.ndim != 1:
-            results["errors"].append("Maximum resources vector must be 1-dimensional")
+            results["errors"].append("Maximum resources vector must be 1 - dimensional")
             results["valid"] = False
             return results
 
@@ -511,7 +511,7 @@ class DataValidator:
         total_output = plan["total_output"]
         total_labor_cost = plan["total_labor_cost"]
 
-        # Check output non-negativity
+        # Check output non - negativity
         if np.any(total_output < 0):
             results["feasible"] = False
             results["errors"].append("Plan contains negative output values")

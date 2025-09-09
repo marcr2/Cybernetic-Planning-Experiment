@@ -9,7 +9,6 @@ from typing import Dict, Any, List
 import numpy as np
 from .base import BaseAgent
 
-
 class EconomicsAgent(BaseAgent):
     """
     Economics specialist agent for economic analysis.
@@ -186,7 +185,7 @@ class EconomicsAgent(BaseAgent):
                 )
 
         # Sort by importance score
-        critical_sectors.sort(key=lambda x: x["importance_score"], reverse=True)
+        critical_sectors.sort(key = lambda x: x["importance_score"], reverse = True)
 
         return critical_sectors
 
@@ -347,7 +346,7 @@ class EconomicsAgent(BaseAgent):
                     key_chains.append({"source_sector": i, "target_sector": j, "strength": strength_matrix[i, j]})
 
         # Sort by strength
-        key_chains.sort(key=lambda x: x["strength"], reverse=True)
+        key_chains.sort(key = lambda x: x["strength"], reverse = True)
 
         return key_chains[:10]  # Return top 10
 

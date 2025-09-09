@@ -15,9 +15,8 @@ from functools import wraps
 import json
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level = logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 class ErrorSeverity(Enum):
     """Error severity levels."""
@@ -26,7 +25,6 @@ class ErrorSeverity(Enum):
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
-
 
 class ErrorCategory(Enum):
     """Error categories."""
@@ -40,7 +38,6 @@ class ErrorCategory(Enum):
     USER_ERROR = "user_error"
     AGENT_ERROR = "agent_error"
     COMMUNICATION_ERROR = "communication_error"
-
 
 @dataclass
 class ErrorInfo:
@@ -56,7 +53,6 @@ class ErrorInfo:
     context: Dict[str, Any]
     suggested_action: str
     recoverable: bool
-
 
 class ErrorHandler:
     """Central error handling and recovery system."""
@@ -114,21 +110,21 @@ class ErrorHandler:
 
             # Create error info
             error_info = ErrorInfo(
-                error_id=error_id,
-                category=category,
-                severity=severity,
-                message=error_message,
+                error_id = error_id,
+                category = category,
+                severity = severity,
+                message = error_message,
                 details={
                     "error_type": error_type,
                     "module": context.get("module", "unknown"),
                     "function": context.get("function", "unknown"),
                     "user_id": context.get("user_id", "unknown"),
                 },
-                timestamp=time.time(),
-                traceback_info=traceback_str,
-                context=context,
-                suggested_action=suggested_action,
-                recoverable=recoverable,
+                timestamp = time.time(),
+                traceback_info = traceback_str,
+                context = context,
+                suggested_action = suggested_action,
+                recoverable = recoverable,
             )
 
             # Log error
@@ -151,15 +147,15 @@ class ErrorHandler:
             # Return minimal error info
             return ErrorInfo(
                 error_id="handler_error",
-                category=ErrorCategory.SYSTEM_ERROR,
-                severity=ErrorSeverity.CRITICAL,
+                category = ErrorCategory.SYSTEM_ERROR,
+                severity = ErrorSeverity.CRITICAL,
                 message="Error handler failure",
                 details={"original_error": str(exception)},
-                timestamp=time.time(),
-                traceback_info=None,
+                timestamp = time.time(),
+                traceback_info = None,
                 context={},
                 suggested_action="Contact system administrator",
-                recoverable=False,
+                recoverable = False,
             )
 
     def _generate_error_id(self) -> str:
@@ -216,7 +212,7 @@ class ErrorHandler:
             logger.info(log_message)
 
         # Log detailed information at debug level
-        logger.debug(f"Error details: {json.dumps(error_info.details, indent=2)}")
+        logger.debug(f"Error details: {json.dumps(error_info.details, indent = 2)}")
         if error_info.traceback_info:
             logger.debug(f"Traceback:\n{error_info.traceback_info}")
 
@@ -255,7 +251,7 @@ class ErrorHandler:
         try:
             import requests
 
-            response = requests.get("https://www.google.com", timeout=5)
+            response = requests.get("https://www.google.com", timeout = 5)
             if response.status_code == 200:
                 logger.info("Network connectivity confirmed")
             else:
@@ -315,7 +311,7 @@ class ErrorHandler:
                 "recent_errors_1h": recent_errors,
                 "category_breakdown": category_counts,
                 "severity_breakdown": severity_counts,
-                "most_common_errors": dict(sorted(self.error_counts.items(), key=lambda x: x[1], reverse=True)[:5]),
+                "most_common_errors": dict(sorted(self.error_counts.items(), key = lambda x: x[1], reverse = True)[:5]),
             }
 
         except Exception as e:
@@ -332,10 +328,8 @@ class ErrorHandler:
         self.error_counts.clear()
         logger.info("Error history cleared")
 
-
 # Global error handler instance
 global_error_handler = ErrorHandler()
-
 
 def handle_exceptions(
     category: ErrorCategory = ErrorCategory.SYSTEM_ERROR,
@@ -378,7 +372,6 @@ def handle_exceptions(
 
     return decorator
 
-
 class RetryManager:
     """Manages retry logic with exponential backoff."""
 
@@ -400,8 +393,7 @@ class RetryManager:
         Execute function with retry and exponential backoff.
 
         Args:
-            func: Function to execute
-            *args: Function arguments
+            func: Function to execute * args: Function arguments
             **kwargs: Function keyword arguments
 
         Returns:
@@ -438,7 +430,6 @@ class RetryManager:
         # This should never be reached, but just in case
         raise last_exception
 
-
 def safe_execute(
     func: Callable, default_return: Any = None, error_category: ErrorCategory = ErrorCategory.SYSTEM_ERROR
 ) -> Any:
@@ -461,7 +452,6 @@ def safe_execute(
         )
         return default_return
 
-
 def create_error_report(error_info: ErrorInfo) -> str:
     """Create a formatted error report."""
     try:
@@ -479,10 +469,10 @@ Message:
 {error_info.message}
 
 Details:
-{json.dumps(error_info.details, indent=2)}
+{json.dumps(error_info.details, indent = 2)}
 
 Context:
-{json.dumps(error_info.context, indent=2)}
+{json.dumps(error_info.context, indent = 2)}
 
 Suggested Action:
 {error_info.suggested_action}
@@ -494,7 +484,6 @@ Traceback:
 
     except Exception as e:
         return f"Error generating report: {e}"
-
 
 # Utility functions for common error scenarios
 def validate_api_response(response: Any, expected_fields: List[str] = None) -> bool:
@@ -521,7 +510,6 @@ def validate_api_response(response: Any, expected_fields: List[str] = None) -> b
             ErrorSeverity.MEDIUM,
         )
         return False
-
 
 def handle_file_operation(operation: Callable, file_path: str) -> bool:
     """Handle file operations with proper error handling."""

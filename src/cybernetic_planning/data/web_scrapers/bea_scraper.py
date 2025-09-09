@@ -1,17 +1,18 @@
 """
 Bureau of Economic Analysis (BEA) Data Scraper
 
-Downloads Input-Output tables and other economic data from the BEA API.
-Supports both API-based downloads and local file detection.
+Downloads Input - Output tables and other economic data from the BEA API.
+Supports both API - based downloads and local file detection.
 """
 
 import json
-import numpy as np
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 from datetime import datetime, timedelta
 import os
 import sys
+import numpy as np
+import pandas as pd
 
 # Add project root to path for API key manager
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
@@ -23,12 +24,11 @@ except ImportError:
 
 from .base_scraper import BaseScraper
 
-
 class BEAScraper(BaseScraper):
     """
     Scraper for Bureau of Economic Analysis (BEA) data.
 
-    Downloads Input-Output tables, GDP data, and other economic statistics
+    Downloads Input - Output tables, GDP data, and other economic statistics
     from the BEA API. Also supports loading existing local BEA data files.
     """
 
@@ -41,9 +41,9 @@ class BEAScraper(BaseScraper):
             cache_dir: Directory for caching downloaded data
             output_dir: Directory for output files
         """
-        super().__init__(base_url="https://apps.bea.gov/api/data", cache_dir=cache_dir)
+        super().__init__(base_url="https://apps.bea.gov / api / data", cache_dir = cache_dir)
         self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True)
+        self.output_dir.mkdir(exist_ok = True)
 
         # Get API key
         if api_key:
@@ -55,10 +55,10 @@ class BEAScraper(BaseScraper):
             self.api_key = os.getenv("BEA_API_KEY")
 
         # BEA API configuration
-        self.base_url = "https://apps.bea.gov/api/data"
+        self.base_url = "https://apps.bea.gov / api / data"
         self.rate_limit_delay = 1.0  # BEA API rate limit
 
-        # Input-Output table configurations
+        # Input - Output table configurations
         self.io_tables = {
             "use_table": {
                 "table_id": "2",  # Use Table (After Redefinitions)
@@ -78,14 +78,14 @@ class BEAScraper(BaseScraper):
             },
         }
 
-        # Available years for I-O data
+        # Available years for I - O data
         self.available_years = [2012, 2017, 2022]  # Most recent years available
 
     def scrape_io_data(
         self, year: int = 2022, table_types: List[str] = None, force_download: bool = False
     ) -> Dict[str, Any]:
         """
-        Scrape Input-Output data from BEA.
+        Scrape Input - Output data from BEA.
 
         Args:
             year: Year of data to download
@@ -93,7 +93,7 @@ class BEAScraper(BaseScraper):
             force_download: Force download even if cached data exists
 
         Returns:
-            Dictionary containing I-O data and metadata
+            Dictionary containing I - O data and metadata
         """
         if table_types is None:
             table_types = list(self.io_tables.keys())
@@ -102,7 +102,7 @@ class BEAScraper(BaseScraper):
             print(f"Warning: Year {year} not available. Using {max(self.available_years)} instead.")
             year = max(self.available_years)
 
-        print(f"Scraping BEA Input-Output data for {year}...")
+        print(f"Scraping BEA Input - Output data for {year}...")
 
         io_data = {
             "year": year,
@@ -121,7 +121,7 @@ class BEAScraper(BaseScraper):
                 continue
 
             try:
-                table_data = self._scrape_io_table(year=year, table_type=table_type, force_download=force_download)
+                table_data = self._scrape_io_table(year = year, table_type = table_type, force_download = force_download)
                 io_data["tables"][table_type] = table_data
                 print(f"✓ Downloaded {table_type} table")
 
@@ -136,7 +136,7 @@ class BEAScraper(BaseScraper):
         return io_data
 
     def _scrape_io_table(self, year: int, table_type: str, force_download: bool = False) -> Dict[str, Any]:
-        """Scrape a specific I-O table from BEA API."""
+        """Scrape a specific I - O table from BEA API."""
         table_config = self.io_tables[table_type]
         table_id = table_config["table_id"]
 
@@ -162,7 +162,7 @@ class BEAScraper(BaseScraper):
         }
 
         try:
-            response = self.make_request(self.base_url, params=params)
+            response = self.make_request(self.base_url, params = params)
 
             if response.get("BEAAPI", {}).get("Results", {}).get("Error"):
                 error_info = response["BEAAPI"]["Results"]["Error"]
@@ -253,7 +253,7 @@ class BEAScraper(BaseScraper):
         }
 
     def _generate_sample_io_table(self, table_type: str, year: int) -> Dict[str, Any]:
-        """Generate sample I-O table data for testing."""
+        """Generate sample I - O table data for testing."""
         print(f"Generating sample {table_type} table for {year}...")
 
         # Create sample sector and commodity data
@@ -289,13 +289,13 @@ class BEAScraper(BaseScraper):
         }
 
     def _save_io_data(self, io_data: Dict[str, Any], output_file: Path):
-        """Save I-O data to JSON file."""
+        """Save I - O data to JSON file."""
         try:
             with open(output_file, "w") as f:
-                json.dump(io_data, f, indent=2, default=str)
-            print(f"✓ Saved I-O data to {output_file}")
+                json.dump(io_data, f, indent = 2, default = str)
+            print(f"✓ Saved I - O data to {output_file}")
         except Exception as e:
-            print(f"✗ Error saving I-O data: {e}")
+            print(f"✗ Error saving I - O data: {e}")
 
     def detect_local_bea_data(self, data_dir: str = "data") -> Optional[Path]:
         """
@@ -313,13 +313,13 @@ class BEAScraper(BaseScraper):
             return None
 
         # Look for various BEA data file patterns
-        patterns = ["*bea*.json", "*io*.json", "*input*output*.json", "*use_table*.json", "*make_table*.json"]
+        patterns = ["*bea*.json", "*io*.json", "*input * output*.json", "*use_table*.json", "*make_table*.json"]
 
         for pattern in patterns:
             files = list(data_path.glob(pattern))
             if files:
                 # Return the most recent file
-                most_recent = max(files, key=lambda f: f.stat().st_mtime)
+                most_recent = max(files, key = lambda f: f.stat().st_mtime)
                 print(f"✓ Found local BEA data: {most_recent}")
                 return most_recent
 
@@ -345,7 +345,7 @@ class BEAScraper(BaseScraper):
         """
         datasets = []
 
-        # Add Input-Output datasets
+        # Add Input - Output datasets
         for table_type, config in self.io_tables.items():
             datasets.append(
                 {
@@ -353,7 +353,7 @@ class BEAScraper(BaseScraper):
                     "name": config["description"],
                     "table_id": config["table_id"],
                     "available_years": self.available_years,
-                    "source": "BEA Input-Output",
+                    "source": "BEA Input - Output",
                     "requires_api_key": True,
                 }
             )
@@ -375,7 +375,7 @@ class BEAScraper(BaseScraper):
         force_download = kwargs.get("force_download", False)
 
         if dataset_id in self.io_tables:
-            return self._scrape_io_table(year=year, table_type=dataset_id, force_download=force_download)
+            return self._scrape_io_table(year = year, table_type = dataset_id, force_download = force_download)
         else:
             raise ValueError(f"Unknown dataset: {dataset_id}")
 
@@ -392,7 +392,7 @@ class BEAScraper(BaseScraper):
 
             # Check if cache is expired (24 hours)
             cache_time = datetime.fromisoformat(cache_data["timestamp"])
-            if datetime.now() - cache_time > timedelta(hours=24):
+            if datetime.now() - cache_time > timedelta(hours = 24):
                 cache_file.unlink()  # Remove expired cache
                 return None
 
@@ -410,7 +410,7 @@ class BEAScraper(BaseScraper):
             cache_data = {"timestamp": datetime.now().isoformat(), "data": data}
 
             with open(cache_file, "w") as f:
-                json.dump(cache_data, f, indent=2, default=str)
+                json.dump(cache_data, f, indent = 2, default = str)
 
         except Exception as e:
             print(f"Warning: Error caching data: {e}")

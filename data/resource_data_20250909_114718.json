@@ -1,0 +1,71 @@
+{
+  "year": 2024,
+  "energy_data": {
+    "dataset_id": "empty_energy_data",
+    "year": 2024,
+    "data": {},
+    "metadata": {
+      "source": "none",
+      "data_quality": "none",
+      "sync_timestamp": "2025-09-09T11:47:16.983718"
+    }
+  },
+  "material_data": {
+    "dataset_id": "empty_material_data",
+    "year": 2024,
+    "data": {},
+    "metadata": {
+      "source": "none",
+      "data_quality": "none",
+      "sync_timestamp": "2025-09-09T11:47:16.983721"
+    }
+  },
+  "labor_data": {
+    "dataset_id": "empty_labor_data",
+    "year": 2024,
+    "data": {},
+    "metadata": {
+      "source": "none",
+      "data_quality": "none",
+      "sync_timestamp": "2025-09-09T11:47:16.983723"
+    }
+  },
+  "environmental_data": {
+    "dataset_id": "empty_environmental_data",
+    "year": 2024,
+    "data": {},
+    "metadata": {
+      "source": "none",
+      "data_quality": "none",
+      "sync_timestamp": "2025-09-09T11:47:16.983725"
+    }
+  },
+  "resource_matrices": {},
+  "metadata": {
+    "sync_method": "multi_source_weighted_average",
+    "data_sources": [
+      "material_intensity",
+      "mineral_production",
+      "renewable_energy_by_sector",
+      "supply_chain_analysis",
+      "wage_rates",
+      "occupational_skills",
+      "labor_intensity",
+      "material_consumption",
+      "energy_intensity_by_sector",
+      "employment_by_sector",
+      "critical_materials",
+      "energy_consumption_by_sector",
+      "electricity_consumption_by_sector"
+    ],
+    "quality_metrics": {
+      "overall_quality": "low",
+      "data_completeness": 0.0,
+      "source_diversity": 13,
+      "temporal_coverage": 0.0,
+      "confidence_scores": {}
+    },
+    "conflicts_resolved": 0
+  },
+  "synchronization_timestamp": "2025-09-09T11:47:16.983715"
+}

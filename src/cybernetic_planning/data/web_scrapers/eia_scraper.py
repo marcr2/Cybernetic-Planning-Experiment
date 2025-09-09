@@ -2,16 +2,16 @@
 Energy Information Administration (EIA) Data Scraper
 
 Scrapes energy consumption and production data by sector from EIA databases.
-Focuses on energy intensity coefficients for the 175-sector BEA classification.
+Focuses on energy intensity coefficients for the 175 - sector BEA classification.
 """
 
-import numpy as np
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import os
+import numpy as np
+import pandas as pd
 
 from .base_scraper import BaseScraper
-
 
 class EIAScraper(BaseScraper):
     """
@@ -20,7 +20,7 @@ class EIAScraper(BaseScraper):
     Collects energy consumption data by sector including:
     - Primary energy sources (coal, natural gas, petroleum, nuclear, renewables)
     - Energy intensity coefficients (energy per unit economic output)
-    - Sector-specific energy consumption patterns
+    - Sector - specific energy consumption patterns
     """
 
     def __init__(self, api_key: Optional[str] = None, **kwargs):
@@ -32,7 +32,7 @@ class EIAScraper(BaseScraper):
             **kwargs: Additional arguments for BaseScraper
         """
         super().__init__(
-            base_url="https://api.eia.gov/v2", rate_limit=0.5, **kwargs  # EIA allows 5000 requests per hour
+            base_url="https://api.eia.gov / v2", rate_limit = 0.5, **kwargs  # EIA allows 5000 requests per hour
         )
 
         # Use provided API key or try to get from environment
@@ -143,7 +143,7 @@ class EIAScraper(BaseScraper):
         """Scrape energy consumption data by sector."""
         try:
             # EIA API v2 endpoint for total energy consumption
-            endpoint = "/electricity/retail-sales/data"
+            endpoint = "/electricity / retail - sales / data"
 
             params = {
                 "frequency": "annual",
@@ -160,7 +160,7 @@ class EIAScraper(BaseScraper):
             if self.api_key:
                 params["api_key"] = self.api_key
 
-            response = self.make_request(f"{self.base_url}{endpoint}", params=params)
+            response = self.make_request(f"{self.base_url}{endpoint}", params = params)
 
             if response.status_code == 200:
                 data = response.json()
@@ -192,7 +192,7 @@ class EIAScraper(BaseScraper):
         """Scrape electricity consumption data by sector."""
         try:
             # EIA API v2 endpoint for electricity consumption
-            endpoint = "/electricity/retail-sales/data"
+            endpoint = "/electricity / retail - sales / data"
 
             params = {
                 "frequency": "annual",
@@ -209,7 +209,7 @@ class EIAScraper(BaseScraper):
             if self.api_key:
                 params["api_key"] = self.api_key
 
-            response = self.make_request(f"{self.base_url}{endpoint}", params=params)
+            response = self.make_request(f"{self.base_url}{endpoint}", params = params)
 
             if response.status_code == 200:
                 data = response.json()
@@ -268,7 +268,7 @@ class EIAScraper(BaseScraper):
         """Scrape renewable energy data by sector."""
         try:
             # EIA API v2 endpoint for electricity generation by fuel type
-            endpoint = "/electricity/electric-power-operational-data/data"
+            endpoint = "/electricity / electric - power - operational - data / data"
 
             # Use correct fuel type IDs for EIA API v2
             renewable_sources = {
@@ -301,7 +301,7 @@ class EIAScraper(BaseScraper):
                     if self.api_key:
                         params["api_key"] = self.api_key
 
-                    response = self.make_request(f"{self.base_url}{endpoint}", params=params)
+                    response = self.make_request(f"{self.base_url}{endpoint}", params = params)
 
                     # Check for successful response
                     if response.status_code == 200:
@@ -318,19 +318,19 @@ class EIAScraper(BaseScraper):
                         self.logger.warning(f"Data not available for {source_name} in {year} (404)")
                         # Try with previous year
                         if year > 2020:  # Don't go too far back
-                            self.logger.info(f"Trying {source_name} data for {year-1}")
+                            self.logger.info(f"Trying {source_name} data for {year - 1}")
                             alt_params = params.copy()
-                            alt_params["start"] = f"{year-1}-01"
-                            alt_params["end"] = f"{year-1}-12"
+                            alt_params["start"] = f"{year - 1}-01"
+                            alt_params["end"] = f"{year - 1}-12"
 
-                            alt_response = self.make_request(f"{self.base_url}{endpoint}", params=alt_params)
+                            alt_response = self.make_request(f"{self.base_url}{endpoint}", params = alt_params)
                             if alt_response.status_code == 200:
                                 alt_data = alt_response.json()
                                 alt_processed = self._process_eia_response(alt_data, f"renewable_{source_id}")
                                 if alt_processed and alt_processed.get("values"):
                                     all_renewable_data[source_id] = alt_processed
                                     successful_sources += 1
-                                    self.logger.info(f"Successfully collected {source_name} data for {year-1}")
+                                    self.logger.info(f"Successfully collected {source_name} data for {year - 1}")
                     else:
                         self.logger.warning(
                             f"HTTP {response.status_code} for renewable source {source_name}: {response.text[:200]}"
@@ -371,7 +371,7 @@ class EIAScraper(BaseScraper):
         """Alternative approach to scrape renewable energy data using total generation."""
         try:
             # Try to get total electricity generation and estimate renewable portion
-            endpoint = "/electricity/electric-power-operational-data/data"
+            endpoint = "/electricity / electric - power - operational - data / data"
 
             params = {
                 "frequency": "monthly",
@@ -388,7 +388,7 @@ class EIAScraper(BaseScraper):
             if self.api_key:
                 params["api_key"] = self.api_key
 
-            response = self.make_request(f"{self.base_url}{endpoint}", params=params)
+            response = self.make_request(f"{self.base_url}{endpoint}", params = params)
 
             if response.status_code == 200:
                 data = response.json()
@@ -424,13 +424,13 @@ class EIAScraper(BaseScraper):
                     }
             elif response.status_code == 404:
                 # Try with previous year if current year data not available
-                self.logger.warning(f"Total generation data not available for {year}, trying {year-1}")
+                self.logger.warning(f"Total generation data not available for {year}, trying {year - 1}")
                 if year > 2020:
                     alt_params = params.copy()
-                    alt_params["start"] = f"{year-1}-01"
-                    alt_params["end"] = f"{year-1}-12"
+                    alt_params["start"] = f"{year - 1}-01"
+                    alt_params["end"] = f"{year - 1}-12"
 
-                    alt_response = self.make_request(f"{self.base_url}{endpoint}", params=alt_params)
+                    alt_response = self.make_request(f"{self.base_url}{endpoint}", params = alt_params)
                     if alt_response.status_code == 200:
                         alt_data = alt_response.json()
                         alt_processed = self._process_eia_response(alt_data, "total_generation")
@@ -443,7 +443,7 @@ class EIAScraper(BaseScraper):
                             # Create synthetic renewable data
                             synthetic_data = {
                                 "values": [renewable_estimate],
-                                "periods": [f"{year-1}-01"],
+                                "periods": [f"{year - 1}-01"],
                                 "units": alt_processed.get("units", "MWh"),
                                 "data_type": "renewable_estimate",
                             }
@@ -461,7 +461,7 @@ class EIAScraper(BaseScraper):
                                     "data_quality": "estimated",
                                     "method": "total_generation_estimate",
                                     "renewable_percentage": 0.20,
-                                    "note": f"Using {year-1} data for {year} estimate",
+                                    "note": f"Using {year - 1} data for {year} estimate",
                                 },
                             }
 
@@ -501,7 +501,7 @@ class EIAScraper(BaseScraper):
 
                     # Try different units field names
                     if processed_data["units"] is None:
-                        for units_field in ["units", "generation-units", "sales-units", "consumption-units"]:
+                        for units_field in ["units", "generation - units", "sales - units", "consumption - units"]:
                             if units_field in point and point[units_field] is not None:
                                 processed_data["units"] = point[units_field]
                                 break
@@ -515,7 +515,7 @@ class EIAScraper(BaseScraper):
     def _map_to_bea_sectors(self, data: Dict[str, Any], data_type: str) -> Dict[str, Any]:
         """Map EIA data to BEA sector classification."""
         # This is a simplified mapping - in practice, would need detailed
-        # cross-walking between EIA sectors and BEA 175-sector classification
+        # cross - walking between EIA sectors and BEA 175 - sector classification
 
         mapped_data = {
             "bea_sectors": list(range(1, 176)),  # 175 sectors
@@ -527,7 +527,7 @@ class EIAScraper(BaseScraper):
             # Distribute energy consumption across sectors based on typical patterns
             total_consumption = sum(data["values"])
 
-            # Create sector-specific energy consumption estimates
+            # Create sector - specific energy consumption estimates
             # This would be replaced with actual sector mapping
             sector_consumption = self._distribute_energy_by_sector(total_consumption)
 
@@ -625,7 +625,7 @@ class EIAScraper(BaseScraper):
 
         for dataset in datasets:
             try:
-                data = self.scrape_dataset(dataset["id"], year=year)
+                data = self.scrape_dataset(dataset["id"], year = year)
                 all_data[dataset["id"]] = data
                 all_data["metadata"]["data_sources"].append(dataset["id"])
             except Exception as e:

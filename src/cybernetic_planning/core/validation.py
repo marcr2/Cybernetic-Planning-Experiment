@@ -5,19 +5,15 @@ Validates economic plans according to cybernetic planning principles
 and Paul Cockshott's labor theory of value.
 """
 
-import numpy as np
 from typing import Dict, Any, List, Tuple
-import warnings
-
+import numpy as np
 
 class EconomicPlanValidator:
     """
     Validates economic plans for theoretical and practical viability.
-    
+
     Ensures plans conform to:
-    - Paul Cockshott's labor theory of value
-    - Cybernetic planning principles
-    - Economic viability constraints
+    - Paul Cockshott's labor theory of value - Cybernetic planning principles - Economic viability constraints
     """
 
     def __init__(self):
@@ -29,10 +25,10 @@ class EconomicPlanValidator:
     def validate_plan(self, plan_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate a complete economic plan.
-        
+
         Args:
             plan_data: Dictionary containing plan data
-            
+
         Returns:
             Validation results with errors, warnings, and recommendations
         """
@@ -60,11 +56,11 @@ class EconomicPlanValidator:
         self._validate_labor_vector(labor_vector)
         self._validate_total_output(total_output)
         self._validate_labor_values(labor_values)
-        
+
         # Validate economic relationships
         if all(x is not None for x in [technology_matrix, final_demand, total_output]):
             self._validate_demand_fulfillment(technology_matrix, final_demand, total_output)
-        
+
         if all(x is not None for x in [labor_vector, total_output]):
             self._validate_labor_calculation(labor_vector, total_output, plan_data.get("total_labor_cost"))
 
@@ -100,7 +96,7 @@ class EconomicPlanValidator:
         # Check productivity (spectral radius < 1)
         eigenvals = np.linalg.eigvals(A)
         spectral_radius = np.max(np.abs(eigenvals))
-        
+
         if spectral_radius >= 1:
             self.errors.append(f"Economy is not productive (spectral radius = {spectral_radius:.4f} >= 1)")
         else:
@@ -238,7 +234,7 @@ class EconomicPlanValidator:
         else:
             compliance["labor_theory_of_value"] = "non_compliant"
 
-        # Check input-output analysis validity
+        # Check input - output analysis validity
         technology_matrix = plan_data.get("technology_matrix")
         if technology_matrix is not None:
             eigenvals = np.linalg.eigvals(technology_matrix)

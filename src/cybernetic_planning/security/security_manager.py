@@ -20,9 +20,8 @@ import base64
 import json
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level = logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class SecurityConfig:
@@ -36,7 +35,6 @@ class SecurityConfig:
     rate_limit_window: int = 3600  # 1 hour
     max_failed_attempts: int = 5
     lockout_duration: int = 1800  # 30 minutes
-
 
 class InputValidator:
     """Validates and sanitizes user inputs."""
@@ -77,7 +75,7 @@ class InputValidator:
 
             # Check encoding
             try:
-                plan_text.encode("utf-8")
+                plan_text.encode("utf - 8")
             except UnicodeEncodeError:
                 return False, "Plan text contains invalid characters."
 
@@ -110,7 +108,7 @@ class InputValidator:
                 return False, "API key too long. Maximum 200 characters allowed."
 
             # Check for valid characters (alphanumeric, hyphens, underscores)
-            if not re.match(r"^[A-Za-z0-9\-_]+$", api_key):
+            if not re.match(r"^[A - Za - z0 - 9\-_]+$", api_key):
                 return False, "API key contains invalid characters."
 
             return True, "Valid"
@@ -126,7 +124,7 @@ class InputValidator:
 
             # Remove dangerous patterns
             for pattern in self.dangerous_patterns:
-                sanitized = re.sub(pattern, "", sanitized, flags=re.IGNORECASE)
+                sanitized = re.sub(pattern, "", sanitized, flags = re.IGNORECASE)
 
             # Remove null bytes
             sanitized = sanitized.replace("\x00", "")
@@ -139,7 +137,6 @@ class InputValidator:
         except Exception as e:
             logger.error(f"Error sanitizing text: {str(e)}")
             return ""
-
 
 class RateLimiter:
     """Rate limiting for API calls and user actions."""
@@ -198,7 +195,7 @@ class RateLimiter:
             return False, "Rate limit check failed."
 
     def record_failed_attempt(self, user_id: str):
-        """Record a failed authentication/validation attempt."""
+        """Record a failed authentication / validation attempt."""
         try:
             current_time = time.time()
 
@@ -227,7 +224,6 @@ class RateLimiter:
         if user_id in self.failed_attempts:
             del self.failed_attempts[user_id]
 
-
 class SecureAPIKeyManager:
     """Secure API key management with encryption."""
 
@@ -248,10 +244,10 @@ class SecureAPIKeyManager:
                 password = os.urandom(32)
                 salt = os.urandom(16)
                 kdf = PBKDF2HMAC(
-                    algorithm=hashes.SHA256(),
-                    length=32,
-                    salt=salt,
-                    iterations=100000,
+                    algorithm = hashes.SHA256(),
+                    length = 32,
+                    salt = salt,
+                    iterations = 100000,
                 )
                 key = base64.urlsafe_b64encode(kdf.derive(password))
 
@@ -346,7 +342,6 @@ class SecureAPIKeyManager:
             logger.error(f"Failed to load API key: {str(e)}")
             return None
 
-
 class SessionManager:
     """Secure session management."""
 
@@ -434,7 +429,6 @@ class SessionManager:
         random_bytes = os.urandom(32)
         return hashlib.sha256(random_bytes).hexdigest()
 
-
 class SecurityAuditor:
     """Security auditing and monitoring."""
 
@@ -488,7 +482,6 @@ class SecurityAuditor:
             self.log_security_event("data_access", user_id, {"data_type": data_type, "action": action})
         except Exception as e:
             logger.error(f"Failed to log data access: {str(e)}")
-
 
 class SecurityManager:
     """Main security manager coordinating all security components."""
@@ -569,17 +562,14 @@ class SecurityManager:
             logger.error(f"Error getting security status: {str(e)}")
             return {"error": "Unable to get security status"}
 
-
 # Utility functions
 def hash_sensitive_data(data: str) -> str:
-    """Hash sensitive data for logging/comparison."""
+    """Hash sensitive data for logging / comparison."""
     return hashlib.sha256(data.encode()).hexdigest()[:16]
-
 
 def generate_secure_token() -> str:
     """Generate a secure random token."""
     return base64.urlsafe_b64encode(os.urandom(32)).decode().rstrip("=")
-
 
 def verify_data_integrity(data: str, expected_hash: str) -> bool:
     """Verify data integrity using hash comparison."""

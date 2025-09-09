@@ -5,23 +5,26 @@ Orchestrates the complete cybernetic planning process, integrating
 all components to generate comprehensive economic plans.
 """
 
-import numpy as np
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 import json
+import numpy as np
+import pandas as pd
 
 from .core import DynamicPlanner
 from .core.validation import EconomicPlanValidator
+from .core.marxist_economics import MarxistEconomicCalculator
+from .core.cybernetic_feedback import CyberneticFeedbackSystem
+from .core.mathematical_validation import MathematicalValidator
 from .agents import ManagerAgent, EconomicsAgent, ResourceAgent, PolicyAgent, WriterAgent
 from .data import IOParser, MatrixBuilder, DataValidator, EnhancedDataLoader
-
 
 class CyberneticPlanningSystem:
     """
     Main system for cybernetic central planning.
 
-    Integrates all components to generate comprehensive 5-year economic plans
-    using Input-Output analysis and labor-time accounting.
+    Integrates all components to generate comprehensive 5 - year economic plans
+    using Input - Output analysis and labor - time accounting.
     """
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
@@ -45,9 +48,14 @@ class CyberneticPlanningSystem:
         self.resource_agent = ResourceAgent()
         self.policy_agent = PolicyAgent()
         self.writer_agent = WriterAgent()
-        
+
         # Initialize validator
         self.validator = EconomicPlanValidator()
+
+        # Initialize new modules
+        self.marxist_calculator = None
+        self.cybernetic_feedback = None
+        self.mathematical_validator = MathematicalValidator()
 
         # System state
         self.current_data = {}
@@ -60,7 +68,7 @@ class CyberneticPlanningSystem:
 
         Args:
             file_path: Path to the data file
-            format_type: File format (auto-detected if None)
+            format_type: File format (auto - detected if None)
 
         Returns:
             Loaded data dictionary
@@ -76,6 +84,10 @@ class CyberneticPlanningSystem:
                 pass
 
             self.current_data = data
+
+            # Initialize new modules with loaded data
+            self._initialize_new_modules()
+
             return data
 
         except Exception as e:
@@ -99,6 +111,10 @@ class CyberneticPlanningSystem:
             pass
 
         self.current_data = data
+
+        # Initialize new modules with loaded data
+        self._initialize_new_modules()
+
         return data
 
     def create_synthetic_data(
@@ -116,10 +132,14 @@ class CyberneticPlanningSystem:
             Synthetic data dictionary
         """
         data = self.matrix_builder.create_synthetic_data(
-            n_sectors=n_sectors, technology_density=technology_density, resource_count=resource_count
+            n_sectors = n_sectors, technology_density = technology_density, resource_count = resource_count
         )
 
         self.current_data = data
+
+        # Initialize new modules with loaded data
+        self._initialize_new_modules()
+
         return data
 
     def load_comprehensive_data(
@@ -141,7 +161,7 @@ class CyberneticPlanningSystem:
             self.enhanced_loader.data_collector.scrapers["eia"].api_key = eia_api_key
 
         # Load comprehensive data
-        data = self.enhanced_loader.load_comprehensive_data(year=year, use_real_data=use_real_data)
+        data = self.enhanced_loader.load_comprehensive_data(year = year, use_real_data = use_real_data)
 
         # Extract BEA data for compatibility
         bea_data = data.get("bea_data", {})
@@ -183,6 +203,9 @@ class CyberneticPlanningSystem:
             "comprehensive_data": data,  # Store full data
         }
 
+        # Initialize new modules with loaded data
+        self._initialize_new_modules()
+
         return data
 
     def create_plan(
@@ -206,6 +229,26 @@ class CyberneticPlanningSystem:
         if policy_goals:
             self.manager_agent.update_state("policy_goals", policy_goals)
 
+        # Get sector mapping for policy goals
+        sector_mapping = {}
+        if "sectors" in self.current_data:
+            sectors = self.current_data["sectors"]
+            for i, sector_name in enumerate(sectors):
+                sector_mapping[sector_name] = i
+                # Also map by department
+                if "Dept_I" in sector_name:
+                    if "department_i" not in sector_mapping:
+                        sector_mapping["department_i"] = []
+                    sector_mapping["department_i"].append(i)
+                elif "Dept_II" in sector_name:
+                    if "department_ii" not in sector_mapping:
+                        sector_mapping["department_ii"] = []
+                    sector_mapping["department_ii"].append(i)
+                elif "Dept_III" in sector_name:
+                    if "department_iii" not in sector_mapping:
+                        sector_mapping["department_iii"] = []
+                    sector_mapping["department_iii"].append(i)
+
         # Create initial plan
         plan_task = {
             "type": "create_plan",
@@ -214,6 +257,7 @@ class CyberneticPlanningSystem:
             "labor_vector": self.current_data["labor_input"],
             "resource_matrix": self.current_data.get("resource_matrix"),
             "max_resources": self.current_data.get("max_resources"),
+            "sector_mapping": sector_mapping,  # Pass sector mapping
         }
 
         result = self.manager_agent.process_task(plan_task)
@@ -225,7 +269,12 @@ class CyberneticPlanningSystem:
 
         # Refine plan through iterations
         for iteration in range(max_iterations):
-            refine_task = {"type": "refine_plan", "current_plan": self.current_plan, "policy_goals": policy_goals}
+            refine_task = {
+                "type": "refine_plan",
+                "current_plan": self.current_plan,
+                "policy_goals": policy_goals,
+                "sector_mapping": sector_mapping  # Pass sector mapping
+            }
 
             refine_result = self.manager_agent.process_task(refine_task)
 
@@ -256,7 +305,7 @@ class CyberneticPlanningSystem:
         investment_ratio: float = 0.2,
     ) -> Dict[int, Dict[str, Any]]:
         """
-        Create a comprehensive 5-year economic plan.
+        Create a comprehensive 5 - year economic plan.
 
         Args:
             policy_goals: List of policy goals in natural language
@@ -271,8 +320,8 @@ class CyberneticPlanningSystem:
 
         # Initialize dynamic planner
         dynamic_planner = DynamicPlanner(
-            initial_technology_matrix=self.current_data["technology_matrix"],
-            initial_labor_vector=self.current_data["labor_input"],
+            initial_technology_matrix = self.current_data["technology_matrix"],
+            initial_labor_vector = self.current_data["labor_input"],
         )
 
         # Create consumption and investment demands for each year
@@ -289,9 +338,9 @@ class CyberneticPlanningSystem:
             investment_demand = consumption_demand * investment_ratio
             investment_demands.append(investment_demand)
 
-        # Create 5-year plan
+        # Create 5 - year plan
         five_year_plan = dynamic_planner.create_five_year_plan(
-            consumption_demands=consumption_demands, investment_demands=investment_demands, use_optimization=True
+            consumption_demands = consumption_demands, investment_demands = investment_demands, use_optimization = True
         )
 
         # Apply policy goals if provided
@@ -360,7 +409,7 @@ class CyberneticPlanningSystem:
     def _save_plan_json(self, file_path: Path) -> None:
         """Save plan as JSON file."""
 
-        def convert_numpy(obj, visited=None):
+        def convert_numpy(obj, visited = None):
             """Recursively convert numpy arrays to lists, handling circular references."""
             if visited is None:
                 visited = set()
@@ -389,12 +438,11 @@ class CyberneticPlanningSystem:
         json_data = convert_numpy(self.current_plan)
 
         with open(file_path, "w") as f:
-            json.dump(json_data, f, indent=2)
+            json.dump(json_data, f, indent = 2)
 
     def _save_plan_csv(self, file_path: Path) -> None:
         """Save plan as CSV file."""
         # Create DataFrame with plan data
-        import pandas as pd
 
         data = {
             "sector": range(len(self.current_plan["total_output"])),
@@ -404,11 +452,10 @@ class CyberneticPlanningSystem:
         }
 
         df = pd.DataFrame(data)
-        df.to_csv(file_path, index=False)
+        df.to_csv(file_path, index = False)
 
     def _save_plan_excel(self, file_path: Path) -> None:
         """Save plan as Excel file."""
-        import pandas as pd
 
         with pd.ExcelWriter(file_path) as writer:
             # Main plan data
@@ -420,13 +467,13 @@ class CyberneticPlanningSystem:
             }
 
             df = pd.DataFrame(plan_data)
-            df.to_excel(writer, sheet_name="Plan_Data", index=False)
+            df.to_excel(writer, sheet_name="Plan_Data", index = False)
 
             # Technology matrix
             tech_df = pd.DataFrame(
                 self.current_plan["technology_matrix"],
-                index=range(len(self.current_plan["total_output"])),
-                columns=range(len(self.current_plan["total_output"])),
+                index = range(len(self.current_plan["total_output"])),
+                columns = range(len(self.current_plan["total_output"])),
             )
             tech_df.to_excel(writer, sheet_name="Technology_Matrix")
 
@@ -524,3 +571,55 @@ class CyberneticPlanningSystem:
 
         self.parser.export_data(self.current_data, output_path, format_type)
 
+    def _initialize_new_modules(self):
+        """Initialize new modules with current data."""
+        if not self.current_data:
+            return
+
+        try:
+            # Initialize Marxist economic calculator
+            if all(key in self.current_data for key in ["technology_matrix", "labor_input"]):
+                self.marxist_calculator = MarxistEconomicCalculator(
+                    technology_matrix = self.current_data["technology_matrix"],
+                    labor_vector = self.current_data["labor_input"]
+                )
+
+            # Initialize cybernetic feedback system
+            if all(key in self.current_data for key in ["technology_matrix", "final_demand", "labor_input"]):
+                self.cybernetic_feedback = CyberneticFeedbackSystem(
+                    technology_matrix = self.current_data["technology_matrix"],
+                    final_demand = self.current_data["final_demand"],
+                    labor_vector = self.current_data["labor_input"]
+                )
+        except Exception as e:
+            print(f"Warning: Could not initialize new modules: {e}")
+
+    def get_marxist_analysis(self) -> Dict[str, Any]:
+        """Get comprehensive Marxist economic analysis."""
+        if not self.marxist_calculator:
+            return {"error": "Marxist calculator not initialized. Please load data first."}
+
+        return self.marxist_calculator.get_economic_indicators()
+
+    def get_cybernetic_analysis(self, initial_output: Optional[np.ndarray] = None) -> Dict[str, Any]:
+        """Get cybernetic feedback analysis."""
+        if not self.cybernetic_feedback:
+            return {"error": "Cybernetic feedback system not initialized. Please load data first."}
+
+        if initial_output is None:
+            # Use Leontief solution as initial output
+            try:
+                I = np.eye(self.cybernetic_feedback.n_sectors)
+                leontief_inverse = np.linalg.inv(I - self.cybernetic_feedback.A)
+                initial_output = leontief_inverse @ self.cybernetic_feedback.d
+            except np.linalg.LinAlgError:
+                initial_output = np.ones(self.cybernetic_feedback.n_sectors)
+
+        return self.cybernetic_feedback.apply_cybernetic_feedback(initial_output)
+
+    def get_mathematical_validation(self) -> Dict[str, Any]:
+        """Get mathematical validation results."""
+        if not self.current_data:
+            return {"error": "No data loaded for validation."}
+
+        return self.mathematical_validator.validate_all_formulas(self.current_data)

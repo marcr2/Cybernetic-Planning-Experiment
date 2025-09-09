@@ -10,21 +10,17 @@ from datetime import datetime
 
 from .base_scraper import BaseScraper
 
-
 class EPAScraper(BaseScraper):
     """
     Scraper for Environmental Protection Agency environmental data.
 
     Collects environmental impact data including:
-    - Carbon emissions by sector
-    - Water usage and consumption
-    - Waste generation and disposal
-    - Environmental intensity coefficients
+    - Carbon emissions by sector - Water usage and consumption - Waste generation and disposal - Environmental intensity coefficients
     """
 
     def __init__(self, **kwargs):
         """Initialize EPA scraper."""
-        super().__init__(base_url="https://api.epa.gov", rate_limit=1.0, **kwargs)
+        super().__init__(base_url="https://api.epa.gov", rate_limit = 1.0, **kwargs)
 
         self.environmental_factors = [
             "carbon_emissions",
@@ -178,7 +174,7 @@ class EPAScraper(BaseScraper):
 
         for dataset in datasets:
             try:
-                data = self.scrape_dataset(dataset["id"], year=year)
+                data = self.scrape_dataset(dataset["id"], year = year)
                 all_data[dataset["id"]] = data
                 all_data["metadata"]["data_sources"].append(dataset["id"])
             except Exception as e:

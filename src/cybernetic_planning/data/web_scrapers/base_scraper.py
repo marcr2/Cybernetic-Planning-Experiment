@@ -12,22 +12,17 @@ from typing import Dict, Any, Optional, List
 from abc import ABC, abstractmethod
 from pathlib import Path
 import json
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
+import numpy as np
+import pandas as pd
 import hashlib
-
 
 class BaseScraper(ABC):
     """
     Base class for all web scrapers.
 
     Provides common functionality including:
-    - Rate limiting and retry logic
-    - Error handling and logging
-    - Data validation and cleaning
-    - Caching mechanisms
-    - Progress tracking
+    - Rate limiting and retry logic - Error handling and logging - Data validation and cleaning - Caching mechanisms - Progress tracking
     """
 
     def __init__(
@@ -59,11 +54,11 @@ class BaseScraper(ABC):
 
         # Setup caching
         self.cache_dir = Path(cache_dir) if cache_dir else Path("cache")
-        self.cache_dir.mkdir(exist_ok=True)
+        self.cache_dir.mkdir(exist_ok = True)
 
         # Session for connection pooling
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "Cybernetic Planning System Data Collector 1.0"})
+        self.session.headers.update({"User - Agent": "Cybernetic Planning System Data Collector 1.0"})
 
         # Data storage
         self.collected_data = {}
@@ -108,7 +103,7 @@ class BaseScraper(ABC):
         json_data: Optional[Dict] = None,
     ) -> requests.Response:
         """
-        Make a rate-limited HTTP request with retry logic.
+        Make a rate - limited HTTP request with retry logic.
 
         Args:
             url: URL to request
@@ -147,11 +142,11 @@ class BaseScraper(ABC):
                 self.logger.debug(f"Making {method} request to {url} (attempt {attempt + 1})")
 
                 if method.upper() == "POST" and json_data:
-                    response = self.session.post(url, json=json_data, headers=request_headers, timeout=self.timeout)
+                    response = self.session.post(url, json = json_data, headers = request_headers, timeout = self.timeout)
                 elif method.upper() == "POST":
-                    response = self.session.post(url, data=params, headers=request_headers, timeout=self.timeout)
+                    response = self.session.post(url, data = params, headers = request_headers, timeout = self.timeout)
                 else:
-                    response = self.session.get(url, params=params, headers=request_headers, timeout=self.timeout)
+                    response = self.session.get(url, params = params, headers = request_headers, timeout = self.timeout)
 
                 self.last_request_time = time.time()
                 self.metadata["total_requests"] += 1
@@ -168,7 +163,7 @@ class BaseScraper(ABC):
                     continue
                 elif response.status_code in [404, 500]:  # Not found or server error
                     self.logger.warning(f"HTTP {response.status_code}: {response.text[:200]}")
-                    # For 404/500 errors, don't retry as they're likely permanent
+                    # For 404 / 500 errors, don't retry as they're likely permanent
                     self.metadata["failed_requests"] += 1
                     raise requests.RequestException(f"HTTP {response.status_code}: {response.text[:200]}")
                 else:
@@ -186,7 +181,7 @@ class BaseScraper(ABC):
 
     def _generate_cache_key(self, url: str, params: Optional[Dict] = None) -> str:
         """Generate a cache key for the request."""
-        key_string = f"{url}:{json.dumps(params or {}, sort_keys=True)}"
+        key_string = f"{url}:{json.dumps(params or {}, sort_keys = True)}"
         return hashlib.md5(key_string.encode()).hexdigest()
 
     def _get_cached_response(self, cache_key: str) -> Optional[requests.Response]:
@@ -202,7 +197,7 @@ class BaseScraper(ABC):
 
             # Check if cache is expired (24 hours)
             cache_time = datetime.fromisoformat(cache_data["timestamp"])
-            if datetime.now() - cache_time > timedelta(hours=24):
+            if datetime.now() - cache_time > timedelta(hours = 24):
                 cache_file.unlink()  # Remove expired cache
                 return None
 
@@ -333,7 +328,7 @@ class BaseScraper(ABC):
 
         Args:
             data: Data to save
-            filename: Output filename (auto-generated if None)
+            filename: Output filename (auto - generated if None)
             format_type: Output format ('json', 'csv', 'excel')
 
         Returns:
@@ -349,26 +344,26 @@ class BaseScraper(ABC):
             # Convert numpy arrays to lists for JSON serialization
             json_data = self._prepare_for_json(data)
             with open(output_path, "w") as f:
-                json.dump(json_data, f, indent=2, default=str)
+                json.dump(json_data, f, indent = 2, default = str)
 
         elif format_type == "csv":
             if isinstance(data, dict) and "data" in data:
                 df = pd.DataFrame(data["data"])
-                df.to_csv(output_path, index=False)
+                df.to_csv(output_path, index = False)
             else:
                 # Convert dict to DataFrame
                 df = pd.DataFrame([data])
-                df.to_csv(output_path, index=False)
+                df.to_csv(output_path, index = False)
 
         elif format_type == "excel":
             with pd.ExcelWriter(output_path) as writer:
                 if isinstance(data, dict) and "data" in data:
                     df = pd.DataFrame(data["data"])
-                    df.to_excel(writer, sheet_name="Data", index=False)
+                    df.to_excel(writer, sheet_name="Data", index = False)
                 else:
                     # Convert dict to DataFrame
                     df = pd.DataFrame([data])
-                    df.to_excel(writer, sheet_name="Data", index=False)
+                    df.to_excel(writer, sheet_name="Data", index = False)
 
         else:
             raise ValueError(f"Unsupported format: {format_type}")
@@ -413,7 +408,7 @@ class BaseScraper(ABC):
         """Reset the scraper session."""
         self.session.close()
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "Cybernetic Planning System Data Collector 1.0"})
+        self.session.headers.update({"User - Agent": "Cybernetic Planning System Data Collector 1.0"})
         self.collected_data = {}
         self.metadata["collection_timestamp"] = datetime.now().isoformat()
         self.metadata["total_requests"] = 0

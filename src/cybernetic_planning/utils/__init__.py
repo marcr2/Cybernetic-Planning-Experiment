@@ -1,11 +1,9 @@
 """Utility functions and helpers for the cybernetic planning system."""
 
 # Import helpers (these don't require external dependencies)
-from .helpers import format_number, format_percentage, create_summary_table
 
 # Import visualization functions only if seaborn is available
 try:
-    from .visualization import create_plan_visualizations
     VISUALIZATION_AVAILABLE = True
 except ImportError:
     VISUALIZATION_AVAILABLE = False
@@ -15,7 +13,7 @@ except ImportError:
 
 __all__ = [
     "format_number",
-    "format_percentage", 
+    "format_percentage",
     "create_summary_table",
 ]
 

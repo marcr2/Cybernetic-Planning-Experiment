@@ -1,6 +1,6 @@
 {
   "year": 2024,
-  "synchronization_timestamp": "2025-09-08T23:40:34.789658",
+  "synchronization_timestamp": "2025-09-09T11:47:16.983715",
   "energy_data": {
     "dataset_id": "empty_energy_data",
     "year": 2024,
@@ -8,7 +8,7 @@
     "metadata": {
       "source": "none",
       "data_quality": "none",
-      "sync_timestamp": "2025-09-08T23:40:34.789665"
+      "sync_timestamp": "2025-09-09T11:47:16.983718"
     }
   },
   "material_data": {
@@ -18,7 +18,7 @@
     "metadata": {
       "source": "none",
       "data_quality": "none",
-      "sync_timestamp": "2025-09-08T23:40:34.789670"
+      "sync_timestamp": "2025-09-09T11:47:16.983721"
     }
   },
   "labor_data": {
@@ -28,7 +28,7 @@
     "metadata": {
       "source": "none",
       "data_quality": "none",
-      "sync_timestamp": "2025-09-08T23:40:34.789673"
+      "sync_timestamp": "2025-09-09T11:47:16.983723"
     }
   },
   "environmental_data": {
@@ -38,24 +38,24 @@
     "metadata": {
       "source": "none",
       "data_quality": "none",
-      "sync_timestamp": "2025-09-08T23:40:34.789675"
+      "sync_timestamp": "2025-09-09T11:47:16.983725"
     }
   },
   "metadata": {
     "sync_method": "multi_source_weighted_average",
     "data_sources": [
       "material_intensity",
-      "supply_chain_analysis",
-      "labor_intensity",
-      "occupational_skills",
-      "employment_by_sector",
-      "material_consumption",
-      "renewable_energy_by_sector",
-      "energy_intensity_by_sector",
-      "wage_rates",
-      "energy_consumption_by_sector",
       "mineral_production",
+      "renewable_energy_by_sector",
+      "supply_chain_analysis",
+      "wage_rates",
+      "occupational_skills",
+      "labor_intensity",
+      "material_consumption",
+      "energy_intensity_by_sector",
+      "employment_by_sector",
       "critical_materials",
+      "energy_consumption_by_sector",
       "electricity_consumption_by_sector"
     ],
     "quality_metrics": {

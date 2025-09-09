@@ -2,18 +2,18 @@
 Resource Matrix Builder
 
 Builds resource constraint matrices from collected data and integrates
-them with the existing BEA Input-Output data structure.
+them with the existing BEA Input - Output data structure.
 """
 
-import numpy as np
 from typing import Dict, Any, Optional
 from pathlib import Path
 import json
 from datetime import datetime
+import numpy as np
+import pandas as pd
 
 from .sector_mapper import SectorMapper
 from .web_scrapers.data_collector import ResourceDataCollector
-
 
 class ResourceMatrixBuilder:
     """
@@ -87,7 +87,7 @@ class ResourceMatrixBuilder:
         Build all resource constraint matrices.
 
         Args:
-            collected_data: Pre-collected data (if None, will collect fresh data)
+            collected_data: Pre - collected data (if None, will collect fresh data)
             year: Year for data collection
 
         Returns:
@@ -379,7 +379,7 @@ class ResourceMatrixBuilder:
             for i in range(n_resources):
                 # Use maximum sector demand as constraint (simplified)
                 max_demand = np.max(combined_matrix[i, :])
-                constraints[i] = max_demand * np.random.uniform(1.2, 2.0)  # 20-100% buffer
+                constraints[i] = max_demand * np.random.uniform(1.2, 2.0)  # 20 - 100% buffer
 
             return constraints
 
@@ -426,7 +426,7 @@ class ResourceMatrixBuilder:
     def save_matrices(self, output_dir: str = "data") -> None:
         """Save built matrices to files."""
         output_path = Path(output_dir)
-        output_path.mkdir(exist_ok=True)
+        output_path.mkdir(exist_ok = True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -440,7 +440,7 @@ class ResourceMatrixBuilder:
         # Save metadata
         metadata_file = f"resource_matrices_metadata_{timestamp}.json"
         with open(output_path / metadata_file, "w") as f:
-            json.dump(self.matrices.get("metadata", {}), f, indent=2, default=str)
+            json.dump(self.matrices.get("metadata", {}), f, indent = 2, default = str)
 
         print(f"Saved metadata to {metadata_file}")
 

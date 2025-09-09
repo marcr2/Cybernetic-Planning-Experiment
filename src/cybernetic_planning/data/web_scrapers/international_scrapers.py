@@ -12,26 +12,23 @@ import logging
 
 from .base_scraper import BaseScraper
 
-
 class InternationalDataCollector:
     """
     International data collector for multiple countries and regions.
 
     Supports data collection from:
     - USA (existing scrapers)
-    - Russia
-    - EU (European Union)
-    - China
-    - India
+    - Russia - EU (European Union)
+    - China - India
     """
 
     def __init__(self, cache_dir: str = "cache", output_dir: str = "data"):
         self.cache_dir = Path(cache_dir)
         self.output_dir = Path(output_dir)
-        self.cache_dir.mkdir(exist_ok=True)
-        self.output_dir.mkdir(exist_ok=True)
+        self.cache_dir.mkdir(exist_ok = True)
+        self.output_dir.mkdir(exist_ok = True)
 
-        # Initialize country-specific scrapers
+        # Initialize country - specific scrapers
         self.scrapers = {
             "USA": None,  # Will use existing USA scrapers
             "Russia": RussianScraper(),
@@ -63,7 +60,7 @@ class InternationalDataCollector:
             # Use existing USA scrapers
             from .data_collector import ResourceDataCollector
 
-            collector = ResourceDataCollector(output_dir=str(self.output_dir))
+            collector = ResourceDataCollector(output_dir = str(self.output_dir))
             return collector.collect_all_resource_data(year)
 
         scraper = self.scrapers.get(country)
@@ -83,7 +80,6 @@ class InternationalDataCollector:
             return {}
 
         return scraper.get_available_data_sources()
-
 
 class RussianScraper(BaseScraper):
     """Web scraper for Russian economic data."""
@@ -190,17 +186,16 @@ class RussianScraper(BaseScraper):
         """Scrape a specific dataset for Russia."""
         return self._collect_data_type(dataset_id.replace("russian_", "").replace("_data", ""), year)
 
-
 class EUScraper(BaseScraper):
     """Web scraper for EU economic data."""
 
     def __init__(self):
-        super().__init__(base_url="https://ec.europa.eu/eurostat")
+        super().__init__(base_url="https://ec.europa.eu / eurostat")
         self.name = "EUScraper"
         self.base_urls = {
-            "energy": "https://ec.europa.eu/eurostat",
+            "energy": "https://ec.europa.eu / eurostat",
             "materials": "https://rmis.jrc.ec.europa.eu",
-            "labor": "https://ec.europa.eu/eurostat",
+            "labor": "https://ec.europa.eu / eurostat",
             "environmental": "https://www.eea.europa.eu",
         }
 
@@ -208,7 +203,7 @@ class EUScraper(BaseScraper):
             "energy": [
                 "Eurostat - Energy Statistics",
                 "European Commission - Energy Policy Data",
-                "ENTSO-E - Electricity Market Data",
+                "ENTSO - E - Electricity Market Data",
             ],
             "materials": [
                 "Raw Materials Information System (RMIS)",
@@ -286,7 +281,6 @@ class EUScraper(BaseScraper):
     def scrape_dataset(self, dataset_id: str, year: int = 2024) -> Dict[str, Any]:
         """Scrape a specific dataset for EU."""
         return self._collect_data_type(dataset_id.replace("eu_", "").replace("_data", ""), year)
-
 
 class ChinaScraper(BaseScraper):
     """Web scraper for Chinese economic data."""
@@ -386,7 +380,6 @@ class ChinaScraper(BaseScraper):
     def scrape_dataset(self, dataset_id: str, year: int = 2024) -> Dict[str, Any]:
         """Scrape a specific dataset for China."""
         return self._collect_data_type(dataset_id.replace("china_", "").replace("_data", ""), year)
-
 
 class IndiaScraper(BaseScraper):
     """Web scraper for Indian economic data."""

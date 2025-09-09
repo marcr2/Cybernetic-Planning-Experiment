@@ -1,14 +1,13 @@
 """
 Manager Agent
 
-Central coordinator for the multi-agent planning system.
+Central coordinator for the multi - agent planning system.
 Orchestrates the iterative refinement of economic plans.
 """
 
 from typing import Dict, Any, List, Optional
 import numpy as np
 from .base import BaseAgent
-
 
 class ManagerAgent(BaseAgent):
     """
@@ -83,7 +82,7 @@ class ManagerAgent(BaseAgent):
         self.planning_iteration = 0
         self.plan_history = []
 
-        # Create initial plan using core algorithms
+        # Create initial plan using core algorithms with cybernetic feedback
         from ..core.leontief import LeontiefModel
         from ..core.labor_values import LaborValueCalculator
         from ..core.optimization import ConstrainedOptimizer
@@ -92,18 +91,40 @@ class ManagerAgent(BaseAgent):
         leontief = LeontiefModel(technology_matrix, final_demand)
         initial_output = leontief.compute_total_output()
 
-        # Step 2: Calculate labor values
+        # Step 2: Apply Marxist reproduction system for proper expanded reproduction
+        from ..core.marxist_reproduction import MarxistReproductionSystem
+
+        reproduction_system = MarxistReproductionSystem(
+            technology_matrix = technology_matrix,
+            final_demand = final_demand,
+            labor_vector = labor_vector,
+            n_dept_I = 50,  # Department I: means of production
+            n_dept_II = 50,  # Department II: consumer goods
+            n_dept_III = 75  # Department III: services
+        )
+
+        # Adjust output for reproduction balance
+        cybernetic_output = reproduction_system.adjust_for_reproduction_balance(initial_output)
+
+        # Calculate expanded reproduction demands
+        cybernetic_demand = reproduction_system.calculate_expanded_reproduction_demands(final_demand)
+
+        # Add accumulation requirements
+        accumulation_demand = reproduction_system.calculate_accumulation_requirements(cybernetic_output)
+        cybernetic_demand += accumulation_demand
+
+        # Step 3: Calculate labor values with cybernetic output
         labor_calc = LaborValueCalculator(technology_matrix, labor_vector)
         labor_values = labor_calc.get_labor_values()
-        total_labor_cost = labor_calc.compute_total_labor_cost(final_demand)
+        total_labor_cost = labor_calc.compute_total_labor_cost(cybernetic_demand)
 
-        # Step 3: Optimize with constraints
+        # Step 4: Optimize with constraints using cybernetic demand
         optimizer = ConstrainedOptimizer(
-            technology_matrix=technology_matrix,
-            direct_labor=labor_vector,
-            final_demand=final_demand,
-            resource_matrix=resource_matrix,
-            max_resources=max_resources,
+            technology_matrix = technology_matrix,
+            direct_labor = labor_vector,
+            final_demand = cybernetic_demand,  # Use cybernetic - adjusted demand
+            resource_matrix = resource_matrix,
+            max_resources = max_resources,
         )
 
         optimization_result = optimizer.solve()
@@ -116,19 +137,30 @@ class ManagerAgent(BaseAgent):
             optimized_output = initial_output
             optimized_labor_cost = total_labor_cost
 
-        # Create initial plan
+        # Create initial plan with cybernetic information
         self.current_plan = {
             "year": 1,
             "iteration": self.planning_iteration,
             "technology_matrix": technology_matrix,
             "labor_vector": labor_vector,
-            "final_demand": final_demand,
+            "final_demand": cybernetic_demand,  # Use cybernetic - adjusted demand
+            "original_final_demand": final_demand,  # Keep original for reference
             "total_output": optimized_output,
             "labor_values": labor_values,
             "total_labor_cost": optimized_labor_cost,
             "resource_usage": None,
             "constraint_violations": None,
             "plan_quality_score": 0.0,
+            "cybernetic_feedback": {
+                "applied": True,
+                "feedback_strength": 0.1,
+                "adaptation_rate": 0.05,
+                "converged": cybernetic_result['converged'],
+                "iterations": cybernetic_result['iterations'],
+                "cybernetic_metrics": cybernetic_result['cybernetic_metrics'],
+                "demand_adjustment": (cybernetic_demand - final_demand).tolist(),
+                "feedback_diagnostics": feedback_system.get_system_diagnostics()
+            }
         }
 
         # Store in history
@@ -302,7 +334,7 @@ class ManagerAgent(BaseAgent):
 
     def _simulate_policy_refinement(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Simulate policy agent refinement."""
-        # Simulate policy-driven demand adjustments
+        # Simulate policy - driven demand adjustments
         current_demand = self.current_plan["final_demand"]
         policy_goals = task["parameters"].get("goals", [])
 
@@ -353,7 +385,7 @@ class ManagerAgent(BaseAgent):
 
         violations = {"demand_violations": [], "resource_violations": [], "non_negativity_violations": []}
 
-        # Check non-negativity
+        # Check non - negativity
         total_output = self.current_plan["total_output"]
         negative_outputs = total_output[total_output < 0]
         if len(negative_outputs) > 0:

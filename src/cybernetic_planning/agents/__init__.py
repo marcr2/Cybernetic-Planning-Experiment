@@ -1,4 +1,4 @@
-"""Multi-agent AI system for cybernetic planning."""
+"""Multi - agent AI system for cybernetic planning."""
 
 from .base import BaseAgent
 from .manager import ManagerAgent

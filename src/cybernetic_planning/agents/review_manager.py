@@ -1,7 +1,7 @@
 """
 Economic Plan Review Manager
 
-Central coordinator for the multi-agent economic plan review system.
+Central coordinator for the multi - agent economic plan review system.
 Manages agent workflows, facilitates communication, and synthesizes final reports.
 """
 
@@ -13,7 +13,6 @@ import json
 import logging
 
 from .base import BaseAgent
-from .economic_review_agents import (
     EconomicReviewAgent,
     AgentReport,
     CentralPlanningAnalyst,
@@ -26,9 +25,8 @@ from .economic_review_agents import (
 )
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level = logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class ReviewSession:
@@ -42,7 +40,6 @@ class ReviewSession:
     start_time: float
     end_time: Optional[float]
     status: str  # 'in_progress', 'completed', 'failed'
-
 
 @dataclass
 class ComprehensiveReview:
@@ -58,12 +55,11 @@ class ComprehensiveReview:
     confidence_score: float
     timestamp: float
 
-
 class EconomicPlanReviewManager(BaseAgent):
     """
     Central manager for coordinating economic plan reviews across specialized agents.
 
-    Manages the complete review workflow, facilitates inter-agent communication,
+    Manages the complete review workflow, facilitates inter - agent communication,
     and synthesizes comprehensive final reports.
     """
 
@@ -84,10 +80,9 @@ class EconomicPlanReviewManager(BaseAgent):
         self._initialize_agents()
 
         # Configure Gemini for synthesis tasks
-        import google.generativeai as genai
 
-        genai.configure(api_key=api_key)
-        self.synthesis_model = genai.GenerativeModel("gemini-2.0-flash-exp")
+        genai.configure(api_key = api_key)
+        self.synthesis_model = genai.GenerativeModel("gemini - 2.0 - flash - exp")
 
     def _initialize_agents(self):
         """Initialize all specialized review agents."""
@@ -112,7 +107,7 @@ class EconomicPlanReviewManager(BaseAgent):
 
         Args:
             economic_plan: The economic plan text to review
-            session_id: Optional session ID (auto-generated if not provided)
+            session_id: Optional session ID (auto - generated if not provided)
 
         Returns:
             Session ID for tracking the review
@@ -121,13 +116,13 @@ class EconomicPlanReviewManager(BaseAgent):
             session_id = f"review_{int(time.time())}"
 
         session = ReviewSession(
-            session_id=session_id,
-            economic_plan=economic_plan,
+            session_id = session_id,
+            economic_plan = economic_plan,
             agent_reports={},
             shared_context={},
-            final_report=None,
-            start_time=time.time(),
-            end_time=None,
+            final_report = None,
+            start_time = time.time(),
+            end_time = None,
             status="in_progress",
         )
 
@@ -160,8 +155,8 @@ class EconomicPlanReviewManager(BaseAgent):
             logger.info("Phase 1: Individual agent analysis")
             self._conduct_individual_analysis(session, selected_agents)
 
-            # Phase 2: Cross-agent communication and refinement
-            logger.info("Phase 2: Cross-agent communication")
+            # Phase 2: Cross - agent communication and refinement
+            logger.info("Phase 2: Cross - agent communication")
             self._facilitate_cross_agent_communication(session, selected_agents)
 
             # Phase 3: Synthesis and final report generation
@@ -185,7 +180,7 @@ class EconomicPlanReviewManager(BaseAgent):
 
     def _conduct_individual_analysis(self, session: ReviewSession, selected_agents: List[str]):
         """Conduct individual analysis by each selected agent."""
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers = 4) as executor:
             # Submit analysis tasks to all agents
             future_to_agent = {}
 
@@ -246,7 +241,7 @@ class EconomicPlanReviewManager(BaseAgent):
 
         if critical_selected:
             logger.info("Conducting second round analysis for critical agents")
-            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers = 2) as executor:
                 future_to_agent = {}
 
                 for agent_id in critical_selected:
@@ -339,15 +334,15 @@ Format your response as JSON with these four keys.
             implementation_roadmap = self._generate_implementation_roadmap(synthesis_sections, session.agent_reports)
 
             comprehensive_review = ComprehensiveReview(
-                session_id=session.session_id,
-                integrated_summary=synthesis_sections.get("INTEGRATED_SUMMARY", ""),
-                cross_domain_analysis=synthesis_sections.get("CROSS_DOMAIN_ANALYSIS", ""),
-                overall_assessment=synthesis_sections.get("OVERALL_ASSESSMENT", ""),
-                prioritized_recommendations=prioritized_recommendations,
-                implementation_roadmap=implementation_roadmap,
-                agent_consensus=agent_consensus,
-                confidence_score=confidence_score,
-                timestamp=time.time(),
+                session_id = session.session_id,
+                integrated_summary = synthesis_sections.get("INTEGRATED_SUMMARY", ""),
+                cross_domain_analysis = synthesis_sections.get("CROSS_DOMAIN_ANALYSIS", ""),
+                overall_assessment = synthesis_sections.get("OVERALL_ASSESSMENT", ""),
+                prioritized_recommendations = prioritized_recommendations,
+                implementation_roadmap = implementation_roadmap,
+                agent_consensus = agent_consensus,
+                confidence_score = confidence_score,
+                timestamp = time.time(),
             )
 
             return comprehensive_review
@@ -380,12 +375,12 @@ AGENT FINDINGS:
 {chr(10).join(agent_findings)}
 
 SHARED CONTEXT:
-{json.dumps(session.shared_context, indent=2)}
+{json.dumps(session.shared_context, indent = 2)}
 
 Provide a comprehensive synthesis with the following sections:
 
 INTEGRATED_SUMMARY:
-[Synthesize key findings across all agents into a coherent 3-4 paragraph summary]
+[Synthesize key findings across all agents into a coherent 3 - 4 paragraph summary]
 
 CROSS_DOMAIN_ANALYSIS:
 [Analyze interactions and dependencies between different economic domains covered by agents]
@@ -394,10 +389,7 @@ OVERALL_ASSESSMENT:
 [Provide unified evaluation of the economic plan's strengths, weaknesses, and viability]
 
 Focus on:
-- Integration of findings across all specialized domains
-- Identification of cross-cutting issues and synergies
-- Balanced assessment considering all agent perspectives
-- Clear, actionable insights for plan improvement
+- Integration of findings across all specialized domains - Identification of cross - cutting issues and synergies - Balanced assessment considering all agent perspectives - Clear, actionable insights for plan improvement
 """
 
     def _parse_synthesis_response(self, response_text: str) -> Dict[str, str]:
@@ -470,7 +462,7 @@ Focus on:
                 )
 
         # Sort by priority score
-        all_recommendations.sort(key=lambda x: x["priority_score"], reverse=True)
+        all_recommendations.sort(key = lambda x: x["priority_score"], reverse = True)
 
         # Return top 10 recommendations
         return all_recommendations[:10]
@@ -480,7 +472,7 @@ Focus on:
     ) -> List[Dict[str, Any]]:
         """Generate implementation roadmap based on synthesis and agent reports."""
 
-        # Extract implementation-related recommendations
+        # Extract implementation - related recommendations
         impl_recommendations = []
         for agent_id, report in agent_reports.items():
             for rec in report.recommendations:
@@ -491,10 +483,10 @@ Focus on:
 
         # Create phased roadmap
         phases = [
-            {"phase": "Immediate (0-3 months)", "actions": []},
-            {"phase": "Short-term (3-12 months)", "actions": []},
-            {"phase": "Medium-term (1-3 years)", "actions": []},
-            {"phase": "Long-term (3+ years)", "actions": []},
+            {"phase": "Immediate (0 - 3 months)", "actions": []},
+            {"phase": "Short - term (3 - 12 months)", "actions": []},
+            {"phase": "Medium - term (1 - 3 years)", "actions": []},
+            {"phase": "Long - term (3 + years)", "actions": []},
         ]
 
         # Distribute recommendations across phases based on urgency keywords
@@ -565,7 +557,7 @@ Focus on:
             "comprehensive_review": asdict(review),
         }
 
-        return json.dumps(export_data, indent=2, default=str)
+        return json.dumps(export_data, indent = 2, default = str)
 
     def _export_as_text(self, session: ReviewSession, review: ComprehensiveReview) -> str:
         """Export review as formatted text."""
@@ -581,7 +573,7 @@ INTEGRATED SUMMARY
 ==================
 {review.integrated_summary}
 
-CROSS-DOMAIN ANALYSIS
+CROSS - DOMAIN ANALYSIS
 =====================
 {review.cross_domain_analysis}
 
