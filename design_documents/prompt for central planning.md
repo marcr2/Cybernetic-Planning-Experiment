@@ -1,10 +1,15 @@
 # Prompt for LLM (Code Specialist)
 
-You are a specialist LLM designed to implement mathematical software systems. You are now tasked with developing a multi-agent AI system that creates a central economic plan based on cybernetic principles, using Input-Output analysis and labor-time accounting.
+You are a specialist LLM designed to implement mathematical software systems.
+You are now tasked with developing a multi-agent AI system that creates a
+central economic plan based on cybernetic principles, using Input-Output
+analysis and labor-time accounting.
 
 ## Task Objective
 
-Build a system that accepts economic input-output tables and produces a markdown report of a 5-year central plan, optimizing for labor-time and physical constraints. Use the following steps and models:
+Build a system that accepts economic input-output tables and produces a
+markdown report of a 5-year central plan, optimizing for labor-time and
+physical constraints. Use the following steps and models:
 
 ---
 
@@ -19,6 +24,7 @@ Parse the following data (provided separately):
 - **Max Resources** \( R_{max} \in \mathbb{R}^{m \times 1} \)
 
 Ensure:
+
 - \( \rho(A) < 1 \)
 - Matrices are dimensionally consistent
 
@@ -32,6 +38,7 @@ x = (I - A)^{-1} d
 \]
 
 Validate:
+
 - \( x \geq 0 \)
 
 ---
@@ -57,6 +64,7 @@ Formulate the LP:
 \]
 
 **Subject to**:
+
 - \( (I - A)x \ge d \)
 - \( Rx \le R_{max} \)
 - \( x \ge 0 \)
