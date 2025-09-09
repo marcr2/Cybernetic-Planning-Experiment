@@ -6,6 +6,6 @@ from .helpers import format_number, format_percentage, create_summary_table
 __all__ = [
     "create_plan_visualizations",
     "format_number",
-    "format_percentage", 
+    "format_percentage",
     "create_summary_table",
 ]

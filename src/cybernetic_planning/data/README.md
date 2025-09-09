@@ -131,7 +131,7 @@ environmental_data = epa_scraper.scrape_all_environmental_data(year=2024)
 - **Rate Limit**: 5000 requests per hour
 
 ### US Geological Survey (USGS)
-- **Base URL**: https://minerals.usgs.gov/minerals/pubs/commodity
+- **Base URL**: https://mrdata.usgs.gov/api
 - **Data Types**: Mineral production, material consumption, critical materials assessment
 - **Rate Limit**: Conservative (1 request per second)
 
@@ -141,7 +141,7 @@ environmental_data = epa_scraper.scrape_all_environmental_data(year=2024)
 - **Rate Limit**: 1 request per second
 
 ### Environmental Protection Agency (EPA)
-- **Base URL**: https://www.epa.gov/enviro
+- **Base URL**: https://api.epa.gov
 - **Data Types**: Carbon emissions, water usage, waste generation, environmental intensity
 - **Rate Limit**: 1 request per second
 

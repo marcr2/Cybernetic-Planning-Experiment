@@ -15,11 +15,11 @@ from .data_collector import ResourceDataCollector
 from .international_scrapers import InternationalDataCollector
 
 __all__ = [
-    'BaseScraper',
-    'EIAScraper', 
-    'USGSScraper',
-    'BLSScraper',
-    'EPAScraper',
-    'ResourceDataCollector',
-    'InternationalDataCollector'
+    "BaseScraper",
+    "EIAScraper",
+    "USGSScraper",
+    "BLSScraper",
+    "EPAScraper",
+    "ResourceDataCollector",
+    "InternationalDataCollector",
 ]

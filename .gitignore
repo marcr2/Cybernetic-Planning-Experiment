@@ -145,6 +145,11 @@ outputs/
 logs/
 *.log
 
+# API Keys and sensitive data
+keys.json
+.encryption_key
+keys_template.json
+
 # Temporary files
 temp/
 tmp/

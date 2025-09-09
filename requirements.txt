@@ -1,47 +1,60 @@
 # Core scientific computing
-numpy>=1.24.0
-scipy>=1.10.0
-pandas>=2.0.0
+numpy==2.3.2
+scipy==1.16.1
+pandas==2.3.2
 
 # Optimization and linear programming
-cvxpy>=1.3.0
+cvxpy==1.7.2
+osqp==1.0.4
+scs==3.2.8
+clarabel==0.11.1
 
 # Data visualization
-matplotlib>=3.7.0
-seaborn>=0.12.0
+matplotlib==3.10.6
+seaborn==0.13.2
+pillow==11.3.0
 
 # Excel file handling
-openpyxl>=3.1.0
-xlrd>=2.0.0
-
-# GUI framework (usually included with Python)
-# tkinter - built-in with Python, no pip install needed
+openpyxl==3.1.5
+xlrd==2.0.2
 
 # Data validation and processing
-pydantic>=2.0.0
-
-# Testing framework
-pytest>=7.4.0
-pytest-cov>=4.1.0
-
-# Code quality tools
-black>=23.0.0
-flake8>=6.0.0
-mypy>=1.5.0
-
-# AI/ML libraries for economic plan review system
-google-generativeai>=0.3.0
-cryptography>=3.4.0
-PyPDF2>=3.0.0
-python-docx>=0.8.11
+pydantic==2.11.7
+pydantic_core==2.33.2
+jsonschema==4.25.1
 
 # Web scraping and data collection
-requests>=2.31.0
-beautifulsoup4>=4.12.0
-lxml>=4.9.0
+requests==2.32.5
+beautifulsoup4==4.13.5
+lxml==6.0.1
 
-# Data processing and validation
-jsonschema>=4.17.0
+# AI/ML libraries
+google-generativeai==0.8.5
+google-ai-generativelanguage==0.6.15
+google-api-core==2.25.1
+google-api-python-client==2.181.0
+google-auth==2.40.3
+google-auth-httplib2==0.2.0
+googleapis-common-protos==1.70.0
+grpcio==1.74.0
+grpcio-status==1.71.2
+
+# Security and encryption
+cryptography==45.0.7
+cffi==2.0.0
+
+# Document processing
+PyPDF2==3.0.1
+python-docx==1.2.0
 
 # System monitoring and utilities
-psutil>=5.9.0
+psutil==7.0.0
+tqdm==4.67.1
+
+# Development dependencies (optional)
+pytest==8.4.2
+pytest-cov==6.3.0
+black==25.1.0
+flake8==7.3.0
+mypy==1.17.1
+coverage==7.10.6

@@ -5,8 +5,7 @@ Specialized AI agents for comprehensive economic plan analysis using Google Gemi
 Each agent focuses on specific aspects of economic planning and socialist theory.
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 import google.generativeai as genai
 from dataclasses import dataclass
 import time
@@ -22,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentReport:
     """Structured report from an economic review agent."""
+
     agent_id: str
     agent_name: str
     executive_summary: str
@@ -36,14 +36,14 @@ class AgentReport:
 class EconomicReviewAgent(BaseAgent):
     """
     Base class for all economic plan review agents.
-    
+
     Provides common functionality for AI-powered analysis using Google Gemini 2.5 Pro.
     """
-    
+
     def __init__(self, agent_id: str, name: str, api_key: str, specialization: str):
         """
         Initialize the economic review agent.
-        
+
         Args:
             agent_id: Unique identifier for the agent
             name: Human-readable name for the agent
@@ -54,14 +54,14 @@ class EconomicReviewAgent(BaseAgent):
         self.api_key = api_key
         self.specialization = specialization
         self.model_name = "gemini-2.0-flash-exp"  # Using latest Gemini model
-        
+
         # Configure Gemini API
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel(self.model_name)
-        
+
         # Agent-specific system prompt
         self.system_prompt = self._build_system_prompt()
-        
+
     def _build_system_prompt(self) -> str:
         """Build the system prompt for this agent."""
         return f"""
@@ -80,34 +80,34 @@ Key principles:
 - Be thorough but concise
 - Reference other agents' work when relevant
 """
-    
+
     def analyze_plan(self, economic_plan: str, shared_context: Dict[str, Any] = None) -> AgentReport:
         """
         Analyze an economic plan from this agent's perspective.
-        
+
         Args:
             economic_plan: The economic plan text to analyze
             shared_context: Shared information from other agents
-            
+
         Returns:
             Structured report with analysis results
         """
         try:
             # Build analysis prompt
             prompt = self._build_analysis_prompt(economic_plan, shared_context)
-            
+
             # Generate analysis using Gemini
             response = self.model.generate_content(prompt)
-            
+
             # Parse response into structured report
             report = self._parse_response(response.text)
-            
+
             return report
-            
+
         except Exception as e:
             logger.error(f"Error in {self.name} analysis: {str(e)}")
             return self._create_error_report(str(e))
-    
+
     def _build_analysis_prompt(self, economic_plan: str, shared_context: Dict[str, Any] = None) -> str:
         """Build the analysis prompt for Gemini."""
         prompt = f"""
@@ -117,14 +117,14 @@ ECONOMIC PLAN TO ANALYZE:
 {economic_plan}
 
 """
-        
+
         if shared_context:
             prompt += f"""
 SHARED CONTEXT FROM OTHER AGENTS:
 {json.dumps(shared_context, indent=2)}
 
 """
-        
+
         prompt += f"""
 Please provide a comprehensive analysis of this economic plan from your {self.specialization} perspective.
 
@@ -148,74 +148,75 @@ CONFIDENCE_LEVEL:
 SUPPORTING_EVIDENCE:
 [List key evidence or data points that support your analysis]
 """
-        
+
         return prompt
-    
+
     def _parse_response(self, response_text: str) -> AgentReport:
         """Parse Gemini response into structured report."""
         try:
             # Extract sections from response
             sections = self._extract_sections(response_text)
-            
+
             return AgentReport(
                 agent_id=self.agent_id,
                 agent_name=self.name,
-                executive_summary=sections.get('EXECUTIVE_SUMMARY', ''),
-                detailed_analysis=sections.get('DETAILED_ANALYSIS', ''),
-                risk_assessment=sections.get('RISK_ASSESSMENT', ''),
-                recommendations=self._parse_recommendations(sections.get('RECOMMENDATIONS', '')),
-                confidence_level=self._parse_confidence(sections.get('CONFIDENCE_LEVEL', '0.5')),
+                executive_summary=sections.get("EXECUTIVE_SUMMARY", ""),
+                detailed_analysis=sections.get("DETAILED_ANALYSIS", ""),
+                risk_assessment=sections.get("RISK_ASSESSMENT", ""),
+                recommendations=self._parse_recommendations(sections.get("RECOMMENDATIONS", "")),
+                confidence_level=self._parse_confidence(sections.get("CONFIDENCE_LEVEL", "0.5")),
                 timestamp=time.time(),
-                supporting_evidence=self._parse_evidence(sections.get('SUPPORTING_EVIDENCE', ''))
+                supporting_evidence=self._parse_evidence(sections.get("SUPPORTING_EVIDENCE", "")),
             )
-            
+
         except Exception as e:
             logger.error(f"Error parsing response from {self.name}: {str(e)}")
             return self._create_error_report(str(e))
-    
+
     def _extract_sections(self, text: str) -> Dict[str, str]:
         """Extract sections from structured response."""
         sections = {}
         current_section = None
         current_content = []
-        
-        lines = text.split('\n')
-        
+
+        lines = text.split("\n")
+
         for line in lines:
             line = line.strip()
-            if line.endswith(':') and line.replace(':', '').replace('_', '').isalpha():
+            if line.endswith(":") and line.replace(":", "").replace("_", "").isalpha():
                 if current_section:
-                    sections[current_section] = '\n'.join(current_content).strip()
-                current_section = line.replace(':', '').upper()
+                    sections[current_section] = "\n".join(current_content).strip()
+                current_section = line.replace(":", "").upper()
                 current_content = []
             elif current_section:
                 current_content.append(line)
-        
+
         if current_section:
-            sections[current_section] = '\n'.join(current_content).strip()
-        
+            sections[current_section] = "\n".join(current_content).strip()
+
         return sections
-    
+
     def _parse_recommendations(self, text: str) -> List[str]:
         """Parse recommendations from text."""
         recommendations = []
-        lines = text.split('\n')
-        
+        lines = text.split("\n")
+
         for line in lines:
             line = line.strip()
-            if line and (line.startswith('-') or line.startswith('•') or line.startswith('*')):
+            if line and (line.startswith("-") or line.startswith("•") or line.startswith("*")):
                 recommendations.append(line[1:].strip())
             elif line and len(line) > 10:  # Assume lines with content are recommendations
                 recommendations.append(line)
-        
+
         return recommendations[:5]  # Limit to 5 recommendations
-    
+
     def _parse_confidence(self, text: str) -> float:
         """Parse confidence level from text."""
         try:
             # Extract numerical value
             import re
-            match = re.search(r'(\d+\.?\d*)', text)
+
+            match = re.search(r"(\d+\.?\d*)", text)
             if match:
                 value = float(match.group(1))
                 if value > 1.0:
@@ -224,21 +225,21 @@ SUPPORTING_EVIDENCE:
             return 0.5
         except:
             return 0.5
-    
+
     def _parse_evidence(self, text: str) -> List[str]:
         """Parse supporting evidence from text."""
         evidence = []
-        lines = text.split('\n')
-        
+        lines = text.split("\n")
+
         for line in lines:
             line = line.strip()
-            if line and (line.startswith('-') or line.startswith('•') or line.startswith('*')):
+            if line and (line.startswith("-") or line.startswith("•") or line.startswith("*")):
                 evidence.append(line[1:].strip())
             elif line and len(line) > 10:
                 evidence.append(line)
-        
+
         return evidence[:10]  # Limit evidence items
-    
+
     def _create_error_report(self, error_message: str) -> AgentReport:
         """Create error report when analysis fails."""
         return AgentReport(
@@ -250,27 +251,23 @@ SUPPORTING_EVIDENCE:
             recommendations=["Retry analysis with corrected input", "Check API connectivity"],
             confidence_level=0.0,
             timestamp=time.time(),
-            supporting_evidence=[]
+            supporting_evidence=[],
         )
-    
+
     def process_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Process a task assigned to this agent."""
-        task_type = task.get('type', 'analyze_plan')
-        
-        if task_type == 'analyze_plan':
-            plan_text = task.get('economic_plan', '')
-            shared_context = task.get('shared_context', {})
-            
+        task_type = task.get("type", "analyze_plan")
+
+        if task_type == "analyze_plan":
+            plan_text = task.get("economic_plan", "")
+            shared_context = task.get("shared_context", {})
+
             report = self.analyze_plan(plan_text, shared_context)
-            
-            return {
-                'status': 'completed',
-                'report': report,
-                'agent_id': self.agent_id
-            }
+
+            return {"status": "completed", "report": report, "agent_id": self.agent_id}
         else:
-            return {'error': f'Unknown task type: {task_type}'}
-    
+            return {"error": f"Unknown task type: {task_type}"}
+
     def get_capabilities(self) -> List[str]:
         """Get agent capabilities."""
         return [
@@ -278,28 +275,30 @@ SUPPORTING_EVIDENCE:
             "economic_plan_review",
             "risk_assessment",
             "recommendation_generation",
-            "socialist_theory_application"
+            "socialist_theory_application",
         ]
 
 
 class CentralPlanningAnalyst(EconomicReviewAgent):
     """
     Specialized agent for central planning analysis.
-    
+
     Focuses on production planning, resource allocation, and output targets.
     """
-    
+
     def __init__(self, api_key: str):
         super().__init__(
             agent_id="central_planning_analyst",
             name="Central Planning Analyst",
             api_key=api_key,
-            specialization="Central Planning and Resource Allocation"
+            specialization="Central Planning and Resource Allocation",
         )
-    
+
     def _build_system_prompt(self) -> str:
         base_prompt = super()._build_system_prompt()
-        return base_prompt + """
+        return (
+            base_prompt
+            + """
 
 Your specific expertise includes:
 - Production planning and capacity analysis
@@ -317,26 +316,29 @@ Focus on:
 - Analyzing sectoral interdependencies
 - Reviewing capacity constraints and expansion needs
 """
+        )
 
 
 class LaborValueTheorist(EconomicReviewAgent):
     """
     Specialized agent for labor theory of value analysis.
-    
+
     Focuses on labor value calculations, surplus value, and productivity assessment.
     """
-    
+
     def __init__(self, api_key: str):
         super().__init__(
             agent_id="labor_value_theorist",
             name="Labor Value Theorist",
             api_key=api_key,
-            specialization="Labor Theory of Value and Productivity Analysis"
+            specialization="Labor Theory of Value and Productivity Analysis",
         )
-    
+
     def _build_system_prompt(self) -> str:
         base_prompt = super()._build_system_prompt()
-        return base_prompt + """
+        return (
+            base_prompt
+            + """
 
 Your specific expertise includes:
 - Labor theory of value applications
@@ -355,26 +357,29 @@ Focus on:
 - Identifying opportunities for labor time reduction
 - Examining skill development and training needs
 """
+        )
 
 
 class MaterialConditionsExpert(EconomicReviewAgent):
     """
     Specialized agent for material conditions analysis.
-    
+
     Focuses on material dialectics, productive forces, and relations of production.
     """
-    
+
     def __init__(self, api_key: str):
         super().__init__(
             agent_id="material_conditions_expert",
             name="Material Conditions Expert",
             api_key=api_key,
-            specialization="Material Dialectics and Productive Forces"
+            specialization="Material Dialectics and Productive Forces",
         )
-    
+
     def _build_system_prompt(self) -> str:
         base_prompt = super()._build_system_prompt()
-        return base_prompt + """
+        return (
+            base_prompt
+            + """
 
 Your specific expertise includes:
 - Material dialectics and historical materialism
@@ -393,26 +398,29 @@ Focus on:
 - Examining resource constraints and availability
 - Identifying contradictions between productive forces and relations
 """
+        )
 
 
 class SocialistDistributionSpecialist(EconomicReviewAgent):
     """
     Specialized agent for socialist distribution analysis.
-    
+
     Focuses on "from each according to ability, to each according to need" implementation.
     """
-    
+
     def __init__(self, api_key: str):
         super().__init__(
             agent_id="socialist_distribution_specialist",
             name="Socialist Distribution Specialist",
             api_key=api_key,
-            specialization="Socialist Distribution and Social Needs"
+            specialization="Socialist Distribution and Social Needs",
         )
-    
+
     def _build_system_prompt(self) -> str:
         base_prompt = super()._build_system_prompt()
-        return base_prompt + """
+        return (
+            base_prompt
+            + """
 
 Your specific expertise includes:
 - Socialist distribution principles and mechanisms
@@ -431,26 +439,29 @@ Focus on:
 - Identifying gaps in social needs fulfillment
 - Examining community participation in distribution decisions
 """
+        )
 
 
 class ImplementationReviewer(EconomicReviewAgent):
     """
     Specialized agent for implementation feasibility analysis.
-    
+
     Focuses on feasibility, timeline, and resource coordination in planned economy.
     """
-    
+
     def __init__(self, api_key: str):
         super().__init__(
             agent_id="implementation_reviewer",
             name="Implementation Reviewer",
             api_key=api_key,
-            specialization="Implementation Feasibility and Coordination"
+            specialization="Implementation Feasibility and Coordination",
         )
-    
+
     def _build_system_prompt(self) -> str:
         base_prompt = super()._build_system_prompt()
-        return base_prompt + """
+        return (
+            base_prompt
+            + """
 
 Your specific expertise includes:
 - Implementation feasibility assessment
@@ -469,26 +480,29 @@ Focus on:
 - Reviewing monitoring and evaluation mechanisms
 - Examining administrative and organizational structures needed
 """
+        )
 
 
 class WorkersDemocracyExpert(EconomicReviewAgent):
     """
     Specialized agent for workers' democracy analysis.
-    
+
     Focuses on democratic participation, worker control, and collective decision-making.
     """
-    
+
     def __init__(self, api_key: str):
         super().__init__(
             agent_id="workers_democracy_expert",
             name="Workers' Democracy Expert",
             api_key=api_key,
-            specialization="Workers' Democracy and Collective Decision-Making"
+            specialization="Workers' Democracy and Collective Decision-Making",
         )
-    
+
     def _build_system_prompt(self) -> str:
         base_prompt = super()._build_system_prompt()
-        return base_prompt + """
+        return (
+            base_prompt
+            + """
 
 Your specific expertise includes:
 - Workers' democracy and participation mechanisms
@@ -507,26 +521,29 @@ Focus on:
 - Identifying opportunities for increased democratic participation
 - Examining governance structures for democratic accountability
 """
+        )
 
 
 class SocialDevelopmentAnalyst(EconomicReviewAgent):
     """
     Specialized agent for social development analysis.
-    
+
     Focuses on meeting social needs, eliminating exploitation, and class analysis.
     """
-    
+
     def __init__(self, api_key: str):
         super().__init__(
             agent_id="social_development_analyst",
             name="Social Development Analyst",
             api_key=api_key,
-            specialization="Social Development and Class Analysis"
+            specialization="Social Development and Class Analysis",
         )
-    
+
     def _build_system_prompt(self) -> str:
         base_prompt = super()._build_system_prompt()
-        return base_prompt + """
+        return (
+            base_prompt
+            + """
 
 Your specific expertise includes:
 - Social development and human welfare analysis
@@ -545,3 +562,4 @@ Focus on:
 - Identifying opportunities for social progress
 - Examining community development and empowerment initiatives
 """
+        )

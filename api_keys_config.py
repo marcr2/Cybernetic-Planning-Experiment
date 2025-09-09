@@ -9,9 +9,12 @@ and provides links to obtain the required API keys.
 
 import os
 import sys
+import json
+import base64
 from typing import Dict, Optional, List
 from pathlib import Path
 import logging
+from cryptography.fernet import Fernet
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -30,9 +33,22 @@ class APIKeyManager:
     - Other international data sources
     """
     
-    def __init__(self):
-        """Initialize the API key manager."""
+    def __init__(self, keys_file: str = "keys.json", use_encryption: bool = True):
+        """
+        Initialize the API key manager.
+        
+        Args:
+            keys_file: Path to the JSON file containing API keys
+            use_encryption: Whether to encrypt the keys file
+        """
         self.logger = logging.getLogger(__name__)
+        self.keys_file = Path(keys_file)
+        self.use_encryption = use_encryption
+        self.encryption_key = None
+        
+        # Initialize encryption if enabled
+        if self.use_encryption:
+            self._initialize_encryption()
         
         # API key configuration with source information
         self.api_configs = {
@@ -44,14 +60,6 @@ class APIKeyManager:
                 'environment_variable': 'EIA_API_KEY',
                 'optional': False
             },
-            'USGS_API_KEY': {
-                'name': 'US Geological Survey',
-                'description': 'Mineral production, consumption, and critical materials data',
-                'website': 'https://www.usgs.gov/apis',
-                'required_for': ['Mineral production data', 'Critical materials assessment', 'Supply chain analysis'],
-                'environment_variable': 'USGS_API_KEY',
-                'optional': True
-            },
             'BLS_API_KEY': {
                 'name': 'Bureau of Labor Statistics',
                 'description': 'Employment, wages, and labor market data',
@@ -60,46 +68,101 @@ class APIKeyManager:
                 'environment_variable': 'BLS_API_KEY',
                 'optional': True
             },
-            'EPA_API_KEY': {
-                'name': 'Environmental Protection Agency',
-                'description': 'Environmental data including emissions and pollution',
-                'website': 'https://www.epa.gov/developer',
-                'required_for': ['Carbon emissions data', 'Environmental impact assessment', 'Pollution data'],
-                'environment_variable': 'EPA_API_KEY',
+            'USGS_API_KEY': {
+                'name': 'US Geological Survey',
+                'description': 'Mineral production, consumption, and critical materials data',
+                'website': 'https://mrdata.usgs.gov/',
+                'required_for': ['Mineral production data', 'Critical materials assessment', 'Supply chain analysis'],
+                'environment_variable': 'USGS_API_KEY',
                 'optional': True
             },
-            'EUROSTAT_API_KEY': {
-                'name': 'Eurostat',
-                'description': 'European Union statistics and data',
-                'website': 'https://ec.europa.eu/eurostat/web/main/data/api',
-                'required_for': ['EU energy data', 'EU material flows', 'EU labor statistics'],
-                'environment_variable': 'EUROSTAT_API_KEY',
+            'BEA_API_KEY': {
+                'name': 'Bureau of Economic Analysis',
+                'description': 'Input-Output tables, GDP data, and economic statistics',
+                'website': 'https://apps.bea.gov/api/signup/',
+                'required_for': ['Input-Output analysis', 'Economic planning', 'Sector analysis'],
+                'environment_variable': 'BEA_API_KEY',
                 'optional': True
             },
-            'FRED_API_KEY': {
-                'name': 'Federal Reserve Economic Data',
-                'description': 'Economic and financial data from the Federal Reserve',
-                'website': 'https://fred.stlouisfed.org/docs/api/api_key.html',
-                'required_for': ['Economic indicators', 'Financial data', 'Macroeconomic analysis'],
-                'environment_variable': 'FRED_API_KEY',
+            'GOOGLE_API_KEY': {
+                'name': 'Google Gemini AI',
+                'description': 'AI agents for economic plan analysis and review',
+                'website': 'https://console.cloud.google.com/',
+                'required_for': ['AI plan analysis', 'Economic review agents', 'Multi-agent coordination'],
+                'environment_variable': 'GOOGLE_API_KEY',
                 'optional': True
             }
         }
         
-        # Load API keys from environment variables
+        # Load API keys from both JSON file and environment variables
         self.api_keys = self._load_api_keys()
     
+    def _initialize_encryption(self):
+        """Initialize encryption for secure key storage."""
+        try:
+            # Try to load existing encryption key
+            key_file = self.keys_file.parent / ".encryption_key"
+            if key_file.exists():
+                with open(key_file, 'rb') as f:
+                    self.encryption_key = f.read()
+            else:
+                # Generate new encryption key
+                self.encryption_key = Fernet.generate_key()
+                with open(key_file, 'wb') as f:
+                    f.write(self.encryption_key)
+                # Set restrictive permissions on key file
+                key_file.chmod(0o600)
+        except Exception as e:
+            self.logger.warning(f"Failed to initialize encryption: {e}")
+            self.use_encryption = False
+    
+    def _encrypt_data(self, data: str) -> str:
+        """Encrypt data using Fernet."""
+        if not self.use_encryption or not self.encryption_key:
+            return data
+        
+        try:
+            f = Fernet(self.encryption_key)
+            encrypted_data = f.encrypt(data.encode())
+            return base64.b64encode(encrypted_data).decode()
+        except Exception as e:
+            self.logger.error(f"Encryption failed: {e}")
+            return data
+    
+    def _decrypt_data(self, encrypted_data: str) -> str:
+        """Decrypt data using Fernet."""
+        if not self.use_encryption or not self.encryption_key:
+            return encrypted_data
+        
+        try:
+            f = Fernet(self.encryption_key)
+            decoded_data = base64.b64decode(encrypted_data.encode())
+            decrypted_data = f.decrypt(decoded_data)
+            return decrypted_data.decode()
+        except Exception as e:
+            self.logger.error(f"Decryption failed: {e}")
+            return encrypted_data
+    
     def _load_api_keys(self) -> Dict[str, Optional[str]]:
-        """Load API keys from environment variables."""
+        """Load API keys from JSON file and environment variables."""
         keys = {}
         
+        # First, try to load from JSON file
+        json_keys = self._load_keys_from_json()
+        
         for config_name, config in self.api_configs.items():
+            # Priority: Environment variable > JSON file
             env_var = config['environment_variable']
-            key_value = os.getenv(env_var)
+            env_value = os.getenv(env_var)
+            json_value = json_keys.get(config_name, "")
+            
+            # Use environment variable if available, otherwise use JSON value
+            key_value = env_value if env_value else (json_value if json_value else None)
             keys[config_name] = key_value
             
             if key_value:
-                self.logger.info(f"Loaded API key for {config['name']}")
+                source = "environment" if env_value else "JSON file"
+                self.logger.info(f"Loaded API key for {config['name']} from {source}")
             else:
                 if not config['optional']:
                     self.logger.warning(f"Missing required API key: {config['name']}")
@@ -107,6 +170,82 @@ class APIKeyManager:
                     self.logger.info(f"Optional API key not set: {config['name']}")
         
         return keys
+    
+    def _load_keys_from_json(self) -> Dict[str, str]:
+        """Load API keys from JSON file."""
+        if not self.keys_file.exists():
+            self.logger.info(f"Keys file {self.keys_file} not found, using environment variables only")
+            return {}
+        
+        try:
+            with open(self.keys_file, 'r') as f:
+                data = json.load(f)
+            
+            api_keys = data.get('api_keys', {})
+            
+            # Decrypt keys if encryption is enabled
+            if self.use_encryption:
+                decrypted_keys = {}
+                for key_name, key_value in api_keys.items():
+                    if key_value:  # Only decrypt non-empty values
+                        decrypted_keys[key_name] = self._decrypt_data(key_value)
+                    else:
+                        decrypted_keys[key_name] = key_value
+                return decrypted_keys
+            
+            return api_keys
+            
+        except Exception as e:
+            self.logger.error(f"Failed to load keys from JSON file: {e}")
+            return {}
+    
+    def save_keys_to_json(self, keys: Dict[str, str]) -> bool:
+        """Save API keys to JSON file."""
+        try:
+            # Load existing file structure
+            if self.keys_file.exists():
+                with open(self.keys_file, 'r') as f:
+                    data = json.load(f)
+            else:
+                data = {
+                    "api_keys": {},
+                    "metadata": {
+                        "version": "1.0",
+                        "created": "2024-01-01",
+                        "last_updated": "2024-01-01",
+                        "description": "Centralized API key storage for Cybernetic Planning System",
+                        "security_note": "This file contains sensitive API keys. Keep it secure and never commit to version control."
+                    },
+                    "api_info": {}
+                }
+            
+            # Update API keys
+            api_keys = {}
+            for key_name, key_value in keys.items():
+                if key_value:  # Only save non-empty values
+                    if self.use_encryption:
+                        api_keys[key_name] = self._encrypt_data(key_value)
+                    else:
+                        api_keys[key_name] = key_value
+                else:
+                    api_keys[key_name] = ""
+            
+            data['api_keys'] = api_keys
+            data['metadata']['last_updated'] = "2024-01-01"  # You might want to use actual timestamp
+            
+            # Write to file
+            with open(self.keys_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            
+            # Set restrictive permissions
+            self.keys_file.chmod(0o600)
+            
+            self.logger.info(f"API keys saved to {self.keys_file}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save keys to JSON file: {e}")
+            return False
     
     def get_api_key(self, service_name: str) -> Optional[str]:
         """
@@ -396,6 +535,143 @@ class APIKeyManager:
             ])
         
         return capabilities
+    
+    def get_keys_for_gui(self) -> Dict[str, Dict[str, any]]:
+        """Get API keys formatted for GUI display."""
+        gui_keys = {}
+        
+        for config_name, config in self.api_configs.items():
+            key_value = self.api_keys.get(config_name, "")
+            
+            gui_keys[config_name] = {
+                'name': config['name'],
+                'description': config['description'],
+                'website': config['website'],
+                'required_for': config['required_for'],
+                'environment_variable': config['environment_variable'],
+                'is_optional': config['optional'],
+                'is_required': not config['optional'],
+                'current_value': key_value,
+                'is_set': bool(key_value),
+                'status': 'Available' if key_value else 'Missing',
+                'status_icon': '✅' if key_value else '❌'
+            }
+        
+        return gui_keys
+    
+    def update_api_key(self, key_name: str, key_value: str) -> bool:
+        """Update a specific API key."""
+        if key_name not in self.api_configs:
+            self.logger.error(f"Unknown API key: {key_name}")
+            return False
+        
+        # Update in memory
+        self.api_keys[key_name] = key_value
+        
+        # Save to JSON file
+        return self.save_keys_to_json(self.api_keys)
+    
+    def clear_api_key(self, key_name: str) -> bool:
+        """Clear a specific API key."""
+        return self.update_api_key(key_name, "")
+    
+    def export_keys_template(self, output_file: str = "keys_template.json") -> bool:
+        """Export a template JSON file with empty keys."""
+        try:
+            template_data = {
+                "api_keys": {},
+                "metadata": {
+                    "version": "1.0",
+                    "created": "2024-01-01",
+                    "last_updated": "2024-01-01",
+                    "description": "API Keys Template - Fill in your actual keys",
+                    "security_note": "This is a template file. Copy to keys.json and fill in your actual API keys."
+                },
+                "api_info": {}
+            }
+            
+            # Add empty keys for all services
+            for config_name, config in self.api_configs.items():
+                template_data["api_keys"][config_name] = ""
+                template_data["api_info"][config_name] = {
+                    "name": config['name'],
+                    "description": config['description'],
+                    "website": config['website'],
+                    "required": not config['optional']
+                }
+            
+            with open(output_file, 'w') as f:
+                json.dump(template_data, f, indent=2)
+            
+            self.logger.info(f"Keys template exported to {output_file}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to export keys template: {e}")
+            return False
+    
+    def regenerate_encryption_key(self) -> bool:
+        """Regenerate the encryption key (will make existing encrypted data unreadable)."""
+        if not self.use_encryption:
+            self.logger.warning("Encryption is not enabled")
+            return False
+        
+        try:
+            # Generate new encryption key
+            new_key = Fernet.generate_key()
+            
+            # Save new key
+            key_file = self.keys_file.parent / ".encryption_key"
+            with open(key_file, 'wb') as f:
+                f.write(new_key)
+            key_file.chmod(0o600)
+            
+            # Update current key
+            self.encryption_key = new_key
+            
+            self.logger.info("Encryption key regenerated successfully")
+            self.logger.warning("Existing encrypted data in keys.json will be unreadable")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to regenerate encryption key: {e}")
+            return False
+    
+    def disable_encryption(self) -> bool:
+        """Disable encryption for the keys file."""
+        try:
+            self.use_encryption = False
+            self.encryption_key = None
+            
+            # Remove encryption key file
+            key_file = self.keys_file.parent / ".encryption_key"
+            if key_file.exists():
+                key_file.unlink()
+            
+            self.logger.info("Encryption disabled")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to disable encryption: {e}")
+            return False
+    
+    def enable_encryption(self) -> bool:
+        """Enable encryption for the keys file."""
+        try:
+            self.use_encryption = True
+            self._initialize_encryption()
+            
+            if self.encryption_key:
+                self.logger.info("Encryption enabled")
+                return True
+            else:
+                self.logger.error("Failed to initialize encryption")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Failed to enable encryption: {e}")
+            return False
 
 
 def main():

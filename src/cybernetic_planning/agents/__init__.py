@@ -10,7 +10,7 @@ from .writer import WriterAgent
 __all__ = [
     "BaseAgent",
     "ManagerAgent",
-    "EconomicsAgent", 
+    "EconomicsAgent",
     "ResourceAgent",
     "PolicyAgent",
     "WriterAgent",
