@@ -13,17 +13,54 @@ An AI-enhanced central planning software system that generates comprehensive 5-y
 
 ## Installation
 
-### Prerequisites
+### 🚀 Quick Installation (Recommended)
+
+The easiest way to install the Cybernetic Planning System is using our automated installation wizard:
+
+#### Windows
+1. **Download the project** and extract it to your desired location
+2. **Double-click `install_wizard.bat`** to run the installation wizard
+3. **Follow the on-screen instructions** - the wizard will handle everything automatically
+
+#### Linux/macOS
+1. **Download the project** and extract it to your desired location
+2. **Open a terminal** in the project directory
+3. **Run the installation wizard**:
+   ```bash
+   chmod +x install_wizard.sh
+   ./install_wizard.sh
+   ```
+4. **Follow the on-screen instructions** - the wizard will handle everything automatically
+
+### 📋 What the Installation Wizard Does
+
+The installation wizard automatically:
+- ✅ Checks Python version compatibility (3.9+ required)
+- ✅ Creates a Python virtual environment
+- ✅ Installs all required dependencies
+- ✅ Sets up project directories and configuration
+- ✅ Creates security keys and API templates
+- ✅ Validates the complete installation
+- ✅ Generates launcher scripts for easy startup
+- ✅ Creates comprehensive installation logs
+
+### 🔧 Manual Installation
+
+If you prefer to install manually or the wizard doesn't work:
+
+#### Prerequisites
 
 - Python 3.9 or higher
 - pip package manager
+- 2GB+ free disk space
+- 4GB+ RAM recommended
 
-### Setup
+#### Setup
 
 1. **Clone or download the project**:
    ```bash
    git clone <repository-url>
-   cd "Central Planning Experiment"
+   cd "Cybernetic-Planning-Experiment"
    ```
 
 2. **Create and activate a virtual environment**:
@@ -40,6 +77,39 @@ An AI-enhanced central planning software system that generates comprehensive 5-y
 3. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
+   ```
+
+4. **Install the project in development mode**:
+   ```bash
+   pip install -e .
+   ```
+
+### 🐛 Troubleshooting
+
+If you encounter issues during installation:
+
+1. **Check the installation log**: Look in `logs/installation.log` for detailed error messages
+2. **Verify Python version**: Ensure you have Python 3.9 or higher
+3. **Check system requirements**: Ensure you have sufficient disk space and memory
+4. **Update pip**: Run `python -m pip install --upgrade pip`
+5. **Clear cache**: Delete `.venv` folder and try again
+
+### ✅ Verification
+
+After installation, verify everything works:
+
+1. **Run the validation script**:
+   ```bash
+   python -c "from src.cybernetic_planning.utils.system_validator import SystemValidator; validator = SystemValidator(Path('.'), 'python'); validator.run_comprehensive_validation()"
+   ```
+
+2. **Test the GUI**:
+   ```bash
+   # Windows
+   run_gui.bat
+   
+   # Linux/macOS
+   ./run_gui.sh
    ```
 
 ## Quick Start

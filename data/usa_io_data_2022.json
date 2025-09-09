@@ -1,0 +1,20 @@
+{
+  "year": 2022,
+  "tables": {
+    "use_table": null,
+    "make_table": null,
+    "direct_requirements": null,
+    "total_requirements": null
+  },
+  "metadata": {
+    "source": "BEA API",
+    "scraped_at": "2025-09-08T22:27:17.827548",
+    "table_types": [
+      "use_table",
+      "make_table",
+      "direct_requirements",
+      "total_requirements"
+    ],
+    "api_key_used": false
+  }
+}
