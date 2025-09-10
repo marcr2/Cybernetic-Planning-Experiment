@@ -624,17 +624,80 @@ The system was unable to run automatic analyses. This may be due to:
             marxist_data = automatic_analyses["marxist"]
             if "error" not in marxist_data:
                 content_parts.append("### Marxist Economic Analysis")
-                content_parts.append("**Labor Value Analysis**:")
+                
+                # Aggregate Value Composition
+                if "aggregate_value_composition" in marxist_data:
+                    agg_data = marxist_data["aggregate_value_composition"]
+                    content_parts.append("**Aggregate Value Composition**:")
+                    content_parts.append(f"- Constant Capital (C): {agg_data.get('constant_capital', 0):.2f}")
+                    content_parts.append(f"- Variable Capital (V): {agg_data.get('variable_capital', 0):.2f}")
+                    content_parts.append(f"- Surplus Value (S): {agg_data.get('surplus_value', 0):.2f}")
+                    content_parts.append(f"- Total Value: {agg_data.get('total_value', 0):.2f}")
+                    content_parts.append(f"- Organic Composition (C/V): {agg_data.get('organic_composition', 0):.4f}")
+                    content_parts.append(f"- Rate of Surplus Value (S/V): {agg_data.get('rate_of_surplus_value', 0):.4f}")
+                    content_parts.append(f"- Rate of Profit (S/(C+V)): {agg_data.get('rate_of_profit', 0):.4f}")
+                    content_parts.append("")
+                
+                # Economy-wide Averages
+                if "economy_wide_averages" in marxist_data:
+                    avg_data = marxist_data["economy_wide_averages"]
+                    content_parts.append("**Economy-wide Averages**:")
+                    content_parts.append(f"- Average Organic Composition: {avg_data.get('average_organic_composition', 0):.4f}")
+                    content_parts.append(f"- Average Rate of Surplus Value: {avg_data.get('average_rate_of_surplus_value', 0):.4f}")
+                    content_parts.append(f"- Average Rate of Profit: {avg_data.get('average_rate_of_profit', 0):.4f}")
+                    content_parts.append("")
+                
+                # Sectoral Indicators Summary
+                if "sectoral_indicators" in marxist_data:
+                    sector_data = marxist_data["sectoral_indicators"]
+                    content_parts.append("**Sectoral Indicators Summary**:")
+                    
+                    if "organic_composition" in sector_data:
+                        org_comp = np.array(sector_data["organic_composition"])
+                        content_parts.append(f"- Organic Composition Range: {np.min(org_comp):.4f} - {np.max(org_comp):.4f}")
+                        content_parts.append(f"- Organic Composition Std Dev: {np.std(org_comp):.4f}")
+                        content_parts.append(f"- Number of Sectors: {len(org_comp)}")
+                    
+                    if "rate_of_surplus_value" in sector_data:
+                        surplus_rates = np.array(sector_data["rate_of_surplus_value"])
+                        content_parts.append(f"- Surplus Value Rate Range: {np.min(surplus_rates):.4f} - {np.max(surplus_rates):.4f}")
+                        content_parts.append(f"- Surplus Value Rate Std Dev: {np.std(surplus_rates):.4f}")
+                    
+                    if "rate_of_profit" in sector_data:
+                        profit_rates = np.array(sector_data["rate_of_profit"])
+                        content_parts.append(f"- Profit Rate Range: {np.min(profit_rates):.4f} - {np.max(profit_rates):.4f}")
+                        content_parts.append(f"- Profit Rate Std Dev: {np.std(profit_rates):.4f}")
+                    
+                    content_parts.append("")
+                
+                # Detailed Sectoral Data (if requested)
+                if "sectoral_indicators" in marxist_data and len(marxist_data["sectoral_indicators"].get("organic_composition", [])) <= 20:
+                    # Only show detailed data for small economies
+                    sector_data = marxist_data["sectoral_indicators"]
+                    content_parts.append("**Detailed Sectoral Data**:")
+                    content_parts.append("| Sector | Organic Composition | Surplus Value Rate | Profit Rate |")
+                    content_parts.append("|--------|-------------------|-------------------|-------------|")
+                    
+                    for i in range(len(sector_data.get("organic_composition", []))):
+                        org_comp = sector_data["organic_composition"][i] if i < len(sector_data["organic_composition"]) else 0
+                        surplus_rate = sector_data["rate_of_surplus_value"][i] if i < len(sector_data["rate_of_surplus_value"]) else 0
+                        profit_rate = sector_data["rate_of_profit"][i] if i < len(sector_data["rate_of_profit"]) else 0
+                        content_parts.append(f"| {i:6d} | {org_comp:17.4f} | {surplus_rate:17.4f} | {profit_rate:11.4f} |")
+                    
+                    content_parts.append("")
+                
+                # Legacy support for old format
                 if "labor_values" in marxist_data:
                     labor_values = marxist_data["labor_values"]
+                    content_parts.append("**Labor Value Analysis (Legacy)**:")
                     content_parts.append(f"- Average labor value: {np.mean(labor_values):.4f}")
                     content_parts.append(f"- Labor value range: {np.min(labor_values):.4f} - {np.max(labor_values):.4f}")
+                    content_parts.append("")
                 
                 if "surplus_value" in marxist_data:
                     surplus_value = marxist_data["surplus_value"]
                     content_parts.append(f"- Total surplus value: {surplus_value:.2f}")
-                
-                content_parts.append("")
+                    content_parts.append("")
             else:
                 content_parts.append("### Marxist Economic Analysis")
                 content_parts.append(f"❌ **Error**: {marxist_data['error']}")

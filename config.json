@@ -1,0 +1,20 @@
+{
+  "system": {
+    "name": "Cybernetic Planning System",
+    "version": "0.1.0",
+    "python_version": "3.13",
+    "installation_date": "2025-09-09 23:13:22"
+  },
+  "paths": {
+    "data_directory": "data",
+    "exports_directory": "exports",
+    "logs_directory": "logs",
+    "cache_directory": "cache"
+  },
+  "planning": {
+    "default_sectors": 8,
+    "default_years": 5,
+    "convergence_threshold": 0.005,
+    "max_iterations": 15
+  }
+}

@@ -27,6 +27,10 @@ jsonschema==4.25.1
 requests==2.32.5
 beautifulsoup4==4.13.5
 lxml==6.0.1
+urllib3==2.5.0
+certifi==2025.8.3
+charset-normalizer==3.4.3
+idna==3.10
 
 # AI/ML libraries
 google-generativeai==0.8.5
@@ -50,6 +54,7 @@ python-docx==1.2.0
 # System monitoring and utilities
 psutil==7.0.0
 tqdm==4.67.1
+python-dateutil==2.9.0
 
 # Development dependencies (optional)
 pytest==8.4.2

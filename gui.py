@@ -15,6 +15,7 @@ from pathlib import Path
 import threading
 from datetime import datetime
 import numpy as np
+import math
 
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
@@ -32,8 +33,18 @@ class CyberneticPlanningGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Cybernetic Central Planning System")
-        self.root.geometry("1400x900")
-        self.root.minsize(1000, 700)
+        
+        # Detect screen dimensions and calculate scaling
+        self.screen_width, self.screen_height = self._get_screen_dimensions()
+        self.scale_factor = self._calculate_scale_factor()
+        self.window_width, self.window_height = self._calculate_window_size()
+        
+        # Set window geometry with calculated dimensions
+        self.root.geometry(f"{self.window_width}x{self.window_height}")
+        self.root.minsize(int(1000 * self.scale_factor), int(700 * self.scale_factor))
+        
+        # Center the window on screen
+        self._center_window()
 
         # Initialize planning system
         self.planning_system = CyberneticPlanningSystem()
@@ -47,6 +58,83 @@ class CyberneticPlanningGUI:
         # Bind cleanup on window close
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+    def _get_screen_dimensions(self):
+        """Get the screen dimensions."""
+        try:
+            # Get screen dimensions
+            screen_width = self.root.winfo_screenwidth()
+            screen_height = self.root.winfo_screenheight()
+            return screen_width, screen_height
+        except Exception as e:
+            print(f"Warning: Could not detect screen dimensions: {e}")
+            # Fallback to common 1920x1080 resolution
+            return 1920, 1080
+
+    def _calculate_scale_factor(self):
+        """Calculate appropriate scale factor based on screen size."""
+        # Base resolution is 1920x1080 (16:9 aspect ratio)
+        base_width, base_height = 1920, 1080
+        
+        # Calculate scale factors for width and height
+        width_scale = self.screen_width / base_width
+        height_scale = self.screen_height / base_height
+        
+        # Use the smaller scale factor to ensure the window fits on screen
+        # but add some padding (0.8 factor) to leave room for taskbar, etc.
+        scale_factor = min(width_scale, height_scale) * 0.8
+        
+        # Ensure minimum and maximum scale factors
+        scale_factor = max(0.6, min(scale_factor, 2.0))
+        
+        return scale_factor
+
+    def _calculate_window_size(self):
+        """Calculate appropriate window size based on scale factor."""
+        # Base window size (original design size)
+        base_width, base_height = 1400, 900
+        
+        # Scale the dimensions
+        window_width = int(base_width * self.scale_factor)
+        window_height = int(base_height * self.scale_factor)
+        
+        # Ensure window doesn't exceed screen dimensions
+        window_width = min(window_width, int(self.screen_width * 0.95))
+        window_height = min(window_height, int(self.screen_height * 0.95))
+        
+        return window_width, window_height
+
+    def _center_window(self):
+        """Center the window on the screen."""
+        # Calculate position to center the window
+        x = (self.screen_width - self.window_width) // 2
+        y = (self.screen_height - self.window_height) // 2
+        
+        # Set window position
+        self.root.geometry(f"{self.window_width}x{self.window_height}+{x}+{y}")
+
+    def _scale_padding(self, padding):
+        """Scale padding values based on the scale factor."""
+        if isinstance(padding, (int, float)):
+            return int(padding * self.scale_factor)
+        elif isinstance(padding, (list, tuple)) and len(padding) >= 2:
+            return (int(padding[0] * self.scale_factor), int(padding[1] * self.scale_factor))
+        return padding
+
+    def _scale_font_size(self, base_size):
+        """Scale font size based on the scale factor."""
+        return int(base_size * self.scale_factor)
+
+    def get_scaling_info(self):
+        """Get information about current scaling settings."""
+        return {
+            "screen_width": self.screen_width,
+            "screen_height": self.screen_height,
+            "scale_factor": self.scale_factor,
+            "window_width": self.window_width,
+            "window_height": self.window_height,
+            "aspect_ratio": self.screen_width / self.screen_height
+        }
+
     def create_widgets(self):
         """Create all GUI widgets."""
         # Create notebook for tabs
@@ -55,6 +143,7 @@ class CyberneticPlanningGUI:
         # Create tabs
         self.create_data_tab()
         self.create_automatic_analyses_tab()
+        self.create_performance_tab()
         self.create_web_scraper_tab()
         self.create_api_keys_tab()
         self.create_planning_tab()
@@ -68,45 +157,45 @@ class CyberneticPlanningGUI:
         self.notebook.add(self.data_frame, text="Data Management")
 
         # Data source selection
-        source_frame = ttk.LabelFrame(self.data_frame, text="Data Source", padding = 10)
-        source_frame.pack(fill="x", padx = 10, pady = 5)
+        source_frame = ttk.LabelFrame(self.data_frame, text="Data Source", padding = self._scale_padding(10))
+        source_frame.pack(fill="x", padx = self._scale_padding(10), pady = self._scale_padding(5))
 
-        ttk.Button(source_frame, text="Load from File", command = self.load_data_from_file).pack(side="left", padx = 5)
-        ttk.Button(source_frame, text="Process USA Zip File", command = self.process_usa_zip).pack(side="left", padx = 5)
-        ttk.Button(source_frame, text="Web Scraper", command = self.open_web_scraper).pack(side="left", padx = 5)
+        ttk.Button(source_frame, text="Load from File", command = self.load_data_from_file).pack(side="left", padx = self._scale_padding(5))
+        ttk.Button(source_frame, text="Process USA Zip File", command = self.process_usa_zip).pack(side="left", padx = self._scale_padding(5))
+        ttk.Button(source_frame, text="Web Scraper", command = self.open_web_scraper).pack(side="left", padx = self._scale_padding(5))
         ttk.Button(source_frame, text="Generate Synthetic Data", command = self.generate_synthetic_data).pack(
-            side="left", padx = 5
+            side="left", padx = self._scale_padding(5)
         )
 
         # Data configuration
-        config_frame = ttk.LabelFrame(self.data_frame, text="Synthetic Data Configuration", padding = 10)
-        config_frame.pack(fill="x", padx = 10, pady = 5)
+        config_frame = ttk.LabelFrame(self.data_frame, text="Synthetic Data Configuration", padding = self._scale_padding(10))
+        config_frame.pack(fill="x", padx = self._scale_padding(10), pady = self._scale_padding(5))
 
         # Number of sectors
-        ttk.Label(config_frame, text="Number of Sectors:").grid(row = 0, column = 0, sticky="w", padx = 5)
+        ttk.Label(config_frame, text="Number of Sectors:").grid(row = 0, column = 0, sticky="w", padx = self._scale_padding(5))
         self.sectors_var = tk.StringVar(value="8")
-        ttk.Entry(config_frame, textvariable = self.sectors_var, width = 10).grid(row = 0, column = 1, padx = 5)
+        ttk.Entry(config_frame, textvariable = self.sectors_var, width = 10).grid(row = 0, column = 1, padx = self._scale_padding(5))
 
         # Technology density
-        ttk.Label(config_frame, text="Technology Density:").grid(row = 0, column = 2, sticky="w", padx = 5)
+        ttk.Label(config_frame, text="Technology Density:").grid(row = 0, column = 2, sticky="w", padx = self._scale_padding(5))
         self.density_var = tk.StringVar(value="0.4")
-        ttk.Entry(config_frame, textvariable = self.density_var, width = 10).grid(row = 0, column = 3, padx = 5)
+        ttk.Entry(config_frame, textvariable = self.density_var, width = 10).grid(row = 0, column = 3, padx = self._scale_padding(5))
 
         # Resource count
-        ttk.Label(config_frame, text="Resource Count:").grid(row = 1, column = 0, sticky="w", padx = 5)
+        ttk.Label(config_frame, text="Resource Count:").grid(row = 1, column = 0, sticky="w", padx = self._scale_padding(5))
         self.resources_var = tk.StringVar(value="3")
-        ttk.Entry(config_frame, textvariable = self.resources_var, width = 10).grid(row = 1, column = 1, padx = 5)
+        ttk.Entry(config_frame, textvariable = self.resources_var, width = 10).grid(row = 1, column = 1, padx = self._scale_padding(5))
 
         # Data display
-        display_frame = ttk.LabelFrame(self.data_frame, text="Current Data", padding = 10)
-        display_frame.pack(fill="both", expand = True, padx = 10, pady = 5)
+        display_frame = ttk.LabelFrame(self.data_frame, text="Current Data", padding = self._scale_padding(10))
+        display_frame.pack(fill="both", expand = True, padx = self._scale_padding(10), pady = self._scale_padding(5))
 
         self.data_text = scrolledtext.ScrolledText(display_frame, height = 15, width = 80)
         self.data_text.pack(fill="both", expand = True)
 
         # Data status
         self.data_status = ttk.Label(display_frame, text="No data loaded", foreground="red")
-        self.data_status.pack(pady = 5)
+        self.data_status.pack(pady = self._scale_padding(5))
 
     def create_automatic_analyses_tab(self):
         """Create automatic analyses results tab."""
@@ -114,26 +203,26 @@ class CyberneticPlanningGUI:
         self.notebook.add(self.auto_analyses_frame, text="Automatic Analyses")
 
         # Header
-        header_frame = ttk.LabelFrame(self.auto_analyses_frame, text="Automatic Analysis Results", padding=10)
-        header_frame.pack(fill="x", padx=10, pady=5)
+        header_frame = ttk.LabelFrame(self.auto_analyses_frame, text="Automatic Analysis Results", padding=self._scale_padding(10))
+        header_frame.pack(fill="x", padx=self._scale_padding(10), pady=self._scale_padding(5))
 
         ttk.Label(header_frame, text="These analyses run automatically when data is loaded:", 
-                 font=("Arial", 10, "bold")).pack(anchor="w")
+                 font=("Arial", self._scale_font_size(10), "bold")).pack(anchor="w")
         
         # Refresh button
         refresh_frame = ttk.Frame(header_frame)
-        refresh_frame.pack(fill="x", pady=5)
+        refresh_frame.pack(fill="x", pady=self._scale_padding(5))
         
         ttk.Button(refresh_frame, text="Refresh Results", 
-                  command=self.refresh_automatic_analyses).pack(side="left", padx=5)
+                  command=self.refresh_automatic_analyses).pack(side="left", padx=self._scale_padding(5))
         
         # Status
         self.auto_analyses_status = ttk.Label(refresh_frame, text="No analyses available", foreground="red")
-        self.auto_analyses_status.pack(side="left", padx=10)
+        self.auto_analyses_status.pack(side="left", padx=self._scale_padding(10))
 
         # Results display
-        results_frame = ttk.LabelFrame(self.auto_analyses_frame, text="Analysis Results", padding=10)
-        results_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        results_frame = ttk.LabelFrame(self.auto_analyses_frame, text="Analysis Results", padding=self._scale_padding(10))
+        results_frame.pack(fill="both", expand=True, padx=self._scale_padding(10), pady=self._scale_padding(5))
 
         # Create notebook for different analysis types
         self.analyses_notebook = ttk.Notebook(results_frame)
@@ -759,11 +848,206 @@ optimal economic strategies using real - world data from multiple countries.
         """
 
         about_label = ttk.Label(self.about_frame, text = about_text, justify="left")
-        about_label.pack(padx = 20, pady = 20)
+        about_label.pack(padx = self._scale_padding(20), pady = self._scale_padding(20))
+        
+        # Add scaling information
+        scaling_info = self.get_scaling_info()
+        scaling_text = f"""
+        
+DISPLAY INFORMATION:
+• Screen Resolution: {scaling_info['screen_width']}x{scaling_info['screen_height']}
+• Aspect Ratio: {scaling_info['aspect_ratio']:.3f}
+• Scale Factor: {scaling_info['scale_factor']:.3f}
+• Window Size: {scaling_info['window_width']}x{scaling_info['window_height']}
+• Auto-scaling: Enabled
+        """
+        
+        scaling_label = ttk.Label(self.about_frame, text=scaling_text, justify="left", 
+                                 font=("Arial", self._scale_font_size(9), "italic"))
+        scaling_label.pack(padx = self._scale_padding(20), pady = self._scale_padding(10))
+
+    def create_performance_tab(self):
+        """Create performance analysis tab."""
+        self.performance_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.performance_frame, text="Performance Analysis")
+
+        # Header
+        header_frame = ttk.LabelFrame(self.performance_frame, text="Industry Performance Analysis", padding=self._scale_padding(10))
+        header_frame.pack(fill="x", padx=self._scale_padding(10), pady=self._scale_padding(5))
+
+        ttk.Label(header_frame, text="Feedback-driven growth analysis based on industry performance:", 
+                 font=("Arial", self._scale_font_size(10), "bold")).pack(anchor="w")
+        
+        # Refresh button
+        refresh_frame = ttk.Frame(header_frame)
+        refresh_frame.pack(fill="x", pady=self._scale_padding(5))
+        
+        ttk.Button(refresh_frame, text="Refresh Performance Data", 
+                  command=self.refresh_performance_data).pack(side="left", padx=self._scale_padding(5))
+        
+        # Status
+        self.performance_status = ttk.Label(refresh_frame, text="No performance data available", foreground="red")
+        self.performance_status.pack(side="left", padx=self._scale_padding(10))
+
+        # Performance display
+        performance_display_frame = ttk.LabelFrame(self.performance_frame, text="Performance Metrics", padding=self._scale_padding(10))
+        performance_display_frame.pack(fill="both", expand=True, padx=self._scale_padding(10), pady=self._scale_padding(5))
+
+        # Create notebook for different performance views
+        self.performance_notebook = ttk.Notebook(performance_display_frame)
+        self.performance_notebook.pack(fill="both", expand=True)
+
+        # Overall performance tab
+        self.overall_performance_frame = ttk.Frame(self.performance_notebook)
+        self.performance_notebook.add(self.overall_performance_frame, text="Overall Performance")
+
+        self.overall_performance_text = scrolledtext.ScrolledText(self.overall_performance_frame, height=15, width=80)
+        self.overall_performance_text.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
+
+        # Department performance tab
+        self.dept_performance_frame = ttk.Frame(self.performance_notebook)
+        self.performance_notebook.add(self.dept_performance_frame, text="Department Performance")
+
+        self.dept_performance_text = scrolledtext.ScrolledText(self.dept_performance_frame, height=15, width=80)
+        self.dept_performance_text.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
+
+        # Growth rates tab
+        self.growth_rates_frame = ttk.Frame(self.performance_notebook)
+        self.performance_notebook.add(self.growth_rates_frame, text="Dynamic Growth Rates")
+
+        self.growth_rates_text = scrolledtext.ScrolledText(self.growth_rates_frame, height=15, width=80)
+        self.growth_rates_text.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
+
+    def refresh_performance_data(self):
+        """Refresh the performance analysis display."""
+        try:
+            # Get performance feedback from planning system
+            feedback = self.planning_system.get_performance_feedback()
+            
+            if "message" in feedback:
+                self.performance_status.config(text=feedback["message"], foreground="red")
+                return
+            
+            # Update status
+            self.performance_status.config(text="Performance data loaded successfully", foreground="green")
+            
+            # Display overall performance
+            overall_text = self._format_overall_performance(feedback)
+            self.overall_performance_text.delete("1.0", tk.END)
+            self.overall_performance_text.insert("1.0", overall_text)
+            
+            # Display department performance
+            dept_text = self._format_department_performance(feedback)
+            self.dept_performance_text.delete("1.0", tk.END)
+            self.dept_performance_text.insert("1.0", dept_text)
+            
+            # Display growth rates
+            growth_text = self._format_growth_rates(feedback)
+            self.growth_rates_text.delete("1.0", tk.END)
+            self.growth_rates_text.insert("1.0", growth_text)
+            
+        except Exception as e:
+            self.performance_status.config(text=f"Error refreshing performance data: {str(e)}", foreground="red")
+
+    def _format_overall_performance(self, feedback):
+        """Format overall performance data for display."""
+        text = "OVERALL ECONOMIC PERFORMANCE\n"
+        text += "=" * 50 + "\n\n"
+        
+        text += f"Overall Demand Fulfillment: {feedback.get('overall_fulfillment', 0):.3f}\n"
+        text += f"Overall Labor Efficiency: {feedback.get('overall_efficiency', 0):.3f}\n\n"
+        
+        text += "DEPARTMENT PERFORMANCE\n"
+        text += "-" * 30 + "\n"
+        text += f"Department I (Means of Production): {feedback.get('dept_I_performance', 0):.3f}\n"
+        text += f"Department II (Consumer Goods): {feedback.get('dept_II_performance', 0):.3f}\n"
+        text += f"Department III (Services): {feedback.get('dept_III_performance', 0):.3f}\n\n"
+        
+        bottlenecks = feedback.get('bottlenecks', [])
+        if bottlenecks:
+            text += f"IDENTIFIED BOTTLENECKS: {bottlenecks}\n\n"
+        else:
+            text += "No significant bottlenecks identified.\n\n"
+        
+        return text
+
+    def _format_department_performance(self, feedback):
+        """Format department performance data for display."""
+        text = "DEPARTMENT-SPECIFIC ANALYSIS\n"
+        text += "=" * 40 + "\n\n"
+        
+        dept_I_perf = feedback.get('dept_I_performance', 0)
+        dept_II_perf = feedback.get('dept_II_performance', 0)
+        dept_III_perf = feedback.get('dept_III_performance', 0)
+        
+        text += "DEPARTMENT I - MEANS OF PRODUCTION\n"
+        text += "-" * 35 + "\n"
+        text += f"Performance Score: {dept_I_perf:.3f}\n"
+        if dept_I_perf < 0.8:
+            text += "Status: UNDERPERFORMING - Needs investment in capital goods\n"
+        elif dept_I_perf > 1.2:
+            text += "Status: OVERPERFORMING - May need demand expansion\n"
+        else:
+            text += "Status: BALANCED - Good performance\n"
+        text += "\n"
+        
+        text += "DEPARTMENT II - CONSUMER GOODS\n"
+        text += "-" * 30 + "\n"
+        text += f"Performance Score: {dept_II_perf:.3f}\n"
+        if dept_II_perf < 0.8:
+            text += "Status: UNDERPERFORMING - Consumer goods shortage\n"
+        elif dept_II_perf > 1.2:
+            text += "Status: OVERPERFORMING - May indicate overproduction\n"
+        else:
+            text += "Status: BALANCED - Good performance\n"
+        text += "\n"
+        
+        text += "DEPARTMENT III - SERVICES\n"
+        text += "-" * 25 + "\n"
+        text += f"Performance Score: {dept_III_perf:.3f}\n"
+        if dept_III_perf < 0.8:
+            text += "Status: UNDERPERFORMING - Service sector needs development\n"
+        elif dept_III_perf > 1.2:
+            text += "Status: OVERPERFORMING - Service sector well-developed\n"
+        else:
+            text += "Status: BALANCED - Good performance\n"
+        
+        return text
+
+    def _format_growth_rates(self, feedback):
+        """Format growth rates data for display."""
+        text = "DYNAMIC GROWTH RATES\n"
+        text += "=" * 25 + "\n\n"
+        
+        growth_rates = feedback.get('growth_rates', {})
+        
+        text += "CALCULATED GROWTH RATES\n"
+        text += "-" * 25 + "\n"
+        text += f"Population Growth: {growth_rates.get('population', 0):.3f} ({growth_rates.get('population', 0)*100:.1f}%)\n"
+        text += f"Living Standards Growth: {growth_rates.get('living_standards', 0):.3f} ({growth_rates.get('living_standards', 0)*100:.1f}%)\n"
+        text += f"Technology Improvement: {growth_rates.get('technology', 0):.3f} ({growth_rates.get('technology', 0)*100:.1f}%)\n"
+        text += f"Capital Accumulation: {growth_rates.get('capital', 0):.3f} ({growth_rates.get('capital', 0)*100:.1f}%)\n\n"
+        
+        text += "GROWTH RATE ANALYSIS\n"
+        text += "-" * 20 + "\n"
+        
+        total_growth = growth_rates.get('population', 0) + growth_rates.get('living_standards', 0)
+        text += f"Total Demand Growth: {total_growth:.3f} ({total_growth*100:.1f}%)\n"
+        
+        if total_growth > 0.08:
+            text += "Status: HIGH GROWTH - Strong economic expansion\n"
+        elif total_growth > 0.04:
+            text += "Status: MODERATE GROWTH - Steady economic development\n"
+        elif total_growth > 0.02:
+            text += "Status: LOW GROWTH - Slow economic development\n"
+        else:
+            text += "Status: STAGNANT - Economic growth concerns\n"
+        
+        return text
 
     def setup_layout(self):
         """Setup the main layout."""
-        self.notebook.pack(fill="both", expand = True, padx = 5, pady = 5)
+        self.notebook.pack(fill="both", expand = True, padx = self._scale_padding(5), pady = self._scale_padding(5))
 
         # Configure styles
         style = ttk.Style()

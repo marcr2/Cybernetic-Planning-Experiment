@@ -407,7 +407,7 @@ class CyberneticPlanningSystem:
     def create_five_year_plan(
         self,
         policy_goals: Optional[List[str]] = None,
-        consumption_growth_rate: float = 0.02,
+        consumption_growth_rate: float = 0.05,  # Increased from 2% to 5% to account for population growth and rising living standards
         investment_ratio: float = 0.2,
         production_multipliers: Optional[Dict[str, float]] = None,
         apply_reproduction: bool = True
@@ -440,18 +440,35 @@ class CyberneticPlanningSystem:
         consumption_demands = []
         investment_demands = []
 
+        # For the first year, use base growth rates
         for year in range(1, 6):
-            # Calculate consumption demand with growth
-            consumption_demand = base_final_demand * ((1 + consumption_growth_rate) ** (year - 1))
+            if year == 1:
+                # Year 1: Use base growth rates
+                population_growth_rate = 0.01  # 1% annual population growth
+                living_standards_growth_rate = consumption_growth_rate - population_growth_rate
+                total_growth_rate = population_growth_rate + living_standards_growth_rate
+                consumption_demand = base_final_demand * ((1 + total_growth_rate) ** (year - 1))
+                investment_growth_rate = total_growth_rate * 1.2
+                investment_demand = base_final_demand * investment_ratio * ((1 + investment_growth_rate) ** (year - 1))
+            else:
+                # Years 2-5: Use feedback-driven growth (will be calculated during planning)
+                # Start with base growth and let feedback system adjust
+                population_growth_rate = 0.01
+                living_standards_growth_rate = consumption_growth_rate - population_growth_rate
+                total_growth_rate = population_growth_rate + living_standards_growth_rate
+                consumption_demand = base_final_demand * ((1 + total_growth_rate) ** (year - 1))
+                investment_growth_rate = total_growth_rate * 1.2
+                investment_demand = base_final_demand * investment_ratio * ((1 + investment_growth_rate) ** (year - 1))
+            
             consumption_demands.append(consumption_demand)
-
-            # Calculate investment demand
-            investment_demand = consumption_demand * investment_ratio
             investment_demands.append(investment_demand)
 
-        # Create 5 - year plan
+        # Create 5 - year plan with feedback growth
         five_year_plan = dynamic_planner.create_five_year_plan(
-            consumption_demands = consumption_demands, investment_demands = investment_demands, use_optimization = True
+            consumption_demands = consumption_demands, 
+            investment_demands = investment_demands, 
+            use_optimization = True,
+            use_feedback_growth = True  # Re-enable feedback growth
         )
 
         # Apply policy goals if provided
@@ -465,6 +482,9 @@ class CyberneticPlanningSystem:
 
         # Store in history
         self.plan_history.append(five_year_plan)
+        
+        # Store performance feedback
+        self.performance_feedback = dynamic_planner.get_performance_feedback()
 
         return five_year_plan
 
@@ -498,6 +518,12 @@ class CyberneticPlanningSystem:
             raise ValueError(f"Failed to generate report: {result.get('error', 'Unknown error')}")
 
         return result["report"]
+
+    def get_performance_feedback(self) -> Dict[str, Any]:
+        """Get performance feedback from the latest plan."""
+        if hasattr(self, 'performance_feedback'):
+            return self.performance_feedback
+        return {"message": "No performance feedback available"}
 
     def save_plan(self, file_path: Union[str, Path], format_type: str = "json") -> None:
         """

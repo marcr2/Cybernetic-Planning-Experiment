@@ -5,9 +5,10 @@ Implements dynamic planning for years 2 - 5 with capital accumulation
 and technological change.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import warnings
 import numpy as np
+from .feedback_growth import FeedbackGrowthSystem
 
 class DynamicPlanner:
     """
@@ -66,6 +67,23 @@ class DynamicPlanner:
         self.labor_vectors = {0: self.l_0.copy()}
         self.capital_stocks = {0: self.K_0.copy()}
         self.plans = {}
+        
+        # Initialize feedback growth system
+        # Calculate department indices based on sector count
+        n_dept_I = min(50, self.n_sectors // 3)
+        n_dept_II = min(50, (self.n_sectors - n_dept_I) // 2)
+        n_dept_III = self.n_sectors - n_dept_I - n_dept_II
+        
+        dept_I_indices = list(range(n_dept_I))
+        dept_II_indices = list(range(n_dept_I, n_dept_I + n_dept_II))
+        dept_III_indices = list(range(n_dept_I + n_dept_II, self.n_sectors))
+        
+        self.feedback_growth = FeedbackGrowthSystem(
+            n_sectors=self.n_sectors,
+            dept_I_indices=dept_I_indices,
+            dept_II_indices=dept_II_indices,
+            dept_III_indices=dept_III_indices
+        )
 
     def _validate_inputs(self) -> None:
         """Validate input parameters."""
@@ -99,6 +117,13 @@ class DynamicPlanner:
             new_technology_matrix: New technology matrix (if None, applies technological change)
             new_labor_vector: New labor vector (if None, applies productivity growth)
             technological_change_rate: Base rate of technological change (default 2% per year)
+            
+        Note: Technology improvements reduce input requirements and labor needs per unit output.
+        However, total output and labor costs should still increase over time due to:
+        - Population growth
+        - Rising living standards  
+        - Increased final demand
+        - Capital accumulation effects
         """
         if year < 1:
             raise ValueError("Year must be >= 1")
@@ -141,6 +166,9 @@ class DynamicPlanner:
                         else:  # Department III (services)
                             change_rate = technological_change_rate * 0.8 * investment_factor
 
+                        # Technology improvement: reduce input requirements
+                        # But limit the improvement to prevent unrealistic efficiency gains
+                        change_rate = min(change_rate, 0.01)  # Cap at 1% per year for technology
                         change_factor = (1 - change_rate) ** years_diff
                         improved_A[i, j] *= change_factor
 
@@ -176,6 +204,10 @@ class DynamicPlanner:
                 else:  # Department III - lower productivity growth
                     change_rate = technological_change_rate * 1.0 * investment_factor
 
+                # Productivity growth: reduce labor requirements per unit output
+                # But limit the improvement to prevent unrealistic productivity gains
+                # Cap at 1% per year for labor to ensure demand growth exceeds efficiency gains
+                change_rate = min(change_rate, 0.01)  # Cap at 1% per year for labor
                 change_factor = (1 - change_rate) ** years_diff
                 improved_l[i] *= change_factor
 
@@ -211,7 +243,7 @@ class DynamicPlanner:
             self.capital_stocks[year] = new_K
 
     def plan_year(
-        self, year: int, consumption_demand: np.ndarray, investment_demand: np.ndarray, use_optimization: bool = True
+        self, year: int, consumption_demand: np.ndarray, investment_demand: np.ndarray, use_optimization: bool = True, use_feedback_growth: bool = True
     ) -> Dict[str, np.ndarray]:
         """
         Create economic plan for a specific year.
@@ -221,6 +253,7 @@ class DynamicPlanner:
             consumption_demand: Consumption demand vector d_c
             investment_demand: Investment demand vector d_i
             use_optimization: Whether to use constrained optimization
+            use_feedback_growth: Whether to use feedback-driven growth adjustments
 
         Returns:
             Dictionary with plan results
@@ -267,6 +300,87 @@ class DynamicPlanner:
         labor_calc = LaborValueCalculator(A_t, l_t)
         labor_values = labor_calc.get_labor_values()
 
+        # Apply feedback growth adjustments if enabled
+        if use_feedback_growth and year > 1:
+            # Create initial plan for analysis
+            initial_plan = {
+                "total_output": total_output,
+                "final_demand": d_t,
+                "labor_vector": l_t,
+                "technology_matrix": A_t,
+                "consumption_demand": consumption_demand,
+                "investment_demand": investment_demand
+            }
+            
+            # Get previous year's plan for trend analysis
+            previous_plan = self.plans.get(year - 1, None)
+            
+            # Analyze industry performance
+            performance_metrics = self.feedback_growth.analyze_industry_performance(
+                initial_plan, previous_plan
+            )
+            
+            # Calculate dynamic growth rates
+            growth_rates = self.feedback_growth.calculate_dynamic_growth_rates(
+                performance_metrics, year
+            )
+            
+            # Generate adaptive demands using the base final demand
+            # Get the base demand from the planning system's current_data
+            base_final_demand = self.feedback_growth.n_sectors  # This is a placeholder, we need the actual base demand
+            # For now, let's use the consumption_demand as is and let the feedback system adjust it
+            adaptive_consumption, adaptive_investment = self.feedback_growth.generate_adaptive_demands(
+                consumption_demand, growth_rates, year
+            )
+            
+            # Recalculate plan with adaptive demands if significantly different
+            adaptive_demand = adaptive_consumption + adaptive_investment
+            demand_change = np.sum(np.abs(adaptive_demand - d_t)) / np.sum(d_t)
+            
+            if demand_change > 0.05:  # If demand changed by more than 5%
+                # Recalculate with adaptive demands
+                if use_optimization:
+                    from .optimization import ConstrainedOptimizer
+                    optimizer = ConstrainedOptimizer(technology_matrix=A_t, direct_labor=l_t, final_demand=adaptive_demand)
+                    result = optimizer.solve()
+                    
+                    if result["feasible"]:
+                        total_output = result["solution"]
+                        total_labor_cost = result["total_labor_cost"]
+                    else:
+                        warnings.warn(f"Adaptive optimization failed for year {year}, using Leontief solution")
+                        from .leontief import LeontiefModel
+                        leontief = LeontiefModel(A_t, adaptive_demand)
+                        total_output = leontief.compute_total_output()
+                        total_labor_cost = np.dot(l_t, total_output)
+                else:
+                    from .leontief import LeontiefModel
+                    leontief = LeontiefModel(A_t, adaptive_demand)
+                    total_output = leontief.compute_total_output()
+                    total_labor_cost = np.dot(l_t, total_output)
+                
+                # Update demands to reflect adaptive values
+                consumption_demand = adaptive_consumption
+                investment_demand = adaptive_investment
+                d_t = adaptive_demand
+            
+            # Store performance analysis
+            self.feedback_growth.performance_history.append({
+                "year": year,
+                "overall_fulfillment": np.mean([p.demand_fulfillment_rate for p in performance_metrics]),
+                "overall_efficiency": np.mean([p.labor_efficiency for p in performance_metrics]),
+                "dept_I_fulfillment": np.mean([p.demand_fulfillment_rate for p in performance_metrics if p.sector_id in self.feedback_growth.dept_I_indices]),
+                "dept_II_fulfillment": np.mean([p.demand_fulfillment_rate for p in performance_metrics if p.sector_id in self.feedback_growth.dept_II_indices]),
+                "dept_III_fulfillment": np.mean([p.demand_fulfillment_rate for p in performance_metrics if p.sector_id in self.feedback_growth.dept_III_indices]),
+                "growth_rates": {
+                    "population": growth_rates.population_growth,
+                    "living_standards": growth_rates.living_standards_growth,
+                    "technology": growth_rates.technology_improvement,
+                    "capital": growth_rates.capital_accumulation
+                },
+                "bottlenecks": [p.sector_id for p in performance_metrics if p.bottleneck_severity > 0.3]
+            })
+
         # Store plan
         self.plans[year] = {
             "total_output": total_output,
@@ -284,7 +398,7 @@ class DynamicPlanner:
         return self.plans[year]
 
     def create_five_year_plan(
-        self, consumption_demands: List[np.ndarray], investment_demands: List[np.ndarray], use_optimization: bool = True
+        self, consumption_demands: List[np.ndarray], investment_demands: List[np.ndarray], use_optimization: bool = True, use_feedback_growth: bool = True
     ) -> Dict[int, Dict[str, np.ndarray]]:
         """
         Create a complete 5 - year economic plan.
@@ -293,6 +407,7 @@ class DynamicPlanner:
             consumption_demands: List of consumption demand vectors for years 1 - 5
             investment_demands: List of investment demand vectors for years 1 - 5
             use_optimization: Whether to use constrained optimization
+            use_feedback_growth: Whether to use feedback-driven growth adjustments
 
         Returns:
             Dictionary with plans for each year
@@ -308,10 +423,15 @@ class DynamicPlanner:
                 consumption_demand = consumption_demands[year - 1],
                 investment_demand = investment_demands[year - 1],
                 use_optimization = use_optimization,
+                use_feedback_growth = use_feedback_growth,
             )
             plans[year] = plan
 
         return plans
+
+    def get_performance_feedback(self) -> Dict[str, Any]:
+        """Get performance feedback from the growth system."""
+        return self.feedback_growth.get_performance_summary()
 
     def get_technology_matrix(self, year: int) -> np.ndarray:
         """Get technology matrix for a specific year."""

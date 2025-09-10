@@ -16,6 +16,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import time
+import re
 
 class InstallationWizard:
     def __init__(self):
@@ -40,7 +41,13 @@ class InstallationWizard:
         """Log installation progress."""
         timestamp = time.strftime("%H:%M:%S")
         log_entry = f"[{timestamp}] {level}: {message}"
-        print(log_entry)
+        try:
+            print(log_entry)
+        except UnicodeEncodeError:
+            # Fallback for systems with encoding issues
+            safe_message = message.encode('ascii', 'replace').decode('ascii')
+            safe_log_entry = f"[{timestamp}] {level}: {safe_message}"
+            print(safe_log_entry)
         self.installation_log.append(log_entry)
 
     def print_banner(self):
@@ -65,7 +72,7 @@ class InstallationWizard:
             self.log(f"ERROR: Python {major}.{minor} detected. Python 3.9 + required.", "ERROR")
             return False
 
-        self.log(f"✓ Python {major}.{minor} detected - Compatible")
+        self.log(f"[OK] Python {major}.{minor} detected - Compatible")
         return True
 
     def check_system_requirements(self) -> bool:
@@ -87,7 +94,7 @@ class InstallationWizard:
             self.log("ERROR: Not in the correct project directory", "ERROR")
             return False
 
-        self.log("✓ System requirements check passed")
+        self.log("[OK] System requirements check passed")
         return True
 
     def setup_virtual_environment(self) -> bool:
@@ -123,7 +130,7 @@ class InstallationWizard:
                 self.log("ERROR: Virtual environment creation failed", "ERROR")
                 return False
 
-            self.log("✓ Virtual environment created successfully")
+            self.log("[OK] Virtual environment created successfully")
             return True
 
         except Exception as e:
@@ -136,50 +143,108 @@ class InstallationWizard:
 
         try:
             result = subprocess.run([
-                str(self.python_executable), "-m", "pip", "install", "--upgrade", "pip"
-            ], capture_output = True, text = True, cwd = self.project_root)
+                str(self.python_executable), "-m", "pip", "install", "--upgrade", "pip", "--quiet"
+            ], capture_output=True, text=True, cwd=self.project_root)
 
             if result.returncode != 0:
                 self.log(f"WARNING: Failed to upgrade pip: {result.stderr}", "WARNING")
                 return False
 
-            self.log("✓ Pip upgraded successfully")
+            self.log("[OK] Pip upgraded successfully")
             return True
 
         except Exception as e:
             self.log(f"WARNING: Failed to upgrade pip: {str(e)}", "WARNING")
             return False
 
+    def install_tqdm(self) -> bool:
+        """Install TQDM in the virtual environment for progress tracking."""
+        self.log("Installing TQDM for progress tracking...")
+
+        try:
+            result = subprocess.run([
+                str(self.pip_executable), "install", "tqdm", "--quiet"
+            ], capture_output=True, text=True, cwd=self.project_root)
+
+            if result.returncode != 0:
+                self.log(f"ERROR: Failed to install TQDM: {result.stderr}", "ERROR")
+                return False
+
+            self.log("[OK] TQDM installed successfully")
+            return True
+
+        except Exception as e:
+            self.log(f"ERROR: Failed to install TQDM: {str(e)}", "ERROR")
+            return False
+
     def install_dependencies(self) -> bool:
-        """Install project dependencies."""
+        """Install project dependencies with progress tracking."""
         self.log("Installing project dependencies...")
 
         try:
+            # Import TQDM from virtual environment
+            import sys
+            if platform.system() == "Windows":
+                venv_tqdm_path = str(self.venv_path / "Lib" / "site-packages")
+            else:
+                venv_tqdm_path = str(self.venv_path / "lib" / "site-packages")
+            
+            if venv_tqdm_path not in sys.path:
+                sys.path.insert(0, venv_tqdm_path)
+            
+            try:
+                from tqdm import tqdm
+            except ImportError:
+                self.log("ERROR: TQDM not available in virtual environment", "ERROR")
+                return False
+
             # Install from requirements.txt
             requirements_file = self.project_root / "requirements.txt"
             if not requirements_file.exists():
                 self.log("ERROR: requirements.txt not found", "ERROR")
                 return False
 
-            self.log("Installing dependencies from requirements.txt...")
-            result = subprocess.run([
-                str(self.pip_executable), "install", "-r", str(requirements_file)
-            ], capture_output = True, text = True, cwd = self.project_root)
+            # Read requirements to get package count
+            with open(requirements_file, 'r') as f:
+                requirements = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+            
+            total_packages = len(requirements)
+            self.log(f"Found {total_packages} packages to install...")
 
-            if result.returncode != 0:
-                self.log(f"ERROR: Failed to install dependencies: {result.stderr}", "ERROR")
-                return False
+            # Create progress bar for requirements installation
+            with tqdm(total=total_packages, desc="Installing dependencies", 
+                     unit="package", ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
+                
+                # Install packages one by one to track progress
+                for i, package in enumerate(requirements):
+                    package_name = package.split('==')[0].split('>=')[0].split('<=')[0]
+                    pbar.set_description(f"Installing {package_name}")
+                    
+                    result = subprocess.run([
+                        str(self.pip_executable), "install", package, "--quiet"
+                    ], capture_output=True, text=True, cwd=self.project_root)
+                    
+                    if result.returncode != 0:
+                        self.log(f"WARNING: Failed to install {package_name}: {result.stderr}", "WARNING")
+                    
+                    pbar.update(1)
+                    pbar.refresh()
 
             # Install the project itself in development mode
             self.log("Installing project in development mode...")
-            result = subprocess.run([
-                str(self.pip_executable), "install", "-e", "."
-            ], capture_output = True, text = True, cwd = self.project_root)
+            with tqdm(total=1, desc="Installing project", unit="package", 
+                     ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
+                
+                result = subprocess.run([
+                    str(self.pip_executable), "install", "-e", ".", "--quiet"
+                ], capture_output=True, text=True, cwd=self.project_root)
+                
+                if result.returncode != 0:
+                    self.log(f"WARNING: Failed to install project in development mode: {result.stderr}", "WARNING")
+                
+                pbar.update(1)
 
-            if result.returncode != 0:
-                self.log(f"WARNING: Failed to install project in development mode: {result.stderr}", "WARNING")
-
-            self.log("✓ Dependencies installed successfully")
+            self.log("[OK] Dependencies installed successfully")
             return True
 
         except Exception as e:
@@ -203,7 +268,7 @@ class InstallationWizard:
             for directory in directories:
                 dir_path = self.project_root / directory
                 dir_path.mkdir(exist_ok = True)
-                self.log(f"✓ Created directory: {directory}")
+                self.log(f"[OK] Created directory: {directory}")
 
             return True
 
@@ -242,7 +307,7 @@ class InstallationWizard:
             with open(config_file, 'w') as f:
                 json.dump(config, f, indent = 2)
 
-            self.log("✓ Configuration file created")
+            self.log("[OK] Configuration file created")
             return True
 
         except Exception as e:
@@ -250,32 +315,52 @@ class InstallationWizard:
             return False
 
     def validate_installation(self) -> bool:
-        """Validate the installation by running basic tests."""
+        """Validate the installation by running basic tests with progress tracking."""
         self.log("Validating installation...")
 
         try:
-            # Test Python import
-            self.log("Testing Python imports...")
-            result = subprocess.run([
-                str(self.python_executable), "-c",
-                "import numpy, pandas, scipy, cvxpy, matplotlib; print('All core imports successful')"
-            ], capture_output = True, text = True, cwd = self.project_root)
-
-            if result.returncode != 0:
-                self.log(f"ERROR: Import test failed: {result.stderr}", "ERROR")
+            # Import TQDM from virtual environment
+            import sys
+            if platform.system() == "Windows":
+                venv_tqdm_path = str(self.venv_path / "Lib" / "site-packages")
+            else:
+                venv_tqdm_path = str(self.venv_path / "lib" / "site-packages")
+            
+            if venv_tqdm_path not in sys.path:
+                sys.path.insert(0, venv_tqdm_path)
+            
+            try:
+                from tqdm import tqdm
+            except ImportError:
+                self.log("ERROR: TQDM not available in virtual environment", "ERROR")
                 return False
 
-            # Test project import
-            self.log("Testing project imports...")
-            result = subprocess.run([
-                str(self.python_executable), "-c",
-                "from src.cybernetic_planning.planning_system import CyberneticPlanningSystem; print('Project import successful')"
-            ], capture_output = True, text = True, cwd = self.project_root)
+            validation_steps = [
+                ("Testing core Python imports", "import numpy, pandas, scipy, cvxpy, matplotlib; print('All core imports successful')"),
+                ("Testing project imports", "from src.cybernetic_planning.planning_system import CyberneticPlanningSystem; print('Project import successful')")
+            ]
+            
+            with tqdm(total=len(validation_steps), desc="Validating installation", 
+                     unit="test", ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
+                
+                for step_name, test_code in validation_steps:
+                    pbar.set_description(step_name)
+                    
+                    result = subprocess.run([
+                        str(self.python_executable), "-c", test_code
+                    ], capture_output=True, text=True, cwd=self.project_root)
 
-            if result.returncode != 0:
-                self.log(f"WARNING: Project import test failed: {result.stderr}", "WARNING")
+                    if result.returncode != 0:
+                        if "core imports" in step_name:
+                            self.log(f"ERROR: {step_name} failed: {result.stderr}", "ERROR")
+                            pbar.update(1)
+                            return False
+                        else:
+                            self.log(f"WARNING: {step_name} failed: {result.stderr}", "WARNING")
+                    
+                    pbar.update(1)
 
-            self.log("✓ Installation validation completed")
+            self.log("[OK] Installation validation completed")
             return True
 
         except Exception as e:
@@ -314,7 +399,7 @@ if errorlevel 1 (
                 with open(self.project_root / "run_gui.bat", 'w') as f:
                     f.write(bat_content)
 
-                self.log("✓ Windows launcher script created")
+                self.log("[OK] Windows launcher script created")
 
             # Unix shell script
             shell_content = f"""#!/bin / bash
@@ -335,7 +420,7 @@ fi
 
             # Make shell script executable
             os.chmod(self.project_root / "run_gui.sh", 0o755)
-            self.log("✓ Unix launcher script created")
+            self.log("[OK] Unix launcher script created")
 
             return True
 
@@ -359,34 +444,34 @@ fi
     def print_success_message(self):
         """Print installation success message."""
         success_message = """
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                        INSTALLATION COMPLETE!                                ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+================================================================================
+                        INSTALLATION COMPLETE!
+================================================================================
 
-🎉 The Cybernetic Planning System has been successfully installed!
+[SUCCESS] The Cybernetic Planning System has been successfully installed!
 
-📋 What was installed:
-   ✓ Python virtual environment (.venv/)
-   ✓ All required dependencies
-   ✓ Project configuration
-   ✓ Launcher scripts
-   ✓ Directory structure
+What was installed:
+   [OK] Python virtual environment (.venv/)
+   [OK] All required dependencies
+   [OK] Project configuration
+   [OK] Launcher scripts
+   [OK] Directory structure
 
-🚀 How to run the system:
-   Windows: Double - click run_gui.bat or run: .\\run_gui.bat
-   Unix / Mac: Run: ./run_gui.sh
+How to run the system:
+   Windows: Double-click run_gui.bat or run: .\\run_gui.bat
+   Unix/Mac: Run: ./run_gui.sh
 
-📚 Next steps:
+Next steps:
    1. Run the GUI to start planning
    2. Load or generate economic data
    3. Create your first economic plan
    4. Explore the comprehensive reports
 
-📖 Documentation: See README.md for detailed usage instructions
+Documentation: See README.md for detailed usage instructions
 
-🔧 Troubleshooting: Check logs / installation.log if you encounter issues
+Troubleshooting: Check logs/installation.log if you encounter issues
 
-Happy planning! 🏗️
+Happy planning!
         """
         print(success_message)
 
@@ -399,6 +484,7 @@ Happy planning! 🏗️
             ("Checking system requirements", self.check_system_requirements),
             ("Setting up virtual environment", self.setup_virtual_environment),
             ("Upgrading pip", self.upgrade_pip),
+            ("Installing TQDM", self.install_tqdm),
             ("Installing dependencies", self.install_dependencies),
             ("Setting up directories", self.setup_directories),
             ("Creating configuration", self.create_configuration),
@@ -412,7 +498,7 @@ Happy planning! 🏗️
                 self.log(f"Installation failed at step: {step_name}", "ERROR")
                 self.save_installation_log()
                 return False
-            self.log(f"✓ Completed: {step_name}")
+            self.log(f"[OK] Completed: {step_name}")
             print()  # Add spacing between steps
 
         self.save_installation_log()
@@ -421,6 +507,12 @@ Happy planning! 🏗️
 
 def main():
     """Main entry point for the installation wizard."""
+    # Set up encoding for Windows compatibility
+    if sys.platform.startswith('win'):
+        import codecs
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
+    
     wizard = InstallationWizard()
 
     try:
