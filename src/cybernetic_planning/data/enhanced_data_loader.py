@@ -9,8 +9,6 @@ from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
 import json
 from datetime import datetime
-import numpy as np
-import pandas as pd
 
 from .io_parser import IOParser
 from .resource_matrix_builder import ResourceMatrixBuilder
@@ -191,10 +189,10 @@ class EnhancedDataLoader:
             # If data is in tables format, convert it
             if "tables" in raw_bea_data:
                 tables = raw_bea_data["tables"]
-                
+
                 # Check if tables are null or empty
                 if not tables or all(v is None for v in tables.values()):
-                    print("⚠️  BEA tables are null/empty, creating sample data")
+                    print("⚠️  BEA tables are null / empty, creating sample data")
                     return self._create_sample_bea_data()
 
                 # Create a simple 175x175 technology matrix

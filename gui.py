@@ -6,7 +6,6 @@ A user - friendly graphical interface for the cybernetic planning system,
 allowing users to create economic plans, manage data, and generate reports.
 """
 
-import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import sys
 import os
@@ -14,9 +13,6 @@ import json
 from pathlib import Path
 import threading
 import webbrowser
-import tempfile
-import subprocess
-import platform
 
 # Import map visualization
 try:
@@ -26,7 +22,6 @@ except ImportError as e:
     print(f"Warning: Map visualization not available: {e}")
     MAP_AVAILABLE = False
 from datetime import datetime
-import numpy as np
 import math
 import random
 
@@ -42,92 +37,92 @@ except ImportError as e:
 
 class WebBrowserWidget:
     """An enhanced web browser widget with HTML preview and external browser integration."""
-    
-    def __init__(self, parent, width=800, height=600):
+
+    def __init__(self, parent, width = 800, height = 600):
         self.parent = parent
         self.width = width
         self.height = height
         self.current_url = None
-        
+
         # Create the widget frame
         self.frame = ttk.Frame(parent)
-        
+
         # Create a notebook for different views
         self.notebook = ttk.Notebook(self.frame)
-        self.notebook.pack(fill="both", expand=True)
-        
+        self.notebook.pack(fill="both", expand = True)
+
         # HTML Preview tab
         self.preview_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.preview_frame, text="Map Preview")
-        
+
         # HTML Source tab
         self.source_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.source_frame, text="HTML Source")
-        
+
         # Create HTML preview area (simplified HTML renderer)
         self.preview_text = scrolledtext.ScrolledText(
-            self.preview_frame, 
-            width=width//8,
-            height=height//20,
-            wrap=tk.WORD,
+            self.preview_frame,
+            width = width//8,
+            height = height//20,
+            wrap = tk.WORD,
             font=('Arial', 10),
             bg='white',
             fg='black'
         )
-        self.preview_text.pack(fill="both", expand=True, padx=5, pady=5)
-        
+        self.preview_text.pack(fill="both", expand = True, padx = 5, pady = 5)
+
         # Create HTML source area
         self.source_text = scrolledtext.ScrolledText(
-            self.source_frame, 
-            width=width//8,
-            height=height//20,
-            wrap=tk.WORD,
+            self.source_frame,
+            width = width//8,
+            height = height//20,
+            wrap = tk.WORD,
             font=('Courier', 8),
             bg='#f0f0f0',
             fg='black'
         )
-        self.source_text.pack(fill="both", expand=True, padx=5, pady=5)
-        
+        self.source_text.pack(fill="both", expand = True, padx = 5, pady = 5)
+
         # Control buttons frame
         self.controls_frame = ttk.Frame(self.frame)
-        self.controls_frame.pack(fill="x", padx=5, pady=5)
-        
+        self.controls_frame.pack(fill="x", padx = 5, pady = 5)
+
         # Add buttons
         self.open_button = ttk.Button(
-            self.controls_frame, 
-            text="Open in External Browser", 
-            command=self.open_in_browser
+            self.controls_frame,
+            text="Open in External Browser",
+            command = self.open_in_browser
         )
-        self.open_button.pack(side="left", padx=5)
-        
+        self.open_button.pack(side="left", padx = 5)
+
         self.refresh_button = ttk.Button(
-            self.controls_frame, 
-            text="Refresh Map", 
-            command=self.refresh
+            self.controls_frame,
+            text="Refresh Map",
+            command = self.refresh
         )
-        self.refresh_button.pack(side="left", padx=5)
-        
+        self.refresh_button.pack(side="left", padx = 5)
+
         # Add status label
         self.status_label = ttk.Label(self.controls_frame, text="No map loaded")
-        self.status_label.pack(side="right", padx=5)
-    
+        self.status_label.pack(side="right", padx = 5)
+
     def load_html_file(self, file_path):
         """Load an HTML file into the widget."""
         try:
             self.current_url = file_path
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, 'r', encoding='utf - 8') as f:
                 html_content = f.read()
-            
+
             # Display HTML source
             self.source_text.delete("1.0", tk.END)
             self.source_text.insert("1.0", html_content)
-            
+
             # Create a simplified preview
             self.create_html_preview(html_content)
-            
-            self.status_label.config(text=f"Map loaded: {os.path.basename(file_path)}")
+
+            self.status_label.config(text = f"Map loaded: {os.path.basename(file_path)}")
             return True
-            
+
         except Exception as e:
             self.preview_text.delete("1.0", tk.END)
             self.preview_text.insert("1.0", f"Error loading map: {str(e)}")
@@ -135,37 +130,37 @@ class WebBrowserWidget:
             self.source_text.insert("1.0", f"Error loading map: {str(e)}")
             self.status_label.config(text="Error loading map")
             return False
-    
+
     def create_html_preview(self, html_content):
         """Create a simplified text preview of the HTML map."""
         self.preview_text.delete("1.0", tk.END)
-        
+
         # Extract key information from HTML
         preview = "🗺️  INTERACTIVE SIMULATION MAP\n"
         preview += "=" * 50 + "\n\n"
-        
+
         # Count map elements from HTML
         settlements = html_content.count('CircleMarker')
         polygons = html_content.count('Polygon')
         polylines = html_content.count('PolyLine')
-        
+
         preview += f"📍 Settlements: {settlements}\n"
         preview += f"🏞️  Geographic Features: {polygons}\n"
         preview += f"🛣️  Infrastructure: {polylines}\n\n"
-        
+
         # Extract settlement details
         if 'City' in html_content:
             cities = html_content.count('City')
             preview += f"🏙️  Cities: {cities}\n"
-        
+
         if 'Town' in html_content:
             towns = html_content.count('Town')
             preview += f"🏘️  Towns: {towns}\n"
-        
+
         if 'Rural' in html_content:
             rural = html_content.count('Rural')
             preview += f"🌾 Rural Areas: {rural}\n"
-        
+
         preview += "\n" + "=" * 50 + "\n"
         preview += "INTERACTIVE MAP FEATURES:\n"
         preview += "=" * 50 + "\n\n"
@@ -177,28 +172,28 @@ class WebBrowserWidget:
         preview += "🟢 Green areas = Forests\n"
         preview += "⚫ Black lines = Roads\n"
         preview += "⚫ Dashed lines = Railways\n\n"
-        
+
         preview += "=" * 50 + "\n"
         preview += "HOW TO USE:\n"
         preview += "=" * 50 + "\n\n"
         preview += "1. Click 'Open in External Browser' to view the full interactive map\n"
         preview += "2. In the browser, you can:\n"
-        preview += "   • Zoom in/out with mouse wheel\n"
+        preview += "   • Zoom in / out with mouse wheel\n"
         preview += "   • Pan by dragging\n"
         preview += "   • Click on elements for details\n"
-        preview += "   • See real-time updates during simulation\n\n"
+        preview += "   • See real - time updates during simulation\n\n"
         preview += "3. The map updates automatically when simulation runs\n"
         preview += "4. Use the 'Refresh Map' button to update the display\n\n"
-        
+
         preview += "=" * 50 + "\n"
         preview += "SIMULATION STATUS:\n"
         preview += "=" * 50 + "\n"
-        preview += "• Map is ready for real-time simulation\n"
+        preview += "• Map is ready for real - time simulation\n"
         preview += "• Start simulation to see dynamic changes\n"
         preview += "• Adjust speed with the dropdown above\n"
-        
+
         self.preview_text.insert("1.0", preview)
-    
+
     def open_in_browser(self):
         """Open the current map in the default web browser."""
         if self.current_url and os.path.exists(self.current_url):
@@ -206,23 +201,22 @@ class WebBrowserWidget:
                 webbrowser.open(f'file://{os.path.abspath(self.current_url)}')
                 self.status_label.config(text="Map opened in browser")
             except Exception as e:
-                self.status_label.config(text=f"Error: {str(e)}")
+                self.status_label.config(text = f"Error: {str(e)}")
         else:
             self.status_label.config(text="No map to open")
-    
+
     def refresh(self):
         """Refresh the current map display."""
         if self.current_url:
             self.load_html_file(self.current_url)
-    
+
     def pack(self, **kwargs):
         """Pack the widget frame."""
         self.frame.pack(**kwargs)
-    
+
     def grid(self, **kwargs):
         """Grid the widget frame."""
         self.frame.grid(**kwargs)
-
 
 class CyberneticPlanningGUI:
     """Main GUI class for the Cybernetic Planning System."""
@@ -230,16 +224,16 @@ class CyberneticPlanningGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Cybernetic Central Planning System")
-        
+
         # Detect screen dimensions and calculate scaling
         self.screen_width, self.screen_height = self._get_screen_dimensions()
         self.scale_factor = self._calculate_scale_factor()
         self.window_width, self.window_height = self._calculate_window_size()
-        
+
         # Set window geometry with calculated dimensions
         self.root.geometry(f"{self.window_width}x{self.window_height}")
         self.root.minsize(int(1000 * self.scale_factor), int(700 * self.scale_factor))
-        
+
         # Center the window on screen
         self._center_window()
 
@@ -251,7 +245,7 @@ class CyberneticPlanningGUI:
         # Create GUI elements
         self.create_widgets()
         self.setup_layout()
-        
+
         # Bind cleanup on window close
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
@@ -271,33 +265,33 @@ class CyberneticPlanningGUI:
         """Calculate appropriate scale factor based on screen size."""
         # Base resolution is 1920x1080 (16:9 aspect ratio)
         base_width, base_height = 1920, 1080
-        
+
         # Calculate scale factors for width and height
         width_scale = self.screen_width / base_width
         height_scale = self.screen_height / base_height
-        
+
         # Use the smaller scale factor to ensure the window fits on screen
         # but add some padding (0.8 factor) to leave room for taskbar, etc.
         scale_factor = min(width_scale, height_scale) * 0.8
-        
+
         # Ensure minimum and maximum scale factors
         scale_factor = max(0.6, min(scale_factor, 2.0))
-        
+
         return scale_factor
 
     def _calculate_window_size(self):
         """Calculate appropriate window size based on scale factor."""
         # Base window size (original design size)
         base_width, base_height = 1400, 900
-        
+
         # Scale the dimensions
         window_width = int(base_width * self.scale_factor)
         window_height = int(base_height * self.scale_factor)
-        
+
         # Ensure window doesn't exceed screen dimensions
         window_width = min(window_width, int(self.screen_width * 0.95))
         window_height = min(window_height, int(self.screen_height * 0.95))
-        
+
         return window_width, window_height
 
     def _center_window(self):
@@ -305,7 +299,7 @@ class CyberneticPlanningGUI:
         # Calculate position to center the window
         x = (self.screen_width - self.window_width) // 2
         y = (self.screen_height - self.window_height) // 2
-        
+
         # Set window position
         self.root.geometry(f"{self.window_width}x{self.window_height}+{x}+{y}")
 
@@ -390,36 +384,33 @@ class CyberneticPlanningGUI:
         self.data_status = ttk.Label(display_frame, text="No data loaded", foreground="red")
         self.data_status.pack(pady = self._scale_padding(5))
 
-
-
-
     def create_planning_tab(self):
         """Create planning configuration tab."""
         self.planning_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.planning_frame, text="Planning Configuration")
-        
+
         # Create a scrollable frame
         self.planning_canvas = tk.Canvas(self.planning_frame)
-        self.planning_scrollbar = ttk.Scrollbar(self.planning_frame, orient="vertical", command=self.planning_canvas.yview)
+        self.planning_scrollbar = ttk.Scrollbar(self.planning_frame, orient="vertical", command = self.planning_canvas.yview)
         self.planning_scrollable_frame = ttk.Frame(self.planning_canvas)
-        
+
         self.planning_scrollable_frame.bind(
             "<Configure>",
-            lambda e: self.planning_canvas.configure(scrollregion=self.planning_canvas.bbox("all"))
+            lambda e: self.planning_canvas.configure(scrollregion = self.planning_canvas.bbox("all"))
         )
-        
-        self.planning_canvas.create_window((0, 0), window=self.planning_scrollable_frame, anchor="nw")
-        self.planning_canvas.configure(yscrollcommand=self.planning_scrollbar.set)
-        
+
+        self.planning_canvas.create_window((0, 0), window = self.planning_scrollable_frame, anchor="nw")
+        self.planning_canvas.configure(yscrollcommand = self.planning_scrollbar.set)
+
         # Pack the scrollable components
-        self.planning_canvas.pack(side="left", fill="both", expand=True)
+        self.planning_canvas.pack(side="left", fill="both", expand = True)
         self.planning_scrollbar.pack(side="right", fill="y")
-        
+
         # Bind mousewheel to canvas
         def _on_mousewheel(event):
-            self.planning_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            self.planning_canvas.yview_scroll(int(-1*(event.delta / 120)), "units")
         self.planning_canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        
+
         # Store the mousewheel binding for cleanup
         self.mousewheel_binding = _on_mousewheel
 
@@ -441,91 +432,91 @@ class CyberneticPlanningGUI:
         self.goals_text.insert("1.0", "\n".join(default_goals))
 
         # Production adjustment controls
-        production_frame = ttk.LabelFrame(self.planning_scrollable_frame, text="Production Adjustment", padding=10)
-        production_frame.pack(fill="x", padx=10, pady=5)
+        production_frame = ttk.LabelFrame(self.planning_scrollable_frame, text="Production Adjustment", padding = 10)
+        production_frame.pack(fill="x", padx = 10, pady = 5)
 
         # Overall production multiplier
         overall_frame = ttk.Frame(production_frame)
-        overall_frame.pack(fill="x", pady=5)
-        
-        ttk.Label(overall_frame, text="Overall Production Level:").pack(side="left")
-        self.overall_production_var = tk.DoubleVar(value=1.0)
-        self.overall_production_scale = ttk.Scale(
-            overall_frame, 
-            from_=0.1, 
-            to=3.0, 
-            variable=self.overall_production_var, 
-            orient="horizontal",
-            command=self.update_production_labels
-        )
-        self.overall_production_scale.pack(side="left", padx=10, fill="x", expand=True)
-        
-        self.overall_production_label = ttk.Label(overall_frame, text="100% (Normal)")
-        self.overall_production_label.pack(side="left", padx=10)
+        overall_frame.pack(fill="x", pady = 5)
 
-        # Department-specific production adjustments
-        dept_frame = ttk.LabelFrame(production_frame, text="Department-Specific Adjustments", padding=5)
-        dept_frame.pack(fill="x", pady=5)
+        ttk.Label(overall_frame, text="Overall Production Level:").pack(side="left")
+        self.overall_production_var = tk.DoubleVar(value = 1.0)
+        self.overall_production_scale = ttk.Scale(
+            overall_frame,
+            from_ = 0.1,
+            to = 3.0,
+            variable = self.overall_production_var,
+            orient="horizontal",
+            command = self.update_production_labels
+        )
+        self.overall_production_scale.pack(side="left", padx = 10, fill="x", expand = True)
+
+        self.overall_production_label = ttk.Label(overall_frame, text="100% (Normal)")
+        self.overall_production_label.pack(side="left", padx = 10)
+
+        # Department - specific production adjustments
+        dept_frame = ttk.LabelFrame(production_frame, text="Department - Specific Adjustments", padding = 5)
+        dept_frame.pack(fill="x", pady = 5)
 
         # Department I (Means of Production)
         dept_I_frame = ttk.Frame(dept_frame)
-        dept_I_frame.pack(fill="x", pady=2)
+        dept_I_frame.pack(fill="x", pady = 2)
         ttk.Label(dept_I_frame, text="Dept I (Means of Production):").pack(side="left")
-        self.dept_I_production_var = tk.DoubleVar(value=1.0)
+        self.dept_I_production_var = tk.DoubleVar(value = 1.0)
         self.dept_I_production_scale = ttk.Scale(
-            dept_I_frame, 
-            from_=0.1, 
-            to=3.0, 
-            variable=self.dept_I_production_var, 
+            dept_I_frame,
+            from_ = 0.1,
+            to = 3.0,
+            variable = self.dept_I_production_var,
             orient="horizontal",
-            command=self.update_production_labels
+            command = self.update_production_labels
         )
-        self.dept_I_production_scale.pack(side="left", padx=10, fill="x", expand=True)
+        self.dept_I_production_scale.pack(side="left", padx = 10, fill="x", expand = True)
         self.dept_I_production_label = ttk.Label(dept_I_frame, text="100%")
-        self.dept_I_production_label.pack(side="left", padx=10)
+        self.dept_I_production_label.pack(side="left", padx = 10)
 
         # Department II (Consumer Goods)
         dept_II_frame = ttk.Frame(dept_frame)
-        dept_II_frame.pack(fill="x", pady=2)
+        dept_II_frame.pack(fill="x", pady = 2)
         ttk.Label(dept_II_frame, text="Dept II (Consumer Goods):").pack(side="left")
-        self.dept_II_production_var = tk.DoubleVar(value=1.0)
+        self.dept_II_production_var = tk.DoubleVar(value = 1.0)
         self.dept_II_production_scale = ttk.Scale(
-            dept_II_frame, 
-            from_=0.1, 
-            to=3.0, 
-            variable=self.dept_II_production_var, 
+            dept_II_frame,
+            from_ = 0.1,
+            to = 3.0,
+            variable = self.dept_II_production_var,
             orient="horizontal",
-            command=self.update_production_labels
+            command = self.update_production_labels
         )
-        self.dept_II_production_scale.pack(side="left", padx=10, fill="x", expand=True)
+        self.dept_II_production_scale.pack(side="left", padx = 10, fill="x", expand = True)
         self.dept_II_production_label = ttk.Label(dept_II_frame, text="100%")
-        self.dept_II_production_label.pack(side="left", padx=10)
+        self.dept_II_production_label.pack(side="left", padx = 10)
 
         # Department III (Services)
         dept_III_frame = ttk.Frame(dept_frame)
-        dept_III_frame.pack(fill="x", pady=2)
+        dept_III_frame.pack(fill="x", pady = 2)
         ttk.Label(dept_III_frame, text="Dept III (Services):").pack(side="left")
-        self.dept_III_production_var = tk.DoubleVar(value=1.0)
+        self.dept_III_production_var = tk.DoubleVar(value = 1.0)
         self.dept_III_production_scale = ttk.Scale(
-            dept_III_frame, 
-            from_=0.1, 
-            to=3.0, 
-            variable=self.dept_III_production_var, 
+            dept_III_frame,
+            from_ = 0.1,
+            to = 3.0,
+            variable = self.dept_III_production_var,
             orient="horizontal",
-            command=self.update_production_labels
+            command = self.update_production_labels
         )
-        self.dept_III_production_scale.pack(side="left", padx=10, fill="x", expand=True)
+        self.dept_III_production_scale.pack(side="left", padx = 10, fill="x", expand = True)
         self.dept_III_production_label = ttk.Label(dept_III_frame, text="100%")
-        self.dept_III_production_label.pack(side="left", padx=10)
+        self.dept_III_production_label.pack(side="left", padx = 10)
 
         # Apply reproduction adjustments option
-        self.apply_reproduction_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(production_frame, text="Apply Marxist reproduction adjustments", variable=self.apply_reproduction_var).pack(anchor="w", pady=5)
+        self.apply_reproduction_var = tk.BooleanVar(value = True)
+        ttk.Checkbutton(production_frame, text="Apply Marxist reproduction adjustments", variable = self.apply_reproduction_var).pack(anchor="w", pady = 5)
 
         # Reset button
         reset_frame = ttk.Frame(production_frame)
-        reset_frame.pack(fill="x", pady=5)
-        ttk.Button(reset_frame, text="Reset to Normal Production", command=self.reset_production_sliders).pack(side="left")
+        reset_frame.pack(fill="x", pady = 5)
+        ttk.Button(reset_frame, text="Reset to Normal Production", command = self.reset_production_sliders).pack(side="left")
 
         # Planning options
         options_frame = ttk.LabelFrame(self.planning_scrollable_frame, text="Planning Options", padding = 10)
@@ -586,219 +577,219 @@ class CyberneticPlanningGUI:
         """Create simulation system tab."""
         self.simulation_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.simulation_frame, text="Dynamic Simulation")
-        
+
         # Create main horizontal layout: settings on left, map on right
         self.simulation_main_frame = ttk.Frame(self.simulation_frame)
-        self.simulation_main_frame.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
+        self.simulation_main_frame.pack(fill="both", expand = True, padx = self._scale_padding(5), pady = self._scale_padding(5))
+
         # Left side: Settings and controls
         self.simulation_left_frame = ttk.Frame(self.simulation_main_frame)
-        self.simulation_left_frame.pack(side="left", fill="both", expand=True, padx=self._scale_padding(5))
-        
+        self.simulation_left_frame.pack(side="left", fill="both", expand = True, padx = self._scale_padding(5))
+
         # Right side: Map display
         self.simulation_right_frame = ttk.Frame(self.simulation_main_frame)
-        self.simulation_right_frame.pack(side="right", fill="both", expand=True, padx=self._scale_padding(5))
-        
+        self.simulation_right_frame.pack(side="right", fill="both", expand = True, padx = self._scale_padding(5))
+
         # Create scrollable frame for simulation controls (left side)
         self.simulation_canvas = tk.Canvas(self.simulation_left_frame)
-        self.simulation_scrollbar = ttk.Scrollbar(self.simulation_left_frame, orient="vertical", command=self.simulation_canvas.yview)
+        self.simulation_scrollbar = ttk.Scrollbar(self.simulation_left_frame, orient="vertical", command = self.simulation_canvas.yview)
         self.simulation_scrollable_frame = ttk.Frame(self.simulation_canvas)
-        
+
         self.simulation_scrollable_frame.bind(
             "<Configure>",
-            lambda e: self.simulation_canvas.configure(scrollregion=self.simulation_canvas.bbox("all"))
+            lambda e: self.simulation_canvas.configure(scrollregion = self.simulation_canvas.bbox("all"))
         )
-        
-        self.simulation_canvas.create_window((0, 0), window=self.simulation_scrollable_frame, anchor="nw")
-        self.simulation_canvas.configure(yscrollcommand=self.simulation_scrollbar.set)
-        
+
+        self.simulation_canvas.create_window((0, 0), window = self.simulation_scrollable_frame, anchor="nw")
+        self.simulation_canvas.configure(yscrollcommand = self.simulation_scrollbar.set)
+
         # Plan Loading Section
-        plan_frame = ttk.LabelFrame(self.simulation_scrollable_frame, text="Plan Loading", padding=self._scale_padding(10))
-        plan_frame.pack(fill="x", padx=self._scale_padding(10), pady=self._scale_padding(5))
-        
+        plan_frame = ttk.LabelFrame(self.simulation_scrollable_frame, text="Plan Loading", padding = self._scale_padding(10))
+        plan_frame.pack(fill="x", padx = self._scale_padding(10), pady = self._scale_padding(5))
+
         # Plan file selection
         file_frame = ttk.Frame(plan_frame)
-        file_frame.pack(fill="x", pady=self._scale_padding(5))
-        
-        ttk.Label(file_frame, text="Load Economic Plan:").pack(side="left", padx=self._scale_padding(5))
+        file_frame.pack(fill="x", pady = self._scale_padding(5))
+
+        ttk.Label(file_frame, text="Load Economic Plan:").pack(side="left", padx = self._scale_padding(5))
         self.plan_file_var = tk.StringVar()
-        self.plan_file_entry = ttk.Entry(file_frame, textvariable=self.plan_file_var, width=50)
-        self.plan_file_entry.pack(side="left", padx=self._scale_padding(5), fill="x", expand=True)
-        
-        ttk.Button(file_frame, text="Browse", command=self.browse_plan_file).pack(side="right", padx=self._scale_padding(5))
-        ttk.Button(file_frame, text="Load Plan", command=self.load_simulation_plan).pack(side="right", padx=self._scale_padding(5))
-        ttk.Button(file_frame, text="Reload Current Plan", command=self.reload_current_plan).pack(side="right", padx=self._scale_padding(5))
-        
+        self.plan_file_entry = ttk.Entry(file_frame, textvariable = self.plan_file_var, width = 50)
+        self.plan_file_entry.pack(side="left", padx = self._scale_padding(5), fill="x", expand = True)
+
+        ttk.Button(file_frame, text="Browse", command = self.browse_plan_file).pack(side="right", padx = self._scale_padding(5))
+        ttk.Button(file_frame, text="Load Plan", command = self.load_simulation_plan).pack(side="right", padx = self._scale_padding(5))
+        ttk.Button(file_frame, text="Reload Current Plan", command = self.reload_current_plan).pack(side="right", padx = self._scale_padding(5))
+
         # Plan status
         self.plan_status = ttk.Label(plan_frame, text="No plan loaded", foreground="red")
-        self.plan_status.pack(pady=self._scale_padding(5))
-        
+        self.plan_status.pack(pady = self._scale_padding(5))
+
         # Simulation Parameters Section
-        params_frame = ttk.LabelFrame(self.simulation_scrollable_frame, text="Simulation Parameters", padding=self._scale_padding(10))
-        params_frame.pack(fill="x", padx=self._scale_padding(10), pady=self._scale_padding(5))
-        
+        params_frame = ttk.LabelFrame(self.simulation_scrollable_frame, text="Simulation Parameters", padding = self._scale_padding(10))
+        params_frame.pack(fill="x", padx = self._scale_padding(10), pady = self._scale_padding(5))
+
         # Time parameters
         time_frame = ttk.Frame(params_frame)
-        time_frame.pack(fill="x", pady=self._scale_padding(5))
-        
-        ttk.Label(time_frame, text="Simulation Duration (years):").pack(side="left", padx=self._scale_padding(5))
+        time_frame.pack(fill="x", pady = self._scale_padding(5))
+
+        ttk.Label(time_frame, text="Simulation Duration (years):").pack(side="left", padx = self._scale_padding(5))
         self.sim_duration_var = tk.StringVar(value="5")
-        ttk.Spinbox(time_frame, from_=1, to=20, textvariable=self.sim_duration_var, width=10).pack(side="left", padx=self._scale_padding(5))
-        
-        ttk.Label(time_frame, text="Time Step (months):").pack(side="left", padx=self._scale_padding(20))
+        ttk.Spinbox(time_frame, from_ = 1, to = 20, textvariable = self.sim_duration_var, width = 10).pack(side="left", padx = self._scale_padding(5))
+
+        ttk.Label(time_frame, text="Time Step (months):").pack(side="left", padx = self._scale_padding(20))
         self.time_step_var = tk.StringVar(value="1")
-        ttk.Spinbox(time_frame, from_=1, to=12, textvariable=self.time_step_var, width=10).pack(side="left", padx=self._scale_padding(5))
-        
+        ttk.Spinbox(time_frame, from_ = 1, to = 12, textvariable = self.time_step_var, width = 10).pack(side="left", padx = self._scale_padding(5))
+
         # Environment parameters
         env_frame = ttk.Frame(params_frame)
-        env_frame.pack(fill="x", pady=self._scale_padding(5))
-        
-        ttk.Label(env_frame, text="Map Size (km):").pack(side="left", padx=self._scale_padding(5))
+        env_frame.pack(fill="x", pady = self._scale_padding(5))
+
+        ttk.Label(env_frame, text="Map Size (km):").pack(side="left", padx = self._scale_padding(5))
         self.map_size_var = tk.StringVar(value="1000")
-        ttk.Spinbox(env_frame, from_=100, to=10000, textvariable=self.map_size_var, width=10).pack(side="left", padx=self._scale_padding(5))
-        
-        ttk.Label(env_frame, text="Settlements:").pack(side="left", padx=self._scale_padding(20))
+        ttk.Spinbox(env_frame, from_ = 100, to = 10000, textvariable = self.map_size_var, width = 10).pack(side="left", padx = self._scale_padding(5))
+
+        ttk.Label(env_frame, text="Settlements:").pack(side="left", padx = self._scale_padding(20))
         self.settlements_var = tk.StringVar(value="50")
-        ttk.Spinbox(env_frame, from_=10, to=500, textvariable=self.settlements_var, width=10).pack(side="left", padx=self._scale_padding(5))
-        
+        ttk.Spinbox(env_frame, from_ = 10, to = 500, textvariable = self.settlements_var, width = 10).pack(side="left", padx = self._scale_padding(5))
+
         # Economic sectors
         sectors_frame = ttk.Frame(params_frame)
-        sectors_frame.pack(fill="x", pady=self._scale_padding(5))
-        
-        ttk.Label(sectors_frame, text="Economic Sectors:").pack(side="left", padx=self._scale_padding(5))
+        sectors_frame.pack(fill="x", pady = self._scale_padding(5))
+
+        ttk.Label(sectors_frame, text="Economic Sectors:").pack(side="left", padx = self._scale_padding(5))
         self.sectors_var = tk.StringVar(value="15")
-        ttk.Spinbox(sectors_frame, from_=5, to=50, textvariable=self.sectors_var, width=10).pack(side="left", padx=self._scale_padding(5))
-        
-        ttk.Label(sectors_frame, text="Population Density:").pack(side="left", padx=self._scale_padding(20))
+        ttk.Spinbox(sectors_frame, from_ = 5, to = 50, textvariable = self.sectors_var, width = 10).pack(side="left", padx = self._scale_padding(5))
+
+        ttk.Label(sectors_frame, text="Population Density:").pack(side="left", padx = self._scale_padding(20))
         self.pop_density_var = tk.StringVar(value="100")
-        ttk.Spinbox(sectors_frame, from_=10, to=1000, textvariable=self.pop_density_var, width=10).pack(side="left", padx=self._scale_padding(5))
-        
+        ttk.Spinbox(sectors_frame, from_ = 10, to = 1000, textvariable = self.pop_density_var, width = 10).pack(side="left", padx = self._scale_padding(5))
+
         # Stochastic Events Section
-        events_frame = ttk.LabelFrame(self.simulation_scrollable_frame, text="Stochastic Events", padding=self._scale_padding(10))
-        events_frame.pack(fill="x", padx=self._scale_padding(10), pady=self._scale_padding(5))
-        
+        events_frame = ttk.LabelFrame(self.simulation_scrollable_frame, text="Stochastic Events", padding = self._scale_padding(10))
+        events_frame.pack(fill="x", padx = self._scale_padding(10), pady = self._scale_padding(5))
+
         # Event probability controls
         prob_frame = ttk.Frame(events_frame)
-        prob_frame.pack(fill="x", pady=self._scale_padding(5))
-        
-        ttk.Label(prob_frame, text="Natural Disasters:").pack(side="left", padx=self._scale_padding(5))
-        self.natural_disasters_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(prob_frame, variable=self.natural_disasters_var).pack(side="left", padx=self._scale_padding(5))
-        
-        ttk.Label(prob_frame, text="Economic Disruptions:").pack(side="left", padx=self._scale_padding(20))
-        self.economic_disruptions_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(prob_frame, variable=self.economic_disruptions_var).pack(side="left", padx=self._scale_padding(5))
-        
-        ttk.Label(prob_frame, text="Infrastructure Failures:").pack(side="left", padx=self._scale_padding(20))
-        self.infrastructure_failures_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(prob_frame, variable=self.infrastructure_failures_var).pack(side="left", padx=self._scale_padding(5))
-        
+        prob_frame.pack(fill="x", pady = self._scale_padding(5))
+
+        ttk.Label(prob_frame, text="Natural Disasters:").pack(side="left", padx = self._scale_padding(5))
+        self.natural_disasters_var = tk.BooleanVar(value = True)
+        ttk.Checkbutton(prob_frame, variable = self.natural_disasters_var).pack(side="left", padx = self._scale_padding(5))
+
+        ttk.Label(prob_frame, text="Economic Disruptions:").pack(side="left", padx = self._scale_padding(20))
+        self.economic_disruptions_var = tk.BooleanVar(value = True)
+        ttk.Checkbutton(prob_frame, variable = self.economic_disruptions_var).pack(side="left", padx = self._scale_padding(5))
+
+        ttk.Label(prob_frame, text="Infrastructure Failures:").pack(side="left", padx = self._scale_padding(20))
+        self.infrastructure_failures_var = tk.BooleanVar(value = True)
+        ttk.Checkbutton(prob_frame, variable = self.infrastructure_failures_var).pack(side="left", padx = self._scale_padding(5))
+
         # Event frequency
         freq_frame = ttk.Frame(events_frame)
-        freq_frame.pack(fill="x", pady=self._scale_padding(5))
-        
-        ttk.Label(freq_frame, text="Event Frequency (per year):").pack(side="left", padx=self._scale_padding(5))
+        freq_frame.pack(fill="x", pady = self._scale_padding(5))
+
+        ttk.Label(freq_frame, text="Event Frequency (per year):").pack(side="left", padx = self._scale_padding(5))
         self.event_frequency_var = tk.StringVar(value="2.0")
-        ttk.Spinbox(freq_frame, from_=0.0, to=10.0, increment=0.5, textvariable=self.event_frequency_var, width=10).pack(side="left", padx=self._scale_padding(5))
-        
+        ttk.Spinbox(freq_frame, from_ = 0.0, to = 10.0, increment = 0.5, textvariable = self.event_frequency_var, width = 10).pack(side="left", padx = self._scale_padding(5))
+
         # Simulation Control Section
-        control_frame = ttk.LabelFrame(self.simulation_scrollable_frame, text="Simulation Control", padding=self._scale_padding(10))
-        control_frame.pack(fill="x", padx=self._scale_padding(10), pady=self._scale_padding(5))
-        
+        control_frame = ttk.LabelFrame(self.simulation_scrollable_frame, text="Simulation Control", padding = self._scale_padding(10))
+        control_frame.pack(fill="x", padx = self._scale_padding(10), pady = self._scale_padding(5))
+
         # Control buttons
         button_frame = ttk.Frame(control_frame)
-        button_frame.pack(fill="x", pady=self._scale_padding(5))
-        
-        ttk.Button(button_frame, text="Initialize Simulation", command=self.initialize_simulation).pack(side="left", padx=self._scale_padding(5))
-        ttk.Button(button_frame, text="Start Simulation", command=self.start_simulation).pack(side="left", padx=self._scale_padding(5))
-        ttk.Button(button_frame, text="Pause Simulation", command=self.pause_simulation).pack(side="left", padx=self._scale_padding(5))
-        ttk.Button(button_frame, text="Stop Simulation", command=self.stop_simulation).pack(side="left", padx=self._scale_padding(5))
-        ttk.Button(button_frame, text="Reset Simulation", command=self.reset_simulation).pack(side="left", padx=self._scale_padding(5))
-        
+        button_frame.pack(fill="x", pady = self._scale_padding(5))
+
+        ttk.Button(button_frame, text="Initialize Simulation", command = self.initialize_simulation).pack(side="left", padx = self._scale_padding(5))
+        ttk.Button(button_frame, text="Start Simulation", command = self.start_simulation).pack(side="left", padx = self._scale_padding(5))
+        ttk.Button(button_frame, text="Pause Simulation", command = self.pause_simulation).pack(side="left", padx = self._scale_padding(5))
+        ttk.Button(button_frame, text="Stop Simulation", command = self.stop_simulation).pack(side="left", padx = self._scale_padding(5))
+        ttk.Button(button_frame, text="Reset Simulation", command = self.reset_simulation).pack(side="left", padx = self._scale_padding(5))
+
         # Simulation status
         self.simulation_status = ttk.Label(control_frame, text="Ready to initialize", foreground="blue")
-        self.simulation_status.pack(pady=self._scale_padding(5))
-        
+        self.simulation_status.pack(pady = self._scale_padding(5))
+
         # Progress bar
         self.simulation_progress = ttk.Progressbar(control_frame, mode='determinate')
-        self.simulation_progress.pack(fill="x", pady=self._scale_padding(5))
-        
+        self.simulation_progress.pack(fill="x", pady = self._scale_padding(5))
+
         # Simulation Results Section
-        results_frame = ttk.LabelFrame(self.simulation_scrollable_frame, text="Simulation Results", padding=self._scale_padding(10))
-        results_frame.pack(fill="both", expand=True, padx=self._scale_padding(10), pady=self._scale_padding(5))
-        
+        results_frame = ttk.LabelFrame(self.simulation_scrollable_frame, text="Simulation Results", padding = self._scale_padding(10))
+        results_frame.pack(fill="both", expand = True, padx = self._scale_padding(10), pady = self._scale_padding(5))
+
         # Create notebook for different result views
         self.simulation_notebook = ttk.Notebook(results_frame)
-        self.simulation_notebook.pack(fill="both", expand=True)
-        
-        # Real-time monitoring tab
+        self.simulation_notebook.pack(fill="both", expand = True)
+
+        # Real - time monitoring tab
         self.monitoring_frame = ttk.Frame(self.simulation_notebook)
-        self.simulation_notebook.add(self.monitoring_frame, text="Real-time Monitoring")
-        
+        self.simulation_notebook.add(self.monitoring_frame, text="Real - time Monitoring")
+
         # Monitoring text area
-        self.monitoring_text = scrolledtext.ScrolledText(self.monitoring_frame, height=15, width=80)
-        self.monitoring_text.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
+        self.monitoring_text = scrolledtext.ScrolledText(self.monitoring_frame, height = 15, width = 80)
+        self.monitoring_text.pack(fill="both", expand = True, padx = self._scale_padding(5), pady = self._scale_padding(5))
+
         # Performance metrics tab
         self.metrics_frame = ttk.Frame(self.simulation_notebook)
         self.simulation_notebook.add(self.metrics_frame, text="Performance Metrics")
-        
+
         # Metrics tree view
         self.metrics_tree = ttk.Treeview(
-            self.metrics_frame, 
-            columns=("metric", "value", "target", "status"), 
-            show="headings", 
-            height=15
+            self.metrics_frame,
+            columns=("metric", "value", "target", "status"),
+            show="headings",
+            height = 15
         )
         self.metrics_tree.heading("metric", text="Metric")
         self.metrics_tree.heading("value", text="Current Value")
         self.metrics_tree.heading("target", text="Target")
         self.metrics_tree.heading("status", text="Status")
-        self.metrics_tree.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
+        self.metrics_tree.pack(fill="both", expand = True, padx = self._scale_padding(5), pady = self._scale_padding(5))
+
         # Event log tab
         self.events_frame = ttk.Frame(self.simulation_notebook)
         self.simulation_notebook.add(self.events_frame, text="Event Log")
-        
+
         # Event log text area
-        self.events_text = scrolledtext.ScrolledText(self.events_frame, height=15, width=80)
-        self.events_text.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
+        self.events_text = scrolledtext.ScrolledText(self.events_frame, height = 15, width = 80)
+        self.events_text.pack(fill="both", expand = True, padx = self._scale_padding(5), pady = self._scale_padding(5))
+
         # Interactive Map tab
         self.map_frame = ttk.Frame(self.simulation_notebook)
         self.simulation_notebook.add(self.map_frame, text="Interactive Map")
-        
+
         # Map controls
         map_controls_frame = ttk.Frame(self.map_frame)
-        map_controls_frame.pack(fill="x", padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
-        ttk.Button(map_controls_frame, text="Generate Map", command=self.generate_simulation_map).pack(side="left", padx=self._scale_padding(5))
-        ttk.Button(map_controls_frame, text="Open in Browser", command=self.open_map_in_browser).pack(side="left", padx=self._scale_padding(5))
-        ttk.Button(map_controls_frame, text="Refresh Map", command=self.refresh_simulation_map).pack(side="left", padx=self._scale_padding(5))
-        
+        map_controls_frame.pack(fill="x", padx = self._scale_padding(5), pady = self._scale_padding(5))
+
+        ttk.Button(map_controls_frame, text="Generate Map", command = self.generate_simulation_map).pack(side="left", padx = self._scale_padding(5))
+        ttk.Button(map_controls_frame, text="Open in Browser", command = self.open_map_in_browser).pack(side="left", padx = self._scale_padding(5))
+        ttk.Button(map_controls_frame, text="Refresh Map", command = self.refresh_simulation_map).pack(side="left", padx = self._scale_padding(5))
+
         # Map status
         self.map_status = ttk.Label(map_controls_frame, text="No map generated", foreground="red")
-        self.map_status.pack(side="right", padx=self._scale_padding(5))
-        
+        self.map_status.pack(side="right", padx = self._scale_padding(5))
+
         # Map display area (placeholder for map info)
-        self.map_display_frame = ttk.LabelFrame(self.map_frame, text="Map Information", padding=self._scale_padding(10))
-        self.map_display_frame.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
+        self.map_display_frame = ttk.LabelFrame(self.map_frame, text="Map Information", padding = self._scale_padding(10))
+        self.map_display_frame.pack(fill="both", expand = True, padx = self._scale_padding(5), pady = self._scale_padding(5))
+
         # Map info text
-        self.map_info_text = scrolledtext.ScrolledText(self.map_display_frame, height=15, width=80)
-        self.map_info_text.pack(fill="both", expand=True)
-        
+        self.map_info_text = scrolledtext.ScrolledText(self.map_display_frame, height = 15, width = 80)
+        self.map_info_text.pack(fill="both", expand = True)
+
         # Initialize map variables
         self.current_map = None
         self.map_file_path = None
-        
+
         # Pack canvas and scrollbar
-        self.simulation_canvas.pack(side="left", fill="both", expand=True)
+        self.simulation_canvas.pack(side="left", fill="both", expand = True)
         self.simulation_scrollbar.pack(side="right", fill="y")
-        
-        # Right side: Real-time Map Display
+
+        # Right side: Real - time Map Display
         self.create_realtime_map_section()
-        
+
         # Initialize simulation state
         self.simulation_state = "stopped"
         self.simulation_thread = None
@@ -807,64 +798,64 @@ class CyberneticPlanningGUI:
         self.map_update_active = False
 
     def create_realtime_map_section(self):
-        """Create the real-time map display section on the right side."""
+        """Create the real - time map display section on the right side."""
         # Map Controls Section
-        map_controls_frame = ttk.LabelFrame(self.simulation_right_frame, text="Real-time Map Controls", padding=self._scale_padding(10))
-        map_controls_frame.pack(fill="x", padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
+        map_controls_frame = ttk.LabelFrame(self.simulation_right_frame, text="Real - time Map Controls", padding = self._scale_padding(10))
+        map_controls_frame.pack(fill="x", padx = self._scale_padding(5), pady = self._scale_padding(5))
+
         # Generate Map Button
-        ttk.Button(map_controls_frame, text="Generate Map", command=self.generate_realtime_map).pack(side="left", padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
+        ttk.Button(map_controls_frame, text="Generate Map", command = self.generate_realtime_map).pack(side="left", padx = self._scale_padding(5), pady = self._scale_padding(5))
+
         # Open in Browser Button
-        ttk.Button(map_controls_frame, text="Open in Browser", command=self.open_realtime_map_in_browser).pack(side="left", padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
+        ttk.Button(map_controls_frame, text="Open in Browser", command = self.open_realtime_map_in_browser).pack(side="left", padx = self._scale_padding(5), pady = self._scale_padding(5))
+
         # Speed Control
         speed_frame = ttk.Frame(map_controls_frame)
-        speed_frame.pack(side="left", padx=self._scale_padding(10), pady=self._scale_padding(5))
-        
-        ttk.Label(speed_frame, text="Update Speed:").pack(side="left", padx=self._scale_padding(5))
-        self.map_speed_var = tk.StringVar(value="1 day/sec")
-        speed_combo = ttk.Combobox(speed_frame, textvariable=self.map_speed_var, width=12, state="readonly")
-        speed_combo['values'] = ("1 hour/sec", "1 day/sec", "1 month/sec", "1 year/sec")
-        speed_combo.pack(side="left", padx=self._scale_padding(5))
-        
+        speed_frame.pack(side="left", padx = self._scale_padding(10), pady = self._scale_padding(5))
+
+        ttk.Label(speed_frame, text="Update Speed:").pack(side="left", padx = self._scale_padding(5))
+        self.map_speed_var = tk.StringVar(value="1 day / sec")
+        speed_combo = ttk.Combobox(speed_frame, textvariable = self.map_speed_var, width = 12, state="readonly")
+        speed_combo['values'] = ("1 hour / sec", "1 day / sec", "1 month / sec", "1 year / sec")
+        speed_combo.pack(side="left", padx = self._scale_padding(5))
+
         # Map Control Buttons
         control_frame = ttk.Frame(map_controls_frame)
-        control_frame.pack(side="right", padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
-        ttk.Button(control_frame, text="Start Updates", command=self.start_map_updates).pack(side="left", padx=self._scale_padding(2))
-        ttk.Button(control_frame, text="Pause Updates", command=self.pause_map_updates).pack(side="left", padx=self._scale_padding(2))
-        ttk.Button(control_frame, text="Stop Updates", command=self.stop_map_updates).pack(side="left", padx=self._scale_padding(2))
-        
+        control_frame.pack(side="right", padx = self._scale_padding(5), pady = self._scale_padding(5))
+
+        ttk.Button(control_frame, text="Start Updates", command = self.start_map_updates).pack(side="left", padx = self._scale_padding(2))
+        ttk.Button(control_frame, text="Pause Updates", command = self.pause_map_updates).pack(side="left", padx = self._scale_padding(2))
+        ttk.Button(control_frame, text="Stop Updates", command = self.stop_map_updates).pack(side="left", padx = self._scale_padding(2))
+
         # Map Status
         self.realtime_map_status = ttk.Label(map_controls_frame, text="No map generated", foreground="red")
-        self.realtime_map_status.pack(side="right", padx=self._scale_padding(10))
-        
+        self.realtime_map_status.pack(side="right", padx = self._scale_padding(10))
+
         # Map Display Area
-        self.realtime_map_display_frame = ttk.LabelFrame(self.simulation_right_frame, text="Real-time Map", padding=self._scale_padding(10))
-        self.realtime_map_display_frame.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
+        self.realtime_map_display_frame = ttk.LabelFrame(self.simulation_right_frame, text="Real - time Map", padding = self._scale_padding(10))
+        self.realtime_map_display_frame.pack(fill="both", expand = True, padx = self._scale_padding(5), pady = self._scale_padding(5))
+
         # Create notebook for map display and info
         self.map_display_notebook = ttk.Notebook(self.realtime_map_display_frame)
-        self.map_display_notebook.pack(fill="both", expand=True)
-        
+        self.map_display_notebook.pack(fill="both", expand = True)
+
         # Interactive Map tab
         self.map_view_frame = ttk.Frame(self.map_display_notebook)
         self.map_display_notebook.add(self.map_view_frame, text="Interactive Map")
-        
+
         # Map info tab
         self.map_info_frame = ttk.Frame(self.map_display_notebook)
         self.map_display_notebook.add(self.map_info_frame, text="Map Info")
-        
+
         # Map display area (web browser widget)
-        self.map_browser_widget = WebBrowserWidget(self.map_view_frame, width=800, height=600)
-        self.map_browser_widget.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
+        self.map_browser_widget = WebBrowserWidget(self.map_view_frame, width = 800, height = 600)
+        self.map_browser_widget.pack(fill="both", expand = True, padx = self._scale_padding(5), pady = self._scale_padding(5))
+
         # Map info display
-        self.realtime_map_info_text = scrolledtext.ScrolledText(self.map_info_frame, height=20, width=60)
-        self.realtime_map_info_text.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
-        
-        # Initialize real-time map variables
+        self.realtime_map_info_text = scrolledtext.ScrolledText(self.map_info_frame, height = 20, width = 60)
+        self.realtime_map_info_text.pack(fill="both", expand = True, padx = self._scale_padding(5), pady = self._scale_padding(5))
+
+        # Initialize real - time map variables
         self.realtime_map = None
         self.realtime_map_file_path = None
         self.map_update_interval = 1.0  # seconds
@@ -1004,24 +995,22 @@ optimal economic strategies using real - world data from multiple countries.
 
         about_label = ttk.Label(self.about_frame, text = about_text, justify="left")
         about_label.pack(padx = self._scale_padding(20), pady = self._scale_padding(20))
-        
+
         # Add scaling information
         scaling_info = self.get_scaling_info()
         scaling_text = f"""
-        
+
 DISPLAY INFORMATION:
 • Screen Resolution: {scaling_info['screen_width']}x{scaling_info['screen_height']}
 • Aspect Ratio: {scaling_info['aspect_ratio']:.3f}
 • Scale Factor: {scaling_info['scale_factor']:.3f}
 • Window Size: {scaling_info['window_width']}x{scaling_info['window_height']}
-• Auto-scaling: Enabled
+• Auto - scaling: Enabled
         """
-        
-        scaling_label = ttk.Label(self.about_frame, text=scaling_text, justify="left", 
+
+        scaling_label = ttk.Label(self.about_frame, text = scaling_text, justify="left",
                                  font=("Arial", self._scale_font_size(9), "italic"))
         scaling_label.pack(padx = self._scale_padding(20), pady = self._scale_padding(10))
-
-
 
     def setup_layout(self):
         """Setup the main layout."""
@@ -1171,7 +1160,6 @@ DISPLAY INFORMATION:
         except Exception as e:
             self.api_status.config(text = f"❌ Error checking API keys: {str(e)}", foreground="red")
             messagebox.showerror("Error", f"Failed to check API keys: {str(e)}")
-
 
     def process_usa_zip(self):
         """Process USA data from zip file."""
@@ -1378,7 +1366,7 @@ DISPLAY INFORMATION:
         elif isinstance(tech_matrix, list) and len(tech_matrix) >= 4:
             # It's a list, get first 4x4 elements
             tech_slice = str([row[:4] for row in tech_matrix[:4]])
-        
+
         # Create sector summary
         if sector_count > 0:
             first_sectors = sectors[:5]
@@ -1438,7 +1426,7 @@ Technology Matrix (first 4x4):
             "dept_III": self.dept_III_production_var.get()
         }
         apply_reproduction = self.apply_reproduction_var.get()
-        
+
         print(f"Production multipliers: {production_multipliers}")
         print(f"Apply reproduction: {apply_reproduction}")
 
@@ -1451,11 +1439,11 @@ Technology Matrix (first 4x4):
             try:
                 print(f"Creating plan with {len(policy_goals)} policy goals")
                 print(f"Data available: {bool(self.current_data)}")
-                
+
                 if plan_type == "single_year":
                     self.current_plan = self.planning_system.create_plan(
-                        policy_goals = policy_goals, 
-                        use_optimization = use_optimization, 
+                        policy_goals = policy_goals,
+                        use_optimization = use_optimization,
                         max_iterations = max_iterations,
                         production_multipliers = production_multipliers,
                         apply_reproduction = apply_reproduction
@@ -1474,7 +1462,7 @@ Technology Matrix (first 4x4):
                         production_multipliers = production_multipliers,
                         apply_reproduction = apply_reproduction
                     )
-                    print(f"Five-year plan created successfully: {type(self.current_plan)}")
+                    print(f"Five - year plan created successfully: {type(self.current_plan)}")
 
                 # Update UI in main thread
                 self.root.after(0, self.plan_created_successfully)
@@ -1510,28 +1498,28 @@ Technology Matrix (first 4x4):
         """Automatically load the current plan into the simulator."""
         if not self.current_plan:
             return
-        
+
         try:
             # Convert the planning plan to simulation format
             simulation_plan = self._convert_planning_plan_to_simulation(self.current_plan)
-            
+
             # Load it into the simulation system
             self.current_simulation_plan = simulation_plan
-            
+
             # Update simulation parameters based on the plan
             if 'sectors' in simulation_plan:
                 self.sectors_var.set(str(len(simulation_plan['sectors'])))
-            
+
             # Update the plan status in the simulation tab
-            self.plan_status.config(text="Plan auto-loaded from planning system", foreground="green")
-            
+            self.plan_status.config(text="Plan auto - loaded from planning system", foreground="green")
+
             # Switch to simulation tab to show it's ready
             self.notebook.select(self.simulation_frame)
-            
+
             print(f"✓ Plan automatically loaded into simulator with {len(simulation_plan['sectors'])} sectors")
-            
+
         except Exception as e:
-            print(f"Warning: Failed to auto-load plan to simulator: {e}")
+            print(f"Warning: Failed to auto - load plan to simulator: {e}")
             # Don't fail the plan creation if simulator loading fails
             pass
 
@@ -1542,26 +1530,26 @@ Technology Matrix (first 4x4):
         self.planning_status.config(text="Plan creation failed", foreground="red")
         messagebox.showerror("Error", f"Failed to create plan: {error_msg}")
 
-    def update_production_labels(self, value=None):
+    def update_production_labels(self, value = None):
         """Update the production percentage labels when sliders change."""
         # Update overall production label
         overall_val = self.overall_production_var.get()
         if overall_val < 1.0:
-            self.overall_production_label.config(text=f"{overall_val*100:.0f}% (Underproduction)")
+            self.overall_production_label.config(text = f"{overall_val * 100:.0f}% (Underproduction)")
         elif overall_val > 1.0:
-            self.overall_production_label.config(text=f"{overall_val*100:.0f}% (Overproduction)")
+            self.overall_production_label.config(text = f"{overall_val * 100:.0f}% (Overproduction)")
         else:
             self.overall_production_label.config(text="100% (Normal)")
-        
+
         # Update department labels
         dept_I_val = self.dept_I_production_var.get()
-        self.dept_I_production_label.config(text=f"{dept_I_val*100:.0f}%")
-        
+        self.dept_I_production_label.config(text = f"{dept_I_val * 100:.0f}%")
+
         dept_II_val = self.dept_II_production_var.get()
-        self.dept_II_production_label.config(text=f"{dept_II_val*100:.0f}%")
-        
+        self.dept_II_production_label.config(text = f"{dept_II_val * 100:.0f}%")
+
         dept_III_val = self.dept_III_production_var.get()
-        self.dept_III_production_label.config(text=f"{dept_III_val*100:.0f}%")
+        self.dept_III_production_label.config(text = f"{dept_III_val * 100:.0f}%")
 
     def reset_production_sliders(self):
         """Reset all production sliders to normal (100%) levels."""
@@ -1581,7 +1569,7 @@ Technology Matrix (first 4x4):
     def update_results_display(self):
         """Update the results display."""
         print(f"update_results_display called, current_plan: {bool(self.current_plan)}")
-        
+
         if not self.current_plan:
             print("No current plan available for display")
             return
@@ -1659,11 +1647,11 @@ Year - by - Year Summary:
             if "final_demand" in plan:
                 final_demand_data = plan["final_demand"]
                 print(f"DEBUG: final_demand type: {type(final_demand_data)}")
-                print(f"DEBUG: final_demand shape/length: {getattr(final_demand_data, 'shape', len(final_demand_data))}")
+                print(f"DEBUG: final_demand shape / length: {getattr(final_demand_data, 'shape', len(final_demand_data))}")
                 print(f"DEBUG: final_demand first 5 values: {final_demand_data[:5] if hasattr(final_demand_data, '__getitem__') else 'No indexing'}")
             else:
                 print("DEBUG: No 'final_demand' key in plan")
-            
+
             # Single year plan
             for i in range(len(plan["total_output"])):
                 # Check if labor_values exists, otherwise use labor_vector
@@ -1696,20 +1684,20 @@ Year - by - Year Summary:
                     ),
                 )
         elif isinstance(plan, dict) and all(isinstance(k, int) for k in plan.keys()):
-            # Multi-year plan (5-year plan) - use first year's data
+            # Multi - year plan (5 - year plan) - use first year's data
             first_year = min(plan.keys())
             year_data = plan[first_year]
-            
-            print(f"DEBUG: Multi-year plan detected, using year {first_year}")
+
+            print(f"DEBUG: Multi - year plan detected, using year {first_year}")
             print(f"DEBUG: Year data keys: {list(year_data.keys())}")
             if "final_demand" in year_data:
                 final_demand_data = year_data["final_demand"]
                 print(f"DEBUG: final_demand type: {type(final_demand_data)}")
-                print(f"DEBUG: final_demand shape/length: {getattr(final_demand_data, 'shape', len(final_demand_data))}")
+                print(f"DEBUG: final_demand shape / length: {getattr(final_demand_data, 'shape', len(final_demand_data))}")
                 print(f"DEBUG: final_demand first 5 values: {final_demand_data[:5] if hasattr(final_demand_data, '__getitem__') else 'No indexing'}")
             else:
                 print("DEBUG: No 'final_demand' key in year data")
-            
+
             for i in range(len(year_data["total_output"])):
                 # Check if labor_values exists, otherwise use labor_vector
                 if "labor_values" in year_data:
@@ -1838,7 +1826,7 @@ Year - by - Year Summary:
                 messagebox.showerror("Error", f"Failed to save plan: {str(e)}")
 
     def export_plan_for_simulation(self):
-        """Export the current plan in simulation-compatible format."""
+        """Export the current plan in simulation - compatible format."""
         if not self.current_plan:
             messagebox.showerror("Error", "No plan to export")
             return
@@ -1852,7 +1840,7 @@ Year - by - Year Summary:
         if file_path:
             try:
                 self.planning_system.export_plan_for_simulation(file_path)
-                self.export_status.config(text=f"Simulation plan exported to {file_path}", foreground="green")
+                self.export_status.config(text = f"Simulation plan exported to {file_path}", foreground="green")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to export simulation plan: {str(e)}")
 
@@ -1899,17 +1887,15 @@ Year - by - Year Summary:
             # Handle dataclass objects like ValidationResult
             return {key: self.json_serializer(value) for key, value in obj.__dict__.items()}
         elif isinstance(obj, (list, tuple)):
-            # Handle lists/tuples that might contain non-serializable objects
+            # Handle lists / tuples that might contain non - serializable objects
             return [self.json_serializer(item) for item in obj]
         elif isinstance(obj, dict):
-            # Handle dictionaries that might contain non-serializable objects
+            # Handle dictionaries that might contain non - serializable objects
             return {key: self.json_serializer(value) for key, value in obj.items()}
         elif isinstance(obj, (str, int, float, bool, type(None))):
-            # Handle basic JSON-serializable types
+            # Handle basic JSON - serializable types
             return obj
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-
-
 
     def export_marxist_analysis(self):
         """Export Marxist analysis results."""
@@ -1951,28 +1937,27 @@ Year - by - Year Summary:
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to export report: {str(e)}")
 
-
     def _format_analysis_data(self, data, title):
         """Format analysis data for display."""
         if not data:
             return f"{title}\n\nNo data available."
-        
+
         if "error" in data:
             return f"{title}\n\nError: {data['error']}"
-        
+
         # Format the data nicely
         text = f"{title}\n{'='*50}\n\n"
-        
+
         if isinstance(data, dict):
             for key, value in data.items():
                 if isinstance(value, (dict, list)):
                     text += f"{key}:\n"
-                    text += json.dumps(value, indent=2, default=str) + "\n\n"
+                    text += json.dumps(value, indent = 2, default = str) + "\n\n"
                 else:
                     text += f"{key}: {value}\n"
         else:
             text += str(data)
-        
+
         return text
 
     # Simulation System Methods
@@ -1994,65 +1979,64 @@ Year - by - Year Summary:
         if not plan_file:
             messagebox.showerror("Error", "Please select a plan file first.")
             return
-        
+
         try:
             with open(plan_file, 'r') as f:
                 plan_data = json.load(f)
-            
+
             # Check if this is a planning system plan or simulation plan
             if 'total_output' in plan_data and 'technology_matrix' in plan_data:
                 # This is a planning system plan - convert it to simulation format
                 plan_data = self._convert_planning_plan_to_simulation(plan_data)
-            
+
             # Validate plan structure
             required_keys = ['sectors', 'production_targets', 'labor_requirements', 'resource_allocations']
             if not all(key in plan_data for key in required_keys):
                 messagebox.showerror("Error", "Invalid plan file format. Missing required keys.")
                 return
-            
+
             self.current_simulation_plan = plan_data
-            self.plan_status.config(text=f"Plan loaded: {os.path.basename(plan_file)}", foreground="green")
-            
+            self.plan_status.config(text = f"Plan loaded: {os.path.basename(plan_file)}", foreground="green")
+
             # Update simulation parameters based on plan
             if 'sectors' in plan_data:
                 self.sectors_var.set(str(len(plan_data['sectors'])))
-            
+
             messagebox.showinfo("Success", "Plan loaded successfully for simulation.")
-            
+
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load plan: {str(e)}")
             self.plan_status.config(text="Failed to load plan", foreground="red")
 
     def _convert_planning_plan_to_simulation(self, planning_plan):
         """Convert a planning system plan to simulation format."""
-        import numpy as np
-        
-        # Handle multi-year plans by using the first year
+
+        # Handle multi - year plans by using the first year
         if isinstance(planning_plan, dict) and all(str(i).isdigit() for i in planning_plan.keys()):
-            # This is a multi-year plan, use the first year
+            # This is a multi - year plan, use the first year
             first_year = min(int(k) for k in planning_plan.keys())
             plan_data = planning_plan[first_year]  # Use integer key, not string
-            print(f"DEBUG: Multi-year plan detected, using year {first_year}")
+            print(f"DEBUG: Multi - year plan detected, using year {first_year}")
         else:
             plan_data = planning_plan
-        
+
         # Extract data from planning plan
         total_output = np.array(plan_data.get('total_output', []))
         labor_vector = np.array(plan_data.get('labor_vector', []))
         technology_matrix = np.array(plan_data.get('technology_matrix', []))
         final_demand = np.array(plan_data.get('final_demand', []))
-        
+
         # Get sector count
         n_sectors = len(total_output)
-        
+
         # Get sectors from current_data if available, otherwise create default names
         if hasattr(self, 'current_data') and 'sectors' in self.current_data:
             sectors = self.current_data['sectors']
             print(f"DEBUG: Using sectors from current_data: {len(sectors)} sectors")
         else:
-            sectors = [f"Sector_{i+1}" for i in range(n_sectors)]
+            sectors = [f"Sector_{i + 1}" for i in range(n_sectors)]
             print(f"DEBUG: Using default sector names: {len(sectors)} sectors")
-        
+
         # Convert to simulation format
         simulation_plan = {
             'sectors': sectors,
@@ -2073,7 +2057,7 @@ Year - by - Year Summary:
                 'cybernetic_feedback': plan_data.get('cybernetic_feedback', {})
             }
         }
-        
+
         return simulation_plan
 
     def reload_current_plan(self):
@@ -2081,23 +2065,23 @@ Year - by - Year Summary:
         if not self.current_plan:
             messagebox.showerror("Error", "No current plan to reload")
             return
-        
+
         try:
             # Convert the current plan to simulation format
             simulation_plan = self._convert_planning_plan_to_simulation(self.current_plan)
-            
+
             # Load it into the simulation system
             self.current_simulation_plan = simulation_plan
-            
+
             # Update simulation parameters based on the plan
             if 'sectors' in simulation_plan:
                 self.sectors_var.set(str(len(simulation_plan['sectors'])))
-            
+
             # Update the plan status
             self.plan_status.config(text="Plan reloaded from planning system", foreground="green")
-            
+
             messagebox.showinfo("Success", f"Plan reloaded successfully with {len(simulation_plan['sectors'])} sectors")
-            
+
         except Exception as e:
             messagebox.showerror("Error", f"Failed to reload plan: {str(e)}")
             self.plan_status.config(text="Failed to reload plan", foreground="red")
@@ -2107,7 +2091,7 @@ Year - by - Year Summary:
         if not hasattr(self, 'current_simulation_plan') or not self.current_simulation_plan:
             messagebox.showerror("Error", "Please load a plan first.")
             return
-        
+
         try:
             # Get simulation parameters
             duration = int(self.sim_duration_var.get())
@@ -2116,7 +2100,7 @@ Year - by - Year Summary:
             settlements = int(self.settlements_var.get())
             sectors = int(self.sectors_var.get())
             pop_density = int(self.pop_density_var.get())
-            
+
             # Initialize simulation environment
             self.simulation_environment = {
                 'duration_years': duration,
@@ -2129,7 +2113,7 @@ Year - by - Year Summary:
                 'current_month': 0,
                 'current_year': 0
             }
-            
+
             # Initialize stochastic events
             self.stochastic_events = {
                 'natural_disasters': self.natural_disasters_var.get(),
@@ -2137,24 +2121,21 @@ Year - by - Year Summary:
                 'infrastructure_failures': self.infrastructure_failures_var.get(),
                 'frequency_per_year': float(self.event_frequency_var.get())
             }
-            
+
             # Initialize simulation state
             self.simulation_state = "initialized"
             self.simulation_status.config(text="Simulation initialized", foreground="green")
-            
+
             # Clear previous results
             self.monitoring_text.delete(1.0, tk.END)
             self.events_text.delete(1.0, tk.END)
             self.metrics_tree.delete(*self.metrics_tree.get_children())
-            
+
             # Add initialization message
             init_message = f"""Simulation Initialized Successfully!
 
 Environment Parameters:
-- Duration: {duration} years
-- Time Step: {time_step} months
-- Map Size: {map_size} km
-- Settlements: {settlements}
+- Duration: {duration} years - Time Step: {time_step} months - Map Size: {map_size} km - Settlements: {settlements}
 - Economic Sectors: {sectors}
 - Population Density: {pop_density} per km²
 
@@ -2165,9 +2146,9 @@ Plan Loaded:
 Ready to start simulation.
 """
             self.monitoring_text.insert(tk.END, init_message)
-            
+
             messagebox.showinfo("Success", "Simulation initialized successfully!")
-            
+
         except Exception as e:
             messagebox.showerror("Error", f"Failed to initialize simulation: {str(e)}")
             self.simulation_status.config(text="Initialization failed", foreground="red")
@@ -2177,19 +2158,19 @@ Ready to start simulation.
         if self.simulation_state != "initialized":
             messagebox.showerror("Error", "Please initialize the simulation first.")
             return
-        
+
         if self.simulation_state == "running":
             messagebox.showinfo("Info", "Simulation is already running.")
             return
-        
+
         try:
             self.simulation_state = "running"
             self.simulation_status.config(text="Simulation running...", foreground="blue")
-            
+
             # Start simulation in a separate thread
-            self.simulation_thread = threading.Thread(target=self.run_simulation, daemon=True)
+            self.simulation_thread = threading.Thread(target = self.run_simulation, daemon = True)
             self.simulation_thread.start()
-            
+
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start simulation: {str(e)}")
             self.simulation_state = "initialized"
@@ -2200,37 +2181,37 @@ Ready to start simulation.
         try:
             total_months = self.simulation_environment['duration_years'] * 12
             time_step = self.simulation_environment['time_step_months']
-            
+
             for month in range(0, total_months, time_step):
                 if self.simulation_state != "running":
                     break
-                
+
                 # Update time
                 self.simulation_environment['current_month'] = month
                 self.simulation_environment['current_year'] = month // 12
                 self.simulation_environment['current_time'] = month
-                
+
                 # Update progress
                 progress = (month / total_months) * 100
-                self.root.after(0, lambda p=progress: self.simulation_progress.config(value=p))
-                
+                self.root.after(0, lambda p = progress: self.simulation_progress.config(value = p))
+
                 # Run simulation step
                 self.simulate_time_step(month)
-                
+
                 # Check for stochastic events
                 if self.should_trigger_event():
                     self.trigger_stochastic_event(month)
-                
+
                 # Update monitoring display
                 self.update_monitoring_display(month)
-                
+
                 # Small delay to prevent UI freezing
                 import time
                 time.sleep(0.1)
-            
+
             # Simulation completed
             self.root.after(0, self.simulation_completed)
-            
+
         except Exception as e:
             error_msg = str(e)
             self.root.after(0, lambda: self.simulation_failed(error_msg))
@@ -2239,22 +2220,22 @@ Ready to start simulation.
         """Simulate one time step of the simulation."""
         year = month // 12
         month_in_year = month % 12
-        
+
         # Basic economic simulation based on loaded plan
         if hasattr(self, 'current_simulation_plan'):
             # Simulate production based on plan targets
             production_results = self.simulate_production(month)
-            
+
             # Simulate resource allocation
             resource_results = self.simulate_resource_allocation(month)
-            
+
             # Simulate labor allocation
             labor_results = self.simulate_labor_allocation(month)
-            
+
             # Store results
             if not hasattr(self, 'simulation_results'):
                 self.simulation_results = []
-            
+
             self.simulation_results.append({
                 'month': month,
                 'year': year,
@@ -2268,33 +2249,33 @@ Ready to start simulation.
         """Simulate production for the current time step."""
         # Basic production simulation based on plan targets
         production_results = {}
-        
+
         if 'production_targets' in self.current_simulation_plan and 'sectors' in self.current_simulation_plan:
             targets = self.current_simulation_plan['production_targets']
             sectors = self.current_simulation_plan['sectors']
-            
+
             # Add some variation based on time and stochastic events
             variation = 1.0
             if hasattr(self, 'current_events') and self.current_events:
                 variation *= 0.8  # Reduce production during events
-            
+
             for i, (sector, target) in enumerate(zip(sectors, targets)):
                 # Seasonal variation (simplified)
                 seasonal_factor = 1.0 + 0.1 * math.sin(2 * math.pi * (month % 12) / 12)
-                
+
                 actual_production = target * variation * seasonal_factor
                 production_results[sector] = {
                     'target': target,
                     'actual': actual_production,
                     'efficiency': actual_production / target if target > 0 else 0
                 }
-        
+
         return production_results
 
     def simulate_resource_allocation(self, month):
         """Simulate resource allocation for the current time step."""
         resource_results = {}
-        
+
         if 'resource_allocations' in self.current_simulation_plan:
             # resource_allocations is a dictionary, so we can iterate over it
             for resource, allocation in self.current_simulation_plan['resource_allocations'].items():
@@ -2302,34 +2283,34 @@ Ready to start simulation.
                 availability = 1.0
                 if hasattr(self, 'current_events') and self.current_events:
                     availability *= 0.9  # Reduce availability during events
-                
+
                 # Handle both scalar and list allocations
                 if isinstance(allocation, list):
                     actual_allocation = [a * availability for a in allocation]
                 else:
                     actual_allocation = allocation * availability
-                    
+
                 resource_results[resource] = {
                     'planned': allocation,
                     'actual': actual_allocation,
                     'availability': availability
                 }
-        
+
         return resource_results
 
     def simulate_labor_allocation(self, month):
         """Simulate labor allocation for the current time step."""
         labor_results = {}
-        
+
         if 'labor_requirements' in self.current_simulation_plan and 'sectors' in self.current_simulation_plan:
             requirements = self.current_simulation_plan['labor_requirements']
             sectors = self.current_simulation_plan['sectors']
-            
+
             # Simulate labor productivity and availability
             productivity = 1.0
             if hasattr(self, 'current_events') and self.current_events:
                 productivity *= 0.95  # Slight reduction during events
-            
+
             for i, (sector, requirement) in enumerate(zip(sectors, requirements)):
                 actual_labor = requirement * productivity
                 labor_results[sector] = {
@@ -2337,14 +2318,14 @@ Ready to start simulation.
                     'allocated': actual_labor,
                     'productivity': productivity
                 }
-        
+
         return labor_results
 
     def should_trigger_event(self):
         """Determine if a stochastic event should be triggered."""
         if not self.stochastic_events['frequency_per_year']:
             return False
-        
+
         # Simple probability calculation
         import random
         probability = self.stochastic_events['frequency_per_year'] / 12  # Monthly probability
@@ -2354,7 +2335,7 @@ Ready to start simulation.
         """Trigger a stochastic event."""
         if not hasattr(self, 'current_events'):
             self.current_events = []
-        
+
         # Select event type
         event_types = []
         if self.stochastic_events['natural_disasters']:
@@ -2363,13 +2344,13 @@ Ready to start simulation.
             event_types.append('economic_disruption')
         if self.stochastic_events['infrastructure_failures']:
             event_types.append('infrastructure_failure')
-        
+
         if not event_types:
             return
-        
+
         import random
         event_type = random.choice(event_types)
-        
+
         # Create event
         event = {
             'type': event_type,
@@ -2378,44 +2359,44 @@ Ready to start simulation.
             'severity': random.uniform(0.1, 1.0),
             'duration': random.randint(1, 6)  # Duration in months
         }
-        
+
         self.current_events.append(event)
-        
+
         # Log event
         event_message = f"Month {month} (Year {event['year']}): {event_type.replace('_', ' ').title()} - Severity: {event['severity']:.2f}, Duration: {event['duration']} months\n"
         self.root.after(0, lambda: self.events_text.insert(tk.END, event_message))
 
     def update_monitoring_display(self, month):
-        """Update the real-time monitoring display."""
+        """Update the real - time monitoring display."""
         if not hasattr(self, 'simulation_results') or not self.simulation_results:
             return
-        
+
         latest_result = self.simulation_results[-1]
-        
+
         # Create monitoring message
         monitoring_message = f"""=== Simulation Update - Month {month} (Year {latest_result['year']}) ===
 
 Production Status:
 """
-        
+
         for sector, data in latest_result['production'].items():
             monitoring_message += f"  {sector}: {data['actual']:.2f} / {data['target']:.2f} ({data['efficiency']:.1%})\n"
-        
+
         monitoring_message += "\nResource Allocation:\n"
         for resource, data in latest_result['resources'].items():
             monitoring_message += f"  {resource}: {data['actual']:.2f} / {data['planned']:.2f} ({data['availability']:.1%})\n"
-        
+
         monitoring_message += "\nLabor Allocation:\n"
         for sector, data in latest_result['labor'].items():
             monitoring_message += f"  {sector}: {data['allocated']:.2f} / {data['required']:.2f} ({data['productivity']:.1%})\n"
-        
+
         if hasattr(self, 'current_events') and self.current_events:
             monitoring_message += f"\nActive Events: {len(self.current_events)}\n"
             for event in self.current_events[-3:]:  # Show last 3 events
                 monitoring_message += f"  - {event['type'].replace('_', ' ').title()} (Severity: {event['severity']:.2f})\n"
-        
+
         monitoring_message += "\n" + "="*50 + "\n\n"
-        
+
         # Update display
         self.root.after(0, lambda: self.monitoring_text.insert(tk.END, monitoring_message))
         self.root.after(0, lambda: self.monitoring_text.see(tk.END))
@@ -2430,19 +2411,19 @@ Production Status:
         """Stop the simulation."""
         self.simulation_state = "stopped"
         self.simulation_status.config(text="Simulation stopped", foreground="red")
-        self.simulation_progress.config(value=0)
+        self.simulation_progress.config(value = 0)
 
     def reset_simulation(self):
         """Reset the simulation to initial state."""
         self.simulation_state = "stopped"
         self.simulation_status.config(text="Ready to initialize", foreground="blue")
-        self.simulation_progress.config(value=0)
-        
+        self.simulation_progress.config(value = 0)
+
         # Clear results
         self.monitoring_text.delete(1.0, tk.END)
         self.events_text.delete(1.0, tk.END)
         self.metrics_tree.delete(*self.metrics_tree.get_children())
-        
+
         # Reset simulation data
         if hasattr(self, 'simulation_results'):
             delattr(self, 'simulation_results')
@@ -2453,11 +2434,11 @@ Production Status:
         """Handle simulation completion."""
         self.simulation_state = "completed"
         self.simulation_status.config(text="Simulation completed", foreground="green")
-        self.simulation_progress.config(value=100)
-        
+        self.simulation_progress.config(value = 100)
+
         # Update metrics display
         self.update_metrics_display()
-        
+
         messagebox.showinfo("Simulation Complete", "The simulation has completed successfully!")
 
     def simulation_failed(self, error_msg):
@@ -2470,16 +2451,16 @@ Production Status:
         """Update the performance metrics display."""
         if not hasattr(self, 'simulation_results') or not self.simulation_results:
             return
-        
+
         # Clear existing metrics
         self.metrics_tree.delete(*self.metrics_tree.get_children())
-        
+
         # Calculate overall metrics
         total_months = len(self.simulation_results)
         avg_production_efficiency = 0
         avg_resource_availability = 0
         avg_labor_productivity = 0
-        
+
         for result in self.simulation_results:
             if result['production']:
                 avg_production_efficiency += sum(data['efficiency'] for data in result['production'].values()) / len(result['production'])
@@ -2487,12 +2468,12 @@ Production Status:
                 avg_resource_availability += sum(data['availability'] for data in result['resources'].values()) / len(result['resources'])
             if result['labor']:
                 avg_labor_productivity += sum(data['productivity'] for data in result['labor'].values()) / len(result['labor'])
-        
+
         if total_months > 0:
             avg_production_efficiency /= total_months
             avg_resource_availability /= total_months
             avg_labor_productivity /= total_months
-        
+
         # Add metrics to tree
         metrics = [
             ("Production Efficiency", f"{avg_production_efficiency:.1%}", "100%", "Good" if avg_production_efficiency > 0.8 else "Needs Improvement"),
@@ -2501,7 +2482,7 @@ Production Status:
             ("Simulation Duration", f"{total_months} months", f"{self.simulation_environment['duration_years'] * 12} months", "Complete"),
             ("Events Triggered", f"{len(getattr(self, 'current_events', []))}", "Variable", "Normal")
         ]
-        
+
         for metric, value, target, status in metrics:
             self.metrics_tree.insert("", "end", values=(metric, value, target, status))
 
@@ -2510,48 +2491,48 @@ Production Status:
         if not MAP_AVAILABLE:
             messagebox.showerror("Error", "Map visualization is not available. Please install required dependencies.")
             return
-        
+
         try:
             # Get simulation parameters
             map_size = float(self.map_size_var.get())
             settlements_count = int(self.settlements_var.get())
-            
+
             # Calculate map bounds based on size
-            # Convert km to approximate lat/lon degrees (rough approximation)
+            # Convert km to approximate lat / lon degrees (rough approximation)
             lat_range = map_size / 111.0  # 1 degree latitude ≈ 111 km
             lon_range = map_size / (111.0 * np.cos(np.radians(45)))  # Adjust for longitude
-            
+
             # Center around a reasonable location (Northeast US)
             center_lat, center_lon = 45.0, -75.0
             map_bounds = (
-                (center_lat - lat_range/2, center_lon - lon_range/2),
-                (center_lat + lat_range/2, center_lon + lon_range/2)
+                (center_lat - lat_range / 2, center_lon - lon_range / 2),
+                (center_lat + lat_range / 2, center_lon + lon_range / 2)
             )
-            
+
             # Generate the map
             self.current_map = create_simulation_map(map_bounds)
-            
+
             # Save the map
             self.map_file_path = self.current_map.save_map("simulation_map.html")
-            
+
             # Update status
             self.map_status.config(text="Map generated successfully", foreground="green")
-            
+
             # Update map info display
             self.update_map_info_display()
-            
+
             messagebox.showinfo("Success", f"Simulation map generated successfully!\nSaved to: {self.map_file_path}")
-            
+
         except Exception as e:
             self.map_status.config(text="Map generation failed", foreground="red")
             messagebox.showerror("Error", f"Failed to generate map: {str(e)}")
-    
+
     def open_map_in_browser(self):
         """Open the generated map in the default web browser."""
         if not self.current_map:
             messagebox.showwarning("Warning", "No map generated. Please generate a map first.")
             return
-        
+
         try:
             if self.map_file_path and os.path.exists(self.map_file_path):
                 import webbrowser
@@ -2565,13 +2546,13 @@ Production Status:
                     webbrowser.open(f'file://{os.path.abspath(self.map_file_path)}')
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open map in browser: {str(e)}")
-    
+
     def refresh_simulation_map(self):
         """Refresh the current simulation map."""
         if not self.current_map:
             messagebox.showwarning("Warning", "No map to refresh. Please generate a map first.")
             return
-        
+
         try:
             # Regenerate the map with current parameters
             self.generate_simulation_map()
@@ -2580,100 +2561,100 @@ Production Status:
             messagebox.showerror("Error", f"Failed to refresh map: {str(e)}")
 
     def generate_realtime_map(self):
-        """Generate a real-time map for the simulation environment."""
+        """Generate a real - time map for the simulation environment."""
         if not MAP_AVAILABLE:
             messagebox.showerror("Error", "Map visualization is not available. Please install required dependencies.")
             return
-        
+
         try:
             # Get simulation parameters
             map_size = float(self.map_size_var.get())
             settlements_count = int(self.settlements_var.get())
-            
+
             # Calculate map bounds based on size
             center_lat, center_lon = 45.0, -75.0  # Default center
             lat_range = map_size / 111.0  # Approximate km per degree latitude
             lon_range = map_size / (111.0 * math.cos(math.radians(center_lat)))  # Adjust for longitude
-            
+
             map_bounds = (
-                (center_lat - lat_range/2, center_lon - lon_range/2),
-                (center_lat + lat_range/2, center_lon + lon_range/2)
+                (center_lat - lat_range / 2, center_lon - lon_range / 2),
+                (center_lat + lat_range / 2, center_lon + lon_range / 2)
             )
-            
+
             # Generate the map
             self.realtime_map = create_simulation_map(map_bounds)
-            
+
             # Save the map
             self.realtime_map_file_path = "realtime_simulation_map.html"
             self.realtime_map.save_map(self.realtime_map_file_path)
-            
+
             # Update status
             self.realtime_map_status.config(text="Map generated", foreground="green")
-            
+
             # Update map info display
             self.update_realtime_map_info()
-            
+
             # Display the map in the GUI
             self.display_map_in_gui()
-            
-            messagebox.showinfo("Success", "Real-time map generated successfully!")
-            
+
+            messagebox.showinfo("Success", "Real - time map generated successfully!")
+
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to generate real-time map: {str(e)}")
+            messagebox.showerror("Error", f"Failed to generate real - time map: {str(e)}")
             self.realtime_map_status.config(text="Map generation failed", foreground="red")
 
     def update_realtime_map_info(self):
-        """Update the real-time map information display."""
+        """Update the real - time map information display."""
         if not self.realtime_map:
             self.realtime_map_info_text.delete("1.0", tk.END)
             self.realtime_map_info_text.insert("1.0", "No map generated. Click 'Generate Map' to create a simulation environment.")
             return
-        
+
         # Get environment data
         env_data = self.realtime_map.get_environment_data()
-        
+
         # Create info text
-        info_text = f"=== Real-time Simulation Map ===\n\n"
+        info_text = f"=== Real - time Simulation Map ===\n\n"
         info_text += f"Simulation Time: {self.current_simulation_time:.2f} months\n"
         info_text += f"Update Speed: {self.map_speed_var.get()}\n"
         info_text += f"Map Status: {'Active' if self.map_update_active else 'Inactive'}\n\n"
-        
+
         info_text += f"=== Environment Statistics ===\n"
         info_text += f"Geographic Features: {len(env_data['geographic_features'])}\n"
         info_text += f"Settlements: {len(env_data['settlements'])}\n"
         info_text += f"Economic Zones: {len(env_data['economic_zones'])}\n"
         info_text += f"Infrastructure: {len(env_data['infrastructure'])}\n\n"
-        
+
         # Settlement breakdown
         settlements = env_data['settlements']
         cities = [s for s in settlements if s['settlement_type'] == 'city']
         towns = [s for s in settlements if s['settlement_type'] == 'town']
         rural = [s for s in settlements if s['settlement_type'] == 'rural']
-        
+
         info_text += f"=== Settlement Breakdown ===\n"
         info_text += f"Cities: {len(cities)}\n"
         info_text += f"Towns: {len(towns)}\n"
         info_text += f"Rural Areas: {len(rural)}\n"
         info_text += f"Total Population: {sum(s['population'] for s in settlements):,}\n\n"
-        
+
         # Economic zones breakdown
         zones = env_data['economic_zones']
         zone_types = {}
         for zone in zones:
             zone_type = zone['zone_type']
             zone_types[zone_type] = zone_types.get(zone_type, 0) + 1
-        
+
         info_text += f"=== Economic Zones ===\n"
         for zone_type, count in zone_types.items():
             info_text += f"{zone_type.title()}: {count}\n"
-        
+
         info_text += f"\n=== Infrastructure ===\n"
         infra = env_data['infrastructure']
         road_count = len([i for i in infra if i['infrastructure_type'] == 'road'])
         rail_count = len([i for i in infra if i['infrastructure_type'] == 'railway'])
         info_text += f"Roads: {road_count}\n"
         info_text += f"Railways: {rail_count}\n"
-        
+
         # Update the display
         self.realtime_map_info_text.delete("1.0", tk.END)
         self.realtime_map_info_text.insert("1.0", info_text)
@@ -2685,7 +2666,7 @@ Production Status:
             self.map_browser_widget.preview_text.insert("1.0", "No map available. Click 'Generate Map' to create a simulation environment.")
             self.map_browser_widget.status_label.config(text="No map loaded")
             return
-        
+
         try:
             # Load the HTML file into the web browser widget
             success = self.map_browser_widget.load_html_file(self.realtime_map_file_path)
@@ -2693,7 +2674,7 @@ Production Status:
                 self.realtime_map_status.config(text="Map displayed in GUI", foreground="green")
             else:
                 self.realtime_map_status.config(text="Map display failed", foreground="red")
-            
+
         except Exception as e:
             self.map_browser_widget.preview_text.delete("1.0", tk.END)
             self.map_browser_widget.preview_text.insert("1.0", f"Error loading map: {str(e)}")
@@ -2703,24 +2684,24 @@ Production Status:
         """Refresh the map display with updated data."""
         if not self.realtime_map:
             return
-        
+
         try:
             # Regenerate the map with updated data
             self.realtime_map.create_map()
             self.realtime_map.save_map(self.realtime_map_file_path)
-            
+
             # Refresh the web browser widget
             self.map_browser_widget.refresh()
-            
+
         except Exception as e:
             print(f"Error refreshing map display: {e}")
 
     def open_realtime_map_in_browser(self):
-        """Open the real-time map in the default web browser."""
+        """Open the real - time map in the default web browser."""
         if not self.realtime_map or not self.realtime_map_file_path:
             messagebox.showwarning("Warning", "No map generated. Please generate a map first.")
             return
-        
+
         try:
             if os.path.exists(self.realtime_map_file_path):
                 webbrowser.open(f'file://{os.path.abspath(self.realtime_map_file_path)}')
@@ -2731,52 +2712,52 @@ Production Status:
             messagebox.showerror("Error", f"Failed to open map in browser: {str(e)}")
 
     def start_map_updates(self):
-        """Start real-time map updates."""
+        """Start real - time map updates."""
         if not self.realtime_map:
             messagebox.showwarning("Warning", "No map generated. Please generate a map first.")
             return
-        
+
         if self.map_update_active:
             messagebox.showinfo("Info", "Map updates are already running.")
             return
-        
+
         # Calculate update interval based on speed setting
         speed_setting = self.map_speed_var.get()
-        if speed_setting == "1 hour/sec":
+        if speed_setting == "1 hour / sec":
             self.map_update_interval = 1.0  # 1 second = 1 hour
-        elif speed_setting == "1 day/sec":
+        elif speed_setting == "1 day / sec":
             self.map_update_interval = 1.0  # 1 second = 1 day
-        elif speed_setting == "1 month/sec":
+        elif speed_setting == "1 month / sec":
             self.map_update_interval = 1.0  # 1 second = 1 month
-        elif speed_setting == "1 year/sec":
+        elif speed_setting == "1 year / sec":
             self.map_update_interval = 1.0  # 1 second = 1 year
-        
+
         self.map_update_active = True
         self.realtime_map_status.config(text="Updates active", foreground="green")
-        
+
         # Start the update timer
         self.schedule_map_update()
 
     def pause_map_updates(self):
-        """Pause real-time map updates."""
+        """Pause real - time map updates."""
         if not self.map_update_active:
             messagebox.showinfo("Info", "Map updates are not running.")
             return
-        
+
         self.map_update_active = False
         if self.map_update_timer:
             self.root.after_cancel(self.map_update_timer)
             self.map_update_timer = None
-        
+
         self.realtime_map_status.config(text="Updates paused", foreground="orange")
 
     def stop_map_updates(self):
-        """Stop real-time map updates."""
+        """Stop real - time map updates."""
         self.map_update_active = False
         if self.map_update_timer:
             self.root.after_cancel(self.map_update_timer)
             self.map_update_timer = None
-        
+
         self.realtime_map_status.config(text="Updates stopped", foreground="red")
         self.current_simulation_time = 0
 
@@ -2784,27 +2765,27 @@ Production Status:
         """Schedule the next map update."""
         if not self.map_update_active:
             return
-        
+
         # Update simulation time
         speed_setting = self.map_speed_var.get()
-        if speed_setting == "1 hour/sec":
-            self.current_simulation_time += 1/24  # 1 hour in months
-        elif speed_setting == "1 day/sec":
-            self.current_simulation_time += 1/30  # 1 day in months
-        elif speed_setting == "1 month/sec":
+        if speed_setting == "1 hour / sec":
+            self.current_simulation_time += 1 / 24  # 1 hour in months
+        elif speed_setting == "1 day / sec":
+            self.current_simulation_time += 1 / 30  # 1 day in months
+        elif speed_setting == "1 month / sec":
             self.current_simulation_time += 1  # 1 month
-        elif speed_setting == "1 year/sec":
+        elif speed_setting == "1 year / sec":
             self.current_simulation_time += 12  # 1 year in months
-        
+
         # Update the map with new data
         self.update_realtime_map_data()
-        
+
         # Update the display
         self.update_realtime_map_info()
-        
+
         # Refresh the map display
         self.refresh_map_display()
-        
+
         # Schedule next update
         self.map_update_timer = self.root.after(int(self.map_update_interval * 1000), self.schedule_map_update)
 
@@ -2812,39 +2793,39 @@ Production Status:
         """Update the map data based on simulation progress."""
         if not self.realtime_map:
             return
-        
+
         # Simulate changes over time
         # This is where you would integrate with actual simulation data
         # For now, we'll simulate some basic changes
-        
+
         # Update settlement populations (simulate growth)
         for settlement in self.realtime_map.settlements:
             # Simulate population growth
             growth_rate = 0.001  # 0.1% per month
             settlement.population = int(settlement.population * (1 + growth_rate))
-        
+
         # Update economic zone production capacity
         for zone in self.realtime_map.economic_zones:
             # Simulate production changes
-            change_rate = random.uniform(-0.01, 0.02)  # -1% to +2% per month
+            change_rate = random.uniform(-0.01, 0.02)  # -1% to + 2% per month
             zone.production_capacity *= (1 + change_rate)
-        
+
         # Simulate infrastructure changes
         for infra in self.realtime_map.infrastructure:
             # Simulate capacity changes
-            change_rate = random.uniform(-0.005, 0.01)  # -0.5% to +1% per month
+            change_rate = random.uniform(-0.005, 0.01)  # -0.5% to + 1% per month
             infra.capacity *= (1 + change_rate)
-    
+
     def update_map_info_display(self):
         """Update the map information display."""
         if not self.current_map:
             self.map_info_text.delete("1.0", tk.END)
             self.map_info_text.insert("1.0", "No map generated. Click 'Generate Map' to create a simulation environment.")
             return
-        
+
         # Get environment data
         env_data = self.current_map.get_environment_data()
-        
+
         # Create info text
         info_text = f"""Simulation Environment Map
 ============================
@@ -2872,7 +2853,7 @@ Map File: {self.map_file_path or 'Not saved'}
 
 Click 'Open in Browser' to view the interactive map with all features, settlements, and infrastructure networks.
 """
-        
+
         self.map_info_text.delete("1.0", tk.END)
         self.map_info_text.insert("1.0", info_text)
 

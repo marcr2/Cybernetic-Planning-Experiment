@@ -6,7 +6,6 @@ Orchestrates the iterative refinement of economic plans.
 """
 
 from typing import Dict, Any, List, Optional
-import numpy as np
 from .base import BaseAgent
 from .policy import PolicyAgent
 
@@ -86,7 +85,7 @@ class ManagerAgent(BaseAgent):
         # Initialize planning iteration
         self.planning_iteration = 0
         self.plan_history = []
-        
+
         # Store sector mapping for policy goals
         self.update_state("sector_mapping", sector_mapping)
 
@@ -114,9 +113,9 @@ class ManagerAgent(BaseAgent):
             n_dept_I = min(50, n_sectors // 3)  # Department I: means of production
             n_dept_II = min(50, (n_sectors - n_dept_I) // 2)  # Department II: consumer goods
             n_dept_III = n_sectors - n_dept_I - n_dept_II  # Department III: services
-            
+
             print(f"DEBUG MANAGER: Adjusted department sizes - Dept I: {n_dept_I}, Dept II: {n_dept_II}, Dept III: {n_dept_III}")
-            
+
             reproduction_system = MarxistReproductionSystem(
                 technology_matrix = technology_matrix,
                 final_demand = final_demand,
@@ -130,7 +129,7 @@ class ManagerAgent(BaseAgent):
             cybernetic_output = reproduction_system.adjust_for_reproduction_balance(initial_output)
 
             # Calculate expanded reproduction demands
-            cybernetic_demand = reproduction_system.calculate_expanded_reproduction_demands(final_demand, production_multipliers=production_multipliers)
+            cybernetic_demand = reproduction_system.calculate_expanded_reproduction_demands(final_demand, production_multipliers = production_multipliers)
 
             # Debug: Check cybernetic_demand
             print(f"DEBUG MANAGER: Cybernetic_demand type: {type(cybernetic_demand)}")
@@ -141,13 +140,13 @@ class ManagerAgent(BaseAgent):
             # Add accumulation requirements
             accumulation_demand = reproduction_system.calculate_accumulation_requirements(cybernetic_output)
             cybernetic_demand += accumulation_demand
-            
+
             # Debug: Check final cybernetic_demand after accumulation
             print(f"DEBUG MANAGER: Final cybernetic_demand sum: {np.sum(cybernetic_demand)}")
             print(f"DEBUG MANAGER: Final cybernetic_demand first 5 values: {cybernetic_demand[:5]}")
-            
+
             # Fallback: If cybernetic_demand is zero or very small, use original final_demand
-            if np.sum(cybernetic_demand) < 1e-10:
+            if np.sum(cybernetic_demand) < 1e - 10:
                 print("DEBUG MANAGER: WARNING - cybernetic_demand is zero, using original final_demand")
                 cybernetic_demand = final_demand.copy()
                 print(f"DEBUG MANAGER: Fallback cybernetic_demand sum: {np.sum(cybernetic_demand)}")
@@ -155,7 +154,7 @@ class ManagerAgent(BaseAgent):
             # Use original values without reproduction adjustments
             cybernetic_output = initial_output
             cybernetic_demand = final_demand.copy()
-            
+
             # Debug: Check final_demand when reproduction is disabled
             print(f"DEBUG MANAGER: Reproduction disabled - using original final_demand")
             print(f"DEBUG MANAGER: Original final_demand sum: {np.sum(final_demand)}")
@@ -267,11 +266,11 @@ class ManagerAgent(BaseAgent):
             print(f"DEBUG REFINEMENT: Refined final_demand type: {type(refined_demand)}")
             print(f"DEBUG REFINEMENT: Refined final_demand sum: {np.sum(refined_demand)}")
             print(f"DEBUG REFINEMENT: Refined final_demand first 5 values: {refined_demand[:5]}")
-        
+
         # Update current plan
         self.current_plan.update(refined_plan)
         self.current_plan["iteration"] = self.planning_iteration
-        
+
         # Debug: Check final plan after update
         if "final_demand" in self.current_plan:
             final_plan_demand = self.current_plan["final_demand"]
@@ -404,13 +403,13 @@ class ManagerAgent(BaseAgent):
     def _simulate_policy_refinement(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Apply policy agent refinement with proper sector mapping."""
         policy_goals = task["parameters"].get("goals", [])
-        
+
         if not policy_goals:
             return {}
-        
+
         # Get sector mapping from state
         sector_mapping = self.get_state("sector_mapping", {})
-        
+
         # Create policy task with sector mapping
         policy_task = {
             "type": "policy_adjustment",
@@ -418,27 +417,27 @@ class ManagerAgent(BaseAgent):
             "goals": policy_goals,
             "sector_mapping": sector_mapping
         }
-        
+
         # Call the actual PolicyAgent
         policy_result = self.policy_agent.process_task(policy_task)
-        
+
         if policy_result.get("status") == "success":
             # Extract the adjusted plan components
             adjusted_plan = policy_result.get("adjusted_plan", {})
             refinements = {}
-            
+
             # Update final demand if it was modified
             if "final_demand" in adjusted_plan:
                 refinements["final_demand"] = adjusted_plan["final_demand"]
-            
+
             # Update labor vector if it was modified
             if "labor_vector" in adjusted_plan:
                 refinements["labor_vector"] = adjusted_plan["labor_vector"]
-            
+
             # Store constraint adjustments if any
             if "constraint_adjustments" in adjusted_plan:
                 refinements["constraint_adjustments"] = adjusted_plan["constraint_adjustments"]
-            
+
             return refinements
         else:
             # Fallback to simple simulation if PolicyAgent fails
