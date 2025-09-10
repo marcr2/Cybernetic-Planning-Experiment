@@ -8,6 +8,7 @@ rather than fixed parameters.
 
 from typing import Dict, Any, List, Tuple, Optional
 from dataclasses import dataclass
+import numpy as np
 
 @dataclass
 class IndustryPerformance:
@@ -115,7 +116,7 @@ class FeedbackGrowthSystem:
                 labor_efficiency = 0.0
 
             # Calculate technology level (inverse of input requirements)
-            technology_level = 1.0 / (np.sum(technology_matrix[:, i]) + 1e - 10)
+            technology_level = 1.0 / (np.sum(technology_matrix[:, i]) + 1e-10)
 
             # Calculate growth potential based on demand fulfillment
             if demand_fulfillment_rate < 0.8:  # Under - supplied

@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
 import json
 from datetime import datetime
+import numpy as np
 
 from .io_parser import IOParser
 from .resource_matrix_builder import ResourceMatrixBuilder

@@ -6,6 +6,7 @@ and handles data normalization and integration.
 """
 
 from typing import Dict, Any, Optional, List
+import numpy as np
 
 class SectorMapper:
     """

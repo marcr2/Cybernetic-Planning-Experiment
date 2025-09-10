@@ -8,6 +8,7 @@ and material flow data by sector from USGS databases.
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import os
+import logging
 
 from .base_scraper import BaseScraper
 

@@ -9,6 +9,7 @@ realism and sector importance.
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+import numpy as np
 
 class SectorCategory(Enum):
     """Core economic sector categories."""

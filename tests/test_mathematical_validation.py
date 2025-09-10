@@ -5,6 +5,8 @@ Tests the accuracy and completeness of mathematical formula validation.
 """
 
 import pytest
+import numpy as np
+from src.cybernetic_planning.core.mathematical_validation import (
     MathematicalValidator,
     ValidationResult,
     ValidationStatus

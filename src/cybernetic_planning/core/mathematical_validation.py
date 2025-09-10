@@ -8,6 +8,7 @@ mathematical accuracy of calculations.
 from typing import Dict, Any, List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
+import numpy as np
 
 class ValidationStatus(Enum):
     """Status of mathematical validation."""
@@ -34,7 +35,7 @@ class MathematicalValidator:
     - Marxist economic calculations - Leontief input - output analysis - Cybernetic feedback mechanisms - Optimization algorithms
     """
 
-    def __init__(self, tolerance: float = 1e - 10):
+    def __init__(self, tolerance: float = 1e-10):
         """
         Initialize the mathematical validator.
 

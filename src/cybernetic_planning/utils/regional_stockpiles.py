@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
+import numpy as np
 
 class StockpileType(Enum):
     """Types of stockpile facilities."""

@@ -7,6 +7,7 @@ generation by sector from EPA databases and environmental studies.
 
 from typing import Dict, Any, List
 from datetime import datetime
+import logging
 
 from .base_scraper import BaseScraper
 

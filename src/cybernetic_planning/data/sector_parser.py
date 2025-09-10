@@ -10,6 +10,7 @@ from typing import Dict, List, Tuple, Optional, Set
 from dataclasses import dataclass
 from enum import Enum
 import json
+from pathlib import Path
 
 class TechnologyLevel(Enum):
     """Technology development levels for sector unlocking."""
@@ -59,8 +60,13 @@ class SectorDefinition:
 class SectorParser:
     """Parser for extracting sectors from markdown and building technology tree."""
 
-    def __init__(self, sectors_file_path: str = "src / cybernetic_planning / data / sectors.md"):
-        self.sectors_file_path = sectors_file_path
+    def __init__(self, sectors_file_path: Optional[str] = None):
+        if sectors_file_path is None:
+            # Get the path relative to this file's location
+            current_dir = Path(__file__).parent
+            self.sectors_file_path = current_dir / "sectors.md"
+        else:
+            self.sectors_file_path = Path(sectors_file_path)
         self.sectors: Dict[int, SectorDefinition] = {}
         self.sector_names: List[str] = []
         self.technology_tree: Dict[int, List[int]] = {}  # sector_id -> unlocked_sectors
@@ -68,7 +74,7 @@ class SectorParser:
 
     def parse_sectors(self) -> Dict[int, SectorDefinition]:
         """Parse all sectors from the markdown file."""
-        with open(self.sectors_file_path, 'r', encoding='utf - 8') as f:
+        with open(self.sectors_file_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         # Extract sectors using regex

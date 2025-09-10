@@ -6,6 +6,7 @@ Orchestrates the iterative refinement of economic plans.
 """
 
 from typing import Dict, Any, List, Optional
+import numpy as np
 from .base import BaseAgent
 from .policy import PolicyAgent
 
@@ -146,7 +147,7 @@ class ManagerAgent(BaseAgent):
             print(f"DEBUG MANAGER: Final cybernetic_demand first 5 values: {cybernetic_demand[:5]}")
 
             # Fallback: If cybernetic_demand is zero or very small, use original final_demand
-            if np.sum(cybernetic_demand) < 1e - 10:
+            if np.sum(cybernetic_demand) < 1e-10:
                 print("DEBUG MANAGER: WARNING - cybernetic_demand is zero, using original final_demand")
                 cybernetic_demand = final_demand.copy()
                 print(f"DEBUG MANAGER: Fallback cybernetic_demand sum: {np.sum(cybernetic_demand)}")

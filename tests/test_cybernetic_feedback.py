@@ -5,6 +5,7 @@ Tests cybernetic feedback loops, stability, and adaptive control.
 """
 
 import pytest
+import numpy as np
 from src.cybernetic_planning.core.cybernetic_feedback import CyberneticFeedbackSystem
 
 class TestCyberneticFeedbackSystem:

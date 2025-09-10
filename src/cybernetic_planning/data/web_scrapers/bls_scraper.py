@@ -8,6 +8,7 @@ from BLS databases and O * NET occupational information.
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import os
+import logging
 
 from .base_scraper import BaseScraper
 

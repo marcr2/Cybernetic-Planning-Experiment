@@ -10,6 +10,8 @@ import time
 import json
 from pathlib import Path
 from typing import Dict, List, Tuple, Any, Optional
+import numpy as np
+import pandas as pd
 
 # Optional imports - these may not be available before installation
 try:

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from collections import defaultdict, deque
 import math
+import numpy as np
 
 try:
         CargoItem, Location, TransportPlan, TransportationSystem,

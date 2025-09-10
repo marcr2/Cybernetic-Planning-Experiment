@@ -11,6 +11,7 @@ from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timedelta
 from pathlib import Path
+import numpy as np
 
 # Import all simulation components
 try:

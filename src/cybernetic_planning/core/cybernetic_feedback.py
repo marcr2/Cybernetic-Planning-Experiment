@@ -8,6 +8,7 @@ Based on Stafford Beer's cybernetic principles and the Viable System Model (VSM)
 """
 
 from typing import Dict, Any, Optional, Tuple, List
+import numpy as np
 
 class CyberneticFeedbackSystem:
     """
@@ -24,7 +25,7 @@ class CyberneticFeedbackSystem:
         labor_vector: np.ndarray,
         feedback_strength: float = 0.1,
         adaptation_rate: float = 0.05,
-        convergence_threshold: float = 1e - 6,
+        convergence_threshold: float = 1e-6,
         max_iterations: int = 100
     ):
         """
@@ -95,7 +96,7 @@ class CyberneticFeedbackSystem:
             # Calculate feedback adjustment based on output - demand mismatch
             output_demand = self.A @ self.current_output
             net_output = self.current_output - output_demand
-            demand_satisfaction = net_output / (self.current_demand + 1e - 10)  # Avoid division by zero
+            demand_satisfaction = net_output / (self.current_demand + 1e-10)  # Avoid division by zero
 
             # Calculate feedback signal
             feedback_signal = self._calculate_feedback_signal(demand_satisfaction)
@@ -126,12 +127,12 @@ class CyberneticFeedbackSystem:
                 'output_change': output_change,
                 'feedback_signal': feedback_signal.copy(),
                 'demand_adjustment': demand_adjustment.copy(),
-                'convergence_ratio': output_change / (np.linalg.norm(self.current_output) + 1e - 10)
+                'convergence_ratio': output_change / (np.linalg.norm(self.current_output) + 1e-10)
             })
 
         # Calculate final results
         final_net_output = self.current_output - (self.A @ self.current_output)
-        final_demand_satisfaction = final_net_output / (self.current_demand + 1e - 10)
+        final_demand_satisfaction = final_net_output / (self.current_demand + 1e-10)
 
         return {
             'final_output': self.current_output,
@@ -214,7 +215,7 @@ class CyberneticFeedbackSystem:
         total_demand = self.d + feedback_signal
         if np.any(total_demand < 0):
             # Scale down feedback to maintain non - negative demand
-            scale_factor = np.min(self.d / (self.d - feedback_signal + 1e - 10))
+            scale_factor = np.min(self.d / (self.d - feedback_signal + 1e-10))
             scale_factor = min(scale_factor, 1.0)
             feedback_signal *= scale_factor
 
@@ -297,7 +298,7 @@ class CyberneticFeedbackSystem:
         if adaptation_rate is not None:
             self.adaptation_rate = np.clip(adaptation_rate, 0.0, 1.0)
         if convergence_threshold is not None:
-            self.convergence_threshold = max(convergence_threshold, 1e - 10)
+            self.convergence_threshold = max(convergence_threshold, 1e-10)
         if max_iterations is not None:
             self.max_iterations = max(max_iterations, 1)
 

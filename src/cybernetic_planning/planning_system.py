@@ -8,6 +8,8 @@ all components to generate comprehensive economic plans.
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 import json
+import numpy as np
+import pandas as pd
 
 from .core import DynamicPlanner
 from .core.validation import EconomicPlanValidator
@@ -48,8 +50,8 @@ class CyberneticPlanningSystem:
         self.policy_agent = PolicyAgent()
         self.writer_agent = WriterAgent()
 
-        # Initialize validator
-        self.validator = EconomicPlanValidator()
+        # Initialize economic plan validator
+        self.plan_validator = EconomicPlanValidator()
 
         # Initialize new modules
         self.marxist_calculator = None
@@ -111,7 +113,7 @@ class CyberneticPlanningSystem:
                 data = self.parser.parse_file(file_path, format_type)
 
             # Validate loaded data
-            validation_results = self.validator.validate_plan(data)
+            validation_results = self.plan_validator.validate_plan(data)
 
             if not validation_results["is_valid"]:
                 # Log validation warnings instead of printing
@@ -124,6 +126,10 @@ class CyberneticPlanningSystem:
 
             return data
 
+        except FileNotFoundError:
+            raise ValueError(f"Data file not found: {file_path}")
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON format in data file: {e}")
         except Exception as e:
             raise ValueError(f"Error loading data from file: {e}")
 
@@ -138,7 +144,7 @@ class CyberneticPlanningSystem:
             Validated data dictionary
         """
         # Validate data
-        validation_results = self.validator.validate_plan(data)
+        validation_results = self.plan_validator.validate_plan(data)
 
         if not validation_results["is_valid"]:
             # Log validation warnings instead of printing
@@ -169,15 +175,9 @@ class CyberneticPlanningSystem:
             n_sectors = n_sectors, technology_density = technology_density, resource_count = resource_count
         )
 
-        # Debug: Check synthetic data generation
-        print(f"DEBUG SYNTHETIC: Generated data keys: {list(data.keys())}")
-        if "final_demand" in data:
-            final_demand = data["final_demand"]
-            print(f"DEBUG SYNTHETIC: Generated final_demand type: {type(final_demand)}")
-            print(f"DEBUG SYNTHETIC: Generated final_demand sum: {np.sum(final_demand)}")
-            print(f"DEBUG SYNTHETIC: Generated final_demand first 5 values: {final_demand[:5]}")
-        else:
-            print("DEBUG SYNTHETIC: WARNING - No final_demand in generated data!")
+        # Validate synthetic data generation
+        if "final_demand" not in data:
+            raise ValueError("Synthetic data generation failed: missing final_demand")
 
         self.current_data = data
 
@@ -275,6 +275,12 @@ class CyberneticPlanningSystem:
         """
         if not self.current_data:
             raise ValueError("No economic data loaded. Please load data first.")
+        
+        # Validate required data fields
+        required_fields = ["technology_matrix", "final_demand", "labor_input"]
+        missing_fields = [field for field in required_fields if field not in self.current_data]
+        if missing_fields:
+            raise ValueError(f"Missing required data fields: {missing_fields}")
 
         # Set policy goals
         if policy_goals:
@@ -303,12 +309,9 @@ class CyberneticPlanningSystem:
         # Get original final demand (production multipliers will be applied by reproduction system)
         final_demand = self.current_data["final_demand"].copy()
 
-        # Debug: Check the original final_demand from data
-        print(f"DEBUG PLANNING: Original final_demand from data type: {type(final_demand)}")
-        print(f"DEBUG PLANNING: Original final_demand from data shape: {final_demand.shape if hasattr(final_demand, 'shape') else len(final_demand)}")
-        print(f"DEBUG PLANNING: Original final_demand from data sum: {np.sum(final_demand)}")
-        print(f"DEBUG PLANNING: Original final_demand from data first 5 values: {final_demand[:5]}")
-        print(f"DEBUG PLANNING: Number of sectors: {len(self.current_data.get('sectors', []))}")
+        # Validate final demand data
+        if not hasattr(final_demand, 'shape') or len(final_demand) == 0:
+            raise ValueError("Invalid final demand data: empty or malformed")
 
         # Create initial plan
         plan_task = {
@@ -347,7 +350,7 @@ class CyberneticPlanningSystem:
             self.current_plan = refine_result["plan"]
 
         # Validate the plan
-        validation_result = self.validator.validate_plan(self.current_plan)
+        validation_result = self.plan_validator.validate_plan(self.current_plan)
         self.current_plan["validation"] = validation_result
 
         # Evaluate final plan
@@ -425,6 +428,12 @@ class CyberneticPlanningSystem:
         """
         if not self.current_data:
             raise ValueError("No economic data loaded. Please load data first.")
+        
+        # Validate required data fields
+        required_fields = ["technology_matrix", "final_demand", "labor_input"]
+        missing_fields = [field for field in required_fields if field not in self.current_data]
+        if missing_fields:
+            raise ValueError(f"Missing required data fields: {missing_fields}")
 
         # Initialize dynamic planner
         dynamic_planner = DynamicPlanner(
@@ -588,8 +597,11 @@ class CyberneticPlanningSystem:
         # Convert all objects to JSON - serializable format
         json_data = convert_for_json(self.current_plan)
 
-        with open(file_path, "w") as f:
-            json.dump(json_data, f, indent = 2)
+        try:
+            with open(file_path, "w") as f:
+                json.dump(json_data, f, indent = 2)
+        except (OSError, IOError) as e:
+            raise ValueError(f"Failed to save plan to {file_path}: {e}")
 
     def _save_plan_csv(self, file_path: Path) -> None:
         """Save plan as CSV file."""
@@ -602,31 +614,37 @@ class CyberneticPlanningSystem:
             "labor_values": self.current_plan["labor_values"],
         }
 
-        df = pd.DataFrame(data)
-        df.to_csv(file_path, index = False)
+        try:
+            df = pd.DataFrame(data)
+            df.to_csv(file_path, index = False)
+        except Exception as e:
+            raise ValueError(f"Failed to save CSV plan to {file_path}: {e}")
 
     def _save_plan_excel(self, file_path: Path) -> None:
         """Save plan as Excel file."""
 
-        with pd.ExcelWriter(file_path) as writer:
-            # Main plan data
-            plan_data = {
-                "sector": range(len(self.current_plan["total_output"])),
-                "total_output": self.current_plan["total_output"],
-                "final_demand": self.current_plan["final_demand"],
-                "labor_values": self.current_plan["labor_values"],
-            }
+        try:
+            with pd.ExcelWriter(file_path) as writer:
+                # Main plan data
+                plan_data = {
+                    "sector": range(len(self.current_plan["total_output"])),
+                    "total_output": self.current_plan["total_output"],
+                    "final_demand": self.current_plan["final_demand"],
+                    "labor_values": self.current_plan["labor_values"],
+                }
 
-            df = pd.DataFrame(plan_data)
-            df.to_excel(writer, sheet_name="Plan_Data", index = False)
+                df = pd.DataFrame(plan_data)
+                df.to_excel(writer, sheet_name="Plan_Data", index = False)
 
-            # Technology matrix
-            tech_df = pd.DataFrame(
-                self.current_plan["technology_matrix"],
-                index = range(len(self.current_plan["total_output"])),
-                columns = range(len(self.current_plan["total_output"])),
-            )
-            tech_df.to_excel(writer, sheet_name="Technology_Matrix")
+                # Technology matrix
+                tech_df = pd.DataFrame(
+                    self.current_plan["technology_matrix"],
+                    index = range(len(self.current_plan["total_output"])),
+                    columns = range(len(self.current_plan["total_output"])),
+                )
+                tech_df.to_excel(writer, sheet_name="Technology_Matrix")
+        except Exception as e:
+            raise ValueError(f"Failed to save Excel plan to {file_path}: {e}")
 
     def load_plan(self, file_path: Union[str, Path]) -> Dict[str, Any]:
         """
@@ -641,21 +659,28 @@ class CyberneticPlanningSystem:
         file_path = Path(file_path)
 
         if file_path.suffix.lower() == ".json":
-            with open(file_path, "r") as f:
-                data = json.load(f)
+            try:
+                with open(file_path, "r") as f:
+                    data = json.load(f)
 
-            # Convert lists back to numpy arrays
-            for key, value in data.items():
-                if isinstance(value, list) and key in [
-                    "total_output",
-                    "final_demand",
-                    "labor_values",
-                    "technology_matrix",
-                ]:
-                    data[key] = np.array(value)
+                # Convert lists back to numpy arrays
+                for key, value in data.items():
+                    if isinstance(value, list) and key in [
+                        "total_output",
+                        "final_demand",
+                        "labor_values",
+                        "technology_matrix",
+                    ]:
+                        data[key] = np.array(value)
 
-            self.current_plan = data
-            return data
+                self.current_plan = data
+                return data
+            except FileNotFoundError:
+                raise ValueError(f"Plan file not found: {file_path}")
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON format in plan file: {e}")
+            except Exception as e:
+                raise ValueError(f"Error loading plan from {file_path}: {e}")
         else:
             raise ValueError(f"Unsupported plan format: {file_path.suffix}")
 

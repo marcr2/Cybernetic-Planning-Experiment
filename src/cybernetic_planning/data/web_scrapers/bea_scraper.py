@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import os
 import sys
+import numpy as np
 
 # Add project root to path for API key manager
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))

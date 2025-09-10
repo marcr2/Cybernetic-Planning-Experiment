@@ -3,7 +3,7 @@ echo Starting Cybernetic Planning System GUI...
 echo.
 
 REM Check if virtual environment exists
-if not exist "C:\Users\marce\Desktop\Cybernetic-Planning-Experiment\.venv\Scripts\python.exe" (
+if not exist "C:\Users\Marcellino\Desktop\Cybernetic-Planning-Experiment\.venv\Scripts\python.exe" (
     echo Error: Virtual environment not found
     echo Please run the installation wizard again
     pause
@@ -11,7 +11,7 @@ if not exist "C:\Users\marce\Desktop\Cybernetic-Planning-Experiment\.venv\Script
 )
 
 REM Run the GUI
-"C:\Users\marce\Desktop\Cybernetic-Planning-Experiment\.venv\Scripts\python.exe" gui.py
+"C:\Users\Marcellino\Desktop\Cybernetic-Planning-Experiment\.venv\Scripts\python.exe" gui.py
 
 REM Keep window open if there's an error
 if errorlevel 1 (

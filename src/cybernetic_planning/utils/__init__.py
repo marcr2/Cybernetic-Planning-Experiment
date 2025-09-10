@@ -1,10 +1,14 @@
 """Utility functions and helpers for the cybernetic planning system."""
 
 # Import helpers (these don't require external dependencies)
+from .helpers import format_number, format_percentage, create_summary_table
 
 # Import visualization functions only if seaborn is available
 try:
+    import seaborn as sns
+    import matplotlib.pyplot as plt
     VISUALIZATION_AVAILABLE = True
+    from .visualization import create_plan_visualizations
 except ImportError:
     VISUALIZATION_AVAILABLE = False
     # Create a dummy function for when visualization is not available

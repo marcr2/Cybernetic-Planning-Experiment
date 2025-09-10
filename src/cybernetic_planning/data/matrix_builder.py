@@ -6,6 +6,8 @@ Provides utilities for matrix operations, validation, and transformation.
 """
 
 from typing import Dict, Any, Optional, List, Union
+import numpy as np
+import pandas as pd
 
 from .hierarchical_sector_mapper import HierarchicalSectorMapper
 from .technology_tree_mapper import TechnologyTreeMapper

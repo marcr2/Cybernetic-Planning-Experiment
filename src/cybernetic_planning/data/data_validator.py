@@ -6,6 +6,7 @@ Ensures data quality for the cybernetic planning system.
 """
 
 from typing import Dict, Any
+import numpy as np
 
 class DataValidator:
     """
@@ -531,8 +532,8 @@ class DataValidator:
 
         # Calculate plan metrics
         results["metrics"]["total_output_value"] = np.sum(total_output)
-        results["metrics"]["labor_efficiency"] = np.sum(total_output) / (total_labor_cost + 1e - 10)
-        results["metrics"]["output_inequality"] = np.std(total_output) / (np.mean(total_output) + 1e - 10)
+        results["metrics"]["labor_efficiency"] = np.sum(total_output) / (total_labor_cost + 1e-10)
+        results["metrics"]["output_inequality"] = np.std(total_output) / (np.mean(total_output) + 1e-10)
 
         return results
 

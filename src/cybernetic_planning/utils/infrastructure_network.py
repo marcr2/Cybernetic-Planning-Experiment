@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import heapq
 from collections import defaultdict
+import numpy as np
 import random
 
 class TerrainType(Enum):

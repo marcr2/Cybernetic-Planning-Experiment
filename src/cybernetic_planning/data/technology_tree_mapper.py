@@ -9,6 +9,7 @@ from typing import Dict, List, Any, Optional, Set, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import json
+import numpy as np
 
 from .sector_parser import SectorParser, SectorDefinition, TechnologyLevel, SectorCategory
 
@@ -37,7 +38,7 @@ class TechnologyTreeMapper:
     - Progressive sector unlocking based on prerequisites - Technology development stages - Research investment requirements - Sector interdependencies - Development cost calculations
     """
 
-    def __init__(self, sectors_file_path: str = "src / cybernetic_planning / data / sectors.md"):
+    def __init__(self, sectors_file_path: Optional[str] = None):
         self.parser = SectorParser(sectors_file_path)
         self.sectors: Dict[int, SectorDefinition] = {}
         self.technology_nodes: Dict[int, TechnologyNode] = {}

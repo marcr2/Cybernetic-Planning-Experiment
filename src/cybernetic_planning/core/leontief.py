@@ -6,6 +6,7 @@ given final demand and technology matrix.
 """
 
 from typing import Optional, Dict, List
+import numpy as np
 from scipy.sparse import issparse
 from scipy.sparse.linalg import spsolve
 import warnings
@@ -146,7 +147,7 @@ class LeontiefModel:
         eigenvals = np.linalg.eigvals(self.A)
         return np.max(np.abs(eigenvals))
 
-    def is_productive(self, tolerance: float = 1e - 10) -> bool:
+    def is_productive(self, tolerance: float = 1e-10) -> bool:
         """
         Check if the economy is productive (spectral radius < 1).
 

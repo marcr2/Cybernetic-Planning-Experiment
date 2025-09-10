@@ -10,6 +10,7 @@ from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 import webbrowser
 import tempfile
+import numpy as np
 
 @dataclass
 class GeographicFeature:

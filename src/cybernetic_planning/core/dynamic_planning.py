@@ -7,6 +7,7 @@ and technological change.
 
 from typing import Dict, List, Optional, Any
 import warnings
+import numpy as np
 from .feedback_growth import FeedbackGrowthSystem
 
 class DynamicPlanner:

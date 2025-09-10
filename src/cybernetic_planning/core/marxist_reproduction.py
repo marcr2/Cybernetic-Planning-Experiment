@@ -10,6 +10,7 @@ with mathematical precision and theoretical accuracy.
 
 from typing import Dict, Any, Tuple, Optional, List
 from dataclasses import dataclass
+import numpy as np
 
 @dataclass
 class DepartmentBalance:

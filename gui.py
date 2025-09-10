@@ -6,6 +6,7 @@ A user - friendly graphical interface for the cybernetic planning system,
 allowing users to create economic plans, manage data, and generate reports.
 """
 
+import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import sys
 import os
@@ -13,6 +14,7 @@ import json
 from pathlib import Path
 import threading
 import webbrowser
+import numpy as np
 
 # Import map visualization
 try:
@@ -2286,9 +2288,17 @@ Ready to start simulation.
 
                 # Handle both scalar and list allocations
                 if isinstance(allocation, list):
-                    actual_allocation = [a * availability for a in allocation]
+                    actual_allocation = []
+                    for a in allocation:
+                        if isinstance(a, (int, float)):
+                            actual_allocation.append(a * availability)
+                        else:
+                            actual_allocation.append(a)  # Keep non-numeric values unchanged
                 else:
-                    actual_allocation = allocation * availability
+                    if isinstance(allocation, (int, float)):
+                        actual_allocation = allocation * availability
+                    else:
+                        actual_allocation = allocation  # Keep non-numeric values unchanged
 
                 resource_results[resource] = {
                     'planned': allocation,
@@ -2384,7 +2394,10 @@ Production Status:
 
         monitoring_message += "\nResource Allocation:\n"
         for resource, data in latest_result['resources'].items():
-            monitoring_message += f"  {resource}: {data['actual']:.2f} / {data['planned']:.2f} ({data['availability']:.1%})\n"
+            # Handle both scalar and list values for actual and planned allocations
+            actual_str = str(data['actual']) if isinstance(data['actual'], list) else f"{data['actual']:.2f}"
+            planned_str = str(data['planned']) if isinstance(data['planned'], list) else f"{data['planned']:.2f}"
+            monitoring_message += f"  {resource}: {actual_str} / {planned_str} ({data['availability']:.1%})\n"
 
         monitoring_message += "\nLabor Allocation:\n"
         for sector, data in latest_result['labor'].items():

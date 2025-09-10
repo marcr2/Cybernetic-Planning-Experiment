@@ -7,6 +7,7 @@ Creates detailed economic planning reports with mathematical transparency.
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import numpy as np
 from .base import BaseAgent
 
 class WriterAgent(BaseAgent):
@@ -152,14 +153,14 @@ class WriterAgent(BaseAgent):
 
         # Calculate summary statistics
         total_economic_output = np.sum(total_output)
-        labor_efficiency = total_economic_output / (total_labor_cost + 1e - 10) if total_labor_cost > 0 else 0
+        labor_efficiency = total_economic_output / (total_labor_cost + 1e-10) if total_labor_cost > 0 else 0
 
         # Calculate demand fulfillment correctly using net output
         technology_matrix = plan_data.get("technology_matrix")
         if technology_matrix is not None:
             I = np.eye(technology_matrix.shape[0])
             net_output = (I - technology_matrix) @ total_output
-            demand_fulfillment = np.sum(net_output) / (np.sum(final_demand) + 1e - 10) if np.sum(final_demand) > 0 else 0
+            demand_fulfillment = np.sum(net_output) / (np.sum(final_demand) + 1e-10) if np.sum(final_demand) > 0 else 0
         else:
             # Fallback: assume perfect fulfillment if no technology matrix
             demand_fulfillment = 1.0
@@ -272,7 +273,7 @@ labor efficiency while ensuring all final demand targets are met.
         resource_table = self._create_resource_table(resource_usage, max_resources)
 
         # Calculate utilization rates
-        utilization_rates = resource_usage / (max_resources + 1e - 10)
+        utilization_rates = resource_usage / (max_resources + 1e-10)
         avg_utilization = np.mean(utilization_rates)
         max_utilization = np.max(utilization_rates)
 
@@ -313,7 +314,7 @@ labor efficiency while ensuring all final demand targets are met.
         ]
 
         for i in range(len(resource_usage)):
-            utilization = resource_usage[i] / (max_resources[i] + 1e - 10)
+            utilization = resource_usage[i] / (max_resources[i] + 1e-10)
             status = "Critical" if utilization > 0.9 else "Normal" if utilization > 0.7 else "Low"
 
             table_lines.append(
@@ -357,7 +358,7 @@ labor efficiency while ensuring all final demand targets are met.
 - **Average Labor Value**: {avg_labor_value:.4f} person - hours per unit
 
 ### Labor Efficiency Metrics
-- **Labor Productivity**: {np.sum(total_output) / (total_labor_cost + 1e - 10):.2f} units per person - hour
+- **Labor Productivity**: {np.sum(total_output) / (total_labor_cost + 1e-10):.2f} units per person - hour
 - **Most Labor - Intensive Sector**: Sector {np.argmax(labor_values)} ({np.max(labor_values):.4f} person - hours / unit)
 - **Least Labor - Intensive Sector**: Sector {np.argmin(labor_values)} ({np.min(labor_values):.4f} person - hours / unit)
 

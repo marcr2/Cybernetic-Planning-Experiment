@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 import json
 from datetime import datetime, timedelta
+import pandas as pd
 import hashlib
 
 class BaseScraper(ABC):
