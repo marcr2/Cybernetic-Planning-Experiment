@@ -6,7 +6,6 @@ Manages resource constraints and environmental impact assessment.
 """
 
 from typing import Dict, Any, List, Optional
-import numpy as np
 from .base import BaseAgent
 
 class ResourceAgent(BaseAgent):
@@ -303,7 +302,7 @@ class ResourceAgent(BaseAgent):
             Sustainability score (0 - 1, higher is better)
         """
         # Normalize impacts (simplified approach)
-        normalized_impacts = impacts / (np.sum(impacts) + 1e-10)
+        normalized_impacts = impacts / (np.sum(impacts) + 1e - 10)
 
         # Calculate sustainability score (inverse of total impact)
         sustainability_score = 1.0 / (1.0 + np.sum(normalized_impacts))
@@ -422,7 +421,7 @@ class ResourceAgent(BaseAgent):
             "impact_variance": np.var(impacts),
             "sustainability_score": self._calculate_sustainability_score(impacts),
             "carbon_intensity": impacts[0] if len(impacts) > 0 else 0,
-            "water_efficiency": 1.0 / (impacts[1] + 1e-10) if len(impacts) > 1 else 0,
+            "water_efficiency": 1.0 / (impacts[1] + 1e - 10) if len(impacts) > 1 else 0,
         }
 
         return metrics

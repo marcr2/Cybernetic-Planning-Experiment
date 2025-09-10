@@ -7,7 +7,6 @@ Converts natural language goals into quantitative plan adjustments.
 
 from typing import Dict, Any, List, Optional, Union
 import re
-import numpy as np
 from .base import BaseAgent
 
 class PolicyAgent(BaseAgent):
@@ -233,7 +232,7 @@ class PolicyAgent(BaseAgent):
         """
         if sector_mapping is None:
             sector_mapping = {}
-            
+
         adjustments = []
 
         for goal in goals:
@@ -404,9 +403,9 @@ class PolicyAgent(BaseAgent):
         metrics = {
             "total_economic_output": np.sum(total_output),
             "average_sector_output": np.mean(total_output),
-            "output_inequality": np.std(total_output) / (np.mean(total_output) + 1e-10),
+            "output_inequality": np.std(total_output) / (np.mean(total_output) + 1e - 10),
             "total_labor_cost": total_labor_cost,
-            "labor_efficiency": np.sum(total_output) / (total_labor_cost + 1e-10),
+            "labor_efficiency": np.sum(total_output) / (total_labor_cost + 1e - 10),
         }
 
         # Add sector - specific social metrics
@@ -414,7 +413,7 @@ class PolicyAgent(BaseAgent):
             social_weights = social_indicators["sector_social_weights"]
             if len(social_weights) == len(total_output):
                 metrics["social_weighted_output"] = np.sum(social_weights * total_output)
-                metrics["social_efficiency"] = metrics["social_weighted_output"] / (total_labor_cost + 1e-10)
+                metrics["social_efficiency"] = metrics["social_weighted_output"] / (total_labor_cost + 1e - 10)
 
         return metrics
 
@@ -439,14 +438,14 @@ class PolicyAgent(BaseAgent):
                 "target": employment_target,
                 "actual": total_labor_cost,
                 "achieved": total_labor_cost >= employment_target,
-                "achievement_rate": total_labor_cost / (employment_target + 1e-10),
+                "achievement_rate": total_labor_cost / (employment_target + 1e - 10),
             }
 
         # Check output distribution goals
         if "output_distribution_target" in social_indicators:
             total_output = plan.get("total_output", np.array([]))
             distribution_target = social_indicators["output_distribution_target"]
-            actual_distribution = total_output / (np.sum(total_output) + 1e-10)
+            actual_distribution = total_output / (np.sum(total_output) + 1e - 10)
 
             goal_achievement["output_distribution"] = {
                 "target": distribution_target,

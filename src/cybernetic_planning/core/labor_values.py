@@ -5,7 +5,6 @@ Implements Cockshott's labor - time accounting model for calculating
 the total direct and indirect labor embodied in commodities.
 """
 
-import numpy as np
 from scipy.sparse import issparse
 from scipy.sparse.linalg import spsolve
 import warnings
@@ -85,7 +84,7 @@ class LaborValueCalculator:
         if np.any(self._labor_values < 0):
             warnings.warn("Some labor values are negative - this violates the labor theory of value")
             # Set negative values to small positive values to maintain economic viability
-            self._labor_values = np.maximum(self._labor_values, 1e-10)
+            self._labor_values = np.maximum(self._labor_values, 1e - 10)
 
     def get_labor_values(self) -> np.ndarray:
         """Get the labor value vector."""

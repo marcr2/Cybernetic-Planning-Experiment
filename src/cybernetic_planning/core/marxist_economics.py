@@ -9,7 +9,6 @@ Based on Marx's Capital Volumes 1, 2, and 3.
 
 from typing import Dict, Any, Tuple, Optional, List
 from dataclasses import dataclass
-import numpy as np
 
 @dataclass
 class ValueComposition:
@@ -170,7 +169,7 @@ class MarxistEconomicCalculator:
         values = np.array([comp.total_value for comp in self._value_compositions])
 
         # Calculate relative deviations
-        price_value_ratios = prices / (values + 1e-10)  # Avoid division by zero
+        price_value_ratios = prices / (values + 1e - 10)  # Avoid division by zero
         mean_ratio = np.mean(price_value_ratios)
         normalized_ratios = price_value_ratios / mean_ratio
 
@@ -193,13 +192,13 @@ class MarxistEconomicCalculator:
         """Calculate labor productivity (output per unit labor) for each sector."""
         # Labor productivity = 1 / labor value per unit output
         labor_values = np.array([comp.total_value for comp in self._value_compositions])
-        return 1.0 / (labor_values + 1e-10)  # Avoid division by zero
+        return 1.0 / (labor_values + 1e - 10)  # Avoid division by zero
 
     def calculate_technical_composition_of_capital(self) -> np.ndarray:
         """Calculate technical composition of capital (means of production per worker)."""
         # TCC = constant capital / labor input
         constant_capitals = np.array([comp.constant_capital for comp in self._value_compositions])
-        return constant_capitals / (self.l + 1e-10)  # Avoid division by zero
+        return constant_capitals / (self.l + 1e - 10)  # Avoid division by zero
 
     def analyze_value_flow(self, final_demand: np.ndarray) -> Dict[str, Any]:
         """
@@ -259,7 +258,7 @@ class MarxistEconomicCalculator:
 
         # Check reproduction conditions
         # For simple reproduction: total surplus value = total consumption
-        reproduction_condition = abs(total_surplus_value - total_variable_capital) < 1e-6
+        reproduction_condition = abs(total_surplus_value - total_variable_capital) < 1e - 6
 
         return {
             "total_constant_capital": total_constant_capital,

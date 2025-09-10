@@ -81,7 +81,7 @@ def calculate_economic_indicators(plan_data: Dict[str, Any]) -> Dict[str, float]
     if technology_matrix is not None:
         I = np.eye(technology_matrix.shape[0])
         net_output = (I - technology_matrix) @ total_output
-        demand_fulfillment_rate = np.sum(net_output) / (np.sum(final_demand) + 1e-10)
+        demand_fulfillment_rate = np.sum(net_output) / (np.sum(final_demand) + 1e - 10)
     else:
         # Fallback: assume net output equals final demand if no technology matrix
         demand_fulfillment_rate = 1.0

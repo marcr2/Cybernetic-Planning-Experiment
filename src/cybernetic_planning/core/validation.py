@@ -6,7 +6,6 @@ and Paul Cockshott's labor theory of value.
 """
 
 from typing import Dict, Any, List, Tuple
-import numpy as np
 
 class EconomicPlanValidator:
     """
@@ -198,9 +197,9 @@ class EconomicPlanValidator:
         # Check if demand is exactly fulfilled
         demand_error = np.abs(net_output - d)
         max_error = np.max(demand_error)
-        relative_error = max_error / (np.max(d) + 1e-10)
+        relative_error = max_error / (np.max(d) + 1e - 10)
 
-        if relative_error > 1e-3:  # Allow for reasonable numerical errors
+        if relative_error > 1e - 3:  # Allow for reasonable numerical errors
             self.errors.append(f"Demand not exactly fulfilled (max error: {max_error:.2e}, relative: {relative_error:.2e})")
 
         self.validation_results["economic_viability"]["demand_fulfillment_error"] = relative_error
@@ -216,9 +215,9 @@ class EconomicPlanValidator:
         if total_labor_cost is not None:
             # Check if calculated labor cost matches expected
             error = abs(total_labor_cost - expected_labor_cost)
-            relative_error = error / (expected_labor_cost + 1e-10)
+            relative_error = error / (expected_labor_cost + 1e - 10)
 
-            if relative_error > 1e-6:
+            if relative_error > 1e - 6:
                 self.warnings.append(f"Labor cost calculation mismatch (error: {error:.2e})")
 
         self.validation_results["economic_viability"]["total_labor_cost"] = expected_labor_cost

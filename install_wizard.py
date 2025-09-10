@@ -16,7 +16,6 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import time
-import re
 
 class InstallationWizard:
     def __init__(self):
@@ -144,7 +143,7 @@ class InstallationWizard:
         try:
             result = subprocess.run([
                 str(self.python_executable), "-m", "pip", "install", "--upgrade", "pip", "--quiet"
-            ], capture_output=True, text=True, cwd=self.project_root)
+            ], capture_output = True, text = True, cwd = self.project_root)
 
             if result.returncode != 0:
                 self.log(f"WARNING: Failed to upgrade pip: {result.stderr}", "WARNING")
@@ -164,7 +163,7 @@ class InstallationWizard:
         try:
             result = subprocess.run([
                 str(self.pip_executable), "install", "tqdm", "--quiet"
-            ], capture_output=True, text=True, cwd=self.project_root)
+            ], capture_output = True, text = True, cwd = self.project_root)
 
             if result.returncode != 0:
                 self.log(f"ERROR: Failed to install TQDM: {result.stderr}", "ERROR")
@@ -185,13 +184,13 @@ class InstallationWizard:
             # Import TQDM from virtual environment
             import sys
             if platform.system() == "Windows":
-                venv_tqdm_path = str(self.venv_path / "Lib" / "site-packages")
+                venv_tqdm_path = str(self.venv_path / "Lib" / "site - packages")
             else:
-                venv_tqdm_path = str(self.venv_path / "lib" / "site-packages")
-            
+                venv_tqdm_path = str(self.venv_path / "lib" / "site - packages")
+
             if venv_tqdm_path not in sys.path:
                 sys.path.insert(0, venv_tqdm_path)
-            
+
             try:
                 from tqdm import tqdm
             except ImportError:
@@ -207,41 +206,41 @@ class InstallationWizard:
             # Read requirements to get package count
             with open(requirements_file, 'r') as f:
                 requirements = [line.strip() for line in f if line.strip() and not line.startswith('#')]
-            
+
             total_packages = len(requirements)
             self.log(f"Found {total_packages} packages to install...")
 
             # Create progress bar for requirements installation
-            with tqdm(total=total_packages, desc="Installing dependencies", 
-                     unit="package", ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
-                
+            with tqdm(total = total_packages, desc="Installing dependencies",
+                     unit="package", ncols = 80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
+
                 # Install packages one by one to track progress
                 for i, package in enumerate(requirements):
                     package_name = package.split('==')[0].split('>=')[0].split('<=')[0]
                     pbar.set_description(f"Installing {package_name}")
-                    
+
                     result = subprocess.run([
                         str(self.pip_executable), "install", package, "--quiet"
-                    ], capture_output=True, text=True, cwd=self.project_root)
-                    
+                    ], capture_output = True, text = True, cwd = self.project_root)
+
                     if result.returncode != 0:
                         self.log(f"WARNING: Failed to install {package_name}: {result.stderr}", "WARNING")
-                    
+
                     pbar.update(1)
                     pbar.refresh()
 
             # Install the project itself in development mode
             self.log("Installing project in development mode...")
-            with tqdm(total=1, desc="Installing project", unit="package", 
-                     ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
-                
+            with tqdm(total = 1, desc="Installing project", unit="package",
+                     ncols = 80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
+
                 result = subprocess.run([
                     str(self.pip_executable), "install", "-e", ".", "--quiet"
-                ], capture_output=True, text=True, cwd=self.project_root)
-                
+                ], capture_output = True, text = True, cwd = self.project_root)
+
                 if result.returncode != 0:
                     self.log(f"WARNING: Failed to install project in development mode: {result.stderr}", "WARNING")
-                
+
                 pbar.update(1)
 
             self.log("[OK] Dependencies installed successfully")
@@ -322,13 +321,13 @@ class InstallationWizard:
             # Import TQDM from virtual environment
             import sys
             if platform.system() == "Windows":
-                venv_tqdm_path = str(self.venv_path / "Lib" / "site-packages")
+                venv_tqdm_path = str(self.venv_path / "Lib" / "site - packages")
             else:
-                venv_tqdm_path = str(self.venv_path / "lib" / "site-packages")
-            
+                venv_tqdm_path = str(self.venv_path / "lib" / "site - packages")
+
             if venv_tqdm_path not in sys.path:
                 sys.path.insert(0, venv_tqdm_path)
-            
+
             try:
                 from tqdm import tqdm
             except ImportError:
@@ -339,16 +338,16 @@ class InstallationWizard:
                 ("Testing core Python imports", "import numpy, pandas, scipy, cvxpy, matplotlib; print('All core imports successful')"),
                 ("Testing project imports", "from src.cybernetic_planning.planning_system import CyberneticPlanningSystem; print('Project import successful')")
             ]
-            
-            with tqdm(total=len(validation_steps), desc="Validating installation", 
-                     unit="test", ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
-                
+
+            with tqdm(total = len(validation_steps), desc="Validating installation",
+                     unit="test", ncols = 80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
+
                 for step_name, test_code in validation_steps:
                     pbar.set_description(step_name)
-                    
+
                     result = subprocess.run([
                         str(self.python_executable), "-c", test_code
-                    ], capture_output=True, text=True, cwd=self.project_root)
+                    ], capture_output = True, text = True, cwd = self.project_root)
 
                     if result.returncode != 0:
                         if "core imports" in step_name:
@@ -357,7 +356,7 @@ class InstallationWizard:
                             return False
                         else:
                             self.log(f"WARNING: {step_name} failed: {result.stderr}", "WARNING")
-                    
+
                     pbar.update(1)
 
             self.log("[OK] Installation validation completed")
@@ -458,8 +457,8 @@ What was installed:
    [OK] Directory structure
 
 How to run the system:
-   Windows: Double-click run_gui.bat or run: .\\run_gui.bat
-   Unix/Mac: Run: ./run_gui.sh
+   Windows: Double - click run_gui.bat or run: .\\run_gui.bat
+   Unix / Mac: Run: ./run_gui.sh
 
 Next steps:
    1. Run the GUI to start planning
@@ -469,7 +468,7 @@ Next steps:
 
 Documentation: See README.md for detailed usage instructions
 
-Troubleshooting: Check logs/installation.log if you encounter issues
+Troubleshooting: Check logs / installation.log if you encounter issues
 
 Happy planning!
         """
@@ -510,9 +509,9 @@ def main():
     # Set up encoding for Windows compatibility
     if sys.platform.startswith('win'):
         import codecs
-        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
-        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
-    
+        sys.stdout = codecs.getwriter('utf - 8')(sys.stdout.detach())
+        sys.stderr = codecs.getwriter('utf - 8')(sys.stderr.detach())
+
     wizard = InstallationWizard()
 
     try:

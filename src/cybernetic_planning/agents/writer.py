@@ -7,7 +7,6 @@ Creates detailed economic planning reports with mathematical transparency.
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-import numpy as np
 from .base import BaseAgent
 
 class WriterAgent(BaseAgent):
@@ -153,14 +152,14 @@ class WriterAgent(BaseAgent):
 
         # Calculate summary statistics
         total_economic_output = np.sum(total_output)
-        labor_efficiency = total_economic_output / (total_labor_cost + 1e-10) if total_labor_cost > 0 else 0
-        
+        labor_efficiency = total_economic_output / (total_labor_cost + 1e - 10) if total_labor_cost > 0 else 0
+
         # Calculate demand fulfillment correctly using net output
         technology_matrix = plan_data.get("technology_matrix")
         if technology_matrix is not None:
             I = np.eye(technology_matrix.shape[0])
             net_output = (I - technology_matrix) @ total_output
-            demand_fulfillment = np.sum(net_output) / (np.sum(final_demand) + 1e-10) if np.sum(final_demand) > 0 else 0
+            demand_fulfillment = np.sum(net_output) / (np.sum(final_demand) + 1e - 10) if np.sum(final_demand) > 0 else 0
         else:
             # Fallback: assume perfect fulfillment if no technology matrix
             demand_fulfillment = 1.0
@@ -273,7 +272,7 @@ labor efficiency while ensuring all final demand targets are met.
         resource_table = self._create_resource_table(resource_usage, max_resources)
 
         # Calculate utilization rates
-        utilization_rates = resource_usage / (max_resources + 1e-10)
+        utilization_rates = resource_usage / (max_resources + 1e - 10)
         avg_utilization = np.mean(utilization_rates)
         max_utilization = np.max(utilization_rates)
 
@@ -314,7 +313,7 @@ labor efficiency while ensuring all final demand targets are met.
         ]
 
         for i in range(len(resource_usage)):
-            utilization = resource_usage[i] / (max_resources[i] + 1e-10)
+            utilization = resource_usage[i] / (max_resources[i] + 1e - 10)
             status = "Critical" if utilization > 0.9 else "Normal" if utilization > 0.7 else "Low"
 
             table_lines.append(
@@ -358,7 +357,7 @@ labor efficiency while ensuring all final demand targets are met.
 - **Average Labor Value**: {avg_labor_value:.4f} person - hours per unit
 
 ### Labor Efficiency Metrics
-- **Labor Productivity**: {np.sum(total_output) / (total_labor_cost + 1e-10):.2f} units per person - hour
+- **Labor Productivity**: {np.sum(total_output) / (total_labor_cost + 1e - 10):.2f} units per person - hour
 - **Most Labor - Intensive Sector**: Sector {np.argmax(labor_values)} ({np.max(labor_values):.4f} person - hours / unit)
 - **Least Labor - Intensive Sector**: Sector {np.argmin(labor_values)} ({np.min(labor_values):.4f} person - hours / unit)
 
@@ -595,10 +594,10 @@ The plan's sensitivity to changes in key parameters has been analyzed:
     def _generate_automatic_analysis_section(self, plan_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate automatic analysis section."""
         title = "Automatic Analysis Results"
-        
+
         # Get automatic analysis results from the planning system
         automatic_analyses = plan_data.get("automatic_analyses", {})
-        
+
         if not automatic_analyses or "error" in automatic_analyses:
             return {
                 "title": title,
@@ -608,23 +607,21 @@ The plan's sensitivity to changes in key parameters has been analyzed:
 ⚠️ **No automatic analysis results available**
 
 The system was unable to run automatic analyses. This may be due to:
-- Missing data or configuration
-- Analysis errors during execution
-- System initialization issues
+- Missing data or configuration - Analysis errors during execution - System initialization issues
 
 **Recommendation**: Check system logs and ensure all required data is properly loaded.""",
                 "metrics": {"status": "unavailable"}
             }
-        
+
         # Build analysis content
         content_parts = [f"## {title}\n"]
-        
+
         # Marxist Analysis
         if "marxist" in automatic_analyses:
             marxist_data = automatic_analyses["marxist"]
             if "error" not in marxist_data:
                 content_parts.append("### Marxist Economic Analysis")
-                
+
                 # Aggregate Value Composition
                 if "aggregate_value_composition" in marxist_data:
                     agg_data = marxist_data["aggregate_value_composition"]
@@ -633,43 +630,43 @@ The system was unable to run automatic analyses. This may be due to:
                     content_parts.append(f"- Variable Capital (V): {agg_data.get('variable_capital', 0):.2f}")
                     content_parts.append(f"- Surplus Value (S): {agg_data.get('surplus_value', 0):.2f}")
                     content_parts.append(f"- Total Value: {agg_data.get('total_value', 0):.2f}")
-                    content_parts.append(f"- Organic Composition (C/V): {agg_data.get('organic_composition', 0):.4f}")
-                    content_parts.append(f"- Rate of Surplus Value (S/V): {agg_data.get('rate_of_surplus_value', 0):.4f}")
-                    content_parts.append(f"- Rate of Profit (S/(C+V)): {agg_data.get('rate_of_profit', 0):.4f}")
+                    content_parts.append(f"- Organic Composition (C / V): {agg_data.get('organic_composition', 0):.4f}")
+                    content_parts.append(f"- Rate of Surplus Value (S / V): {agg_data.get('rate_of_surplus_value', 0):.4f}")
+                    content_parts.append(f"- Rate of Profit (S/(C + V)): {agg_data.get('rate_of_profit', 0):.4f}")
                     content_parts.append("")
-                
-                # Economy-wide Averages
+
+                # Economy - wide Averages
                 if "economy_wide_averages" in marxist_data:
                     avg_data = marxist_data["economy_wide_averages"]
-                    content_parts.append("**Economy-wide Averages**:")
+                    content_parts.append("**Economy - wide Averages**:")
                     content_parts.append(f"- Average Organic Composition: {avg_data.get('average_organic_composition', 0):.4f}")
                     content_parts.append(f"- Average Rate of Surplus Value: {avg_data.get('average_rate_of_surplus_value', 0):.4f}")
                     content_parts.append(f"- Average Rate of Profit: {avg_data.get('average_rate_of_profit', 0):.4f}")
                     content_parts.append("")
-                
+
                 # Sectoral Indicators Summary
                 if "sectoral_indicators" in marxist_data:
                     sector_data = marxist_data["sectoral_indicators"]
                     content_parts.append("**Sectoral Indicators Summary**:")
-                    
+
                     if "organic_composition" in sector_data:
                         org_comp = np.array(sector_data["organic_composition"])
                         content_parts.append(f"- Organic Composition Range: {np.min(org_comp):.4f} - {np.max(org_comp):.4f}")
                         content_parts.append(f"- Organic Composition Std Dev: {np.std(org_comp):.4f}")
                         content_parts.append(f"- Number of Sectors: {len(org_comp)}")
-                    
+
                     if "rate_of_surplus_value" in sector_data:
                         surplus_rates = np.array(sector_data["rate_of_surplus_value"])
                         content_parts.append(f"- Surplus Value Rate Range: {np.min(surplus_rates):.4f} - {np.max(surplus_rates):.4f}")
                         content_parts.append(f"- Surplus Value Rate Std Dev: {np.std(surplus_rates):.4f}")
-                    
+
                     if "rate_of_profit" in sector_data:
                         profit_rates = np.array(sector_data["rate_of_profit"])
                         content_parts.append(f"- Profit Rate Range: {np.min(profit_rates):.4f} - {np.max(profit_rates):.4f}")
                         content_parts.append(f"- Profit Rate Std Dev: {np.std(profit_rates):.4f}")
-                    
+
                     content_parts.append("")
-                
+
                 # Detailed Sectoral Data (if requested)
                 if "sectoral_indicators" in marxist_data and len(marxist_data["sectoral_indicators"].get("organic_composition", [])) <= 20:
                     # Only show detailed data for small economies
@@ -677,15 +674,15 @@ The system was unable to run automatic analyses. This may be due to:
                     content_parts.append("**Detailed Sectoral Data**:")
                     content_parts.append("| Sector | Organic Composition | Surplus Value Rate | Profit Rate |")
                     content_parts.append("|--------|-------------------|-------------------|-------------|")
-                    
+
                     for i in range(len(sector_data.get("organic_composition", []))):
                         org_comp = sector_data["organic_composition"][i] if i < len(sector_data["organic_composition"]) else 0
                         surplus_rate = sector_data["rate_of_surplus_value"][i] if i < len(sector_data["rate_of_surplus_value"]) else 0
                         profit_rate = sector_data["rate_of_profit"][i] if i < len(sector_data["rate_of_profit"]) else 0
                         content_parts.append(f"| {i:6d} | {org_comp:17.4f} | {surplus_rate:17.4f} | {profit_rate:11.4f} |")
-                    
+
                     content_parts.append("")
-                
+
                 # Legacy support for old format
                 if "labor_values" in marxist_data:
                     labor_values = marxist_data["labor_values"]
@@ -693,7 +690,7 @@ The system was unable to run automatic analyses. This may be due to:
                     content_parts.append(f"- Average labor value: {np.mean(labor_values):.4f}")
                     content_parts.append(f"- Labor value range: {np.min(labor_values):.4f} - {np.max(labor_values):.4f}")
                     content_parts.append("")
-                
+
                 if "surplus_value" in marxist_data:
                     surplus_value = marxist_data["surplus_value"]
                     content_parts.append(f"- Total surplus value: {surplus_value:.2f}")
@@ -702,7 +699,7 @@ The system was unable to run automatic analyses. This may be due to:
                 content_parts.append("### Marxist Economic Analysis")
                 content_parts.append(f"❌ **Error**: {marxist_data['error']}")
                 content_parts.append("")
-        
+
         # Cybernetic Analysis
         if "cybernetic" in automatic_analyses:
             cybernetic_data = automatic_analyses["cybernetic"]
@@ -710,20 +707,20 @@ The system was unable to run automatic analyses. This may be due to:
                 content_parts.append("### Cybernetic Feedback Analysis")
                 if "converged" in cybernetic_data:
                     content_parts.append(f"- **Convergence Status**: {'✓ Converged' if cybernetic_data['converged'] else '⚠️ Did not converge'}")
-                
+
                 if "iterations" in cybernetic_data:
                     content_parts.append(f"- **Iterations**: {cybernetic_data['iterations']}")
-                
+
                 if "final_demand" in cybernetic_data:
                     final_demand = cybernetic_data["final_demand"]
                     content_parts.append(f"- **Adjusted Final Demand**: {np.sum(final_demand):.2f} total")
-                
+
                 content_parts.append("")
             else:
                 content_parts.append("### Cybernetic Feedback Analysis")
                 content_parts.append(f"❌ **Error**: {cybernetic_data['error']}")
                 content_parts.append("")
-        
+
         # Mathematical Validation
         if "mathematical" in automatic_analyses:
             math_data = automatic_analyses["mathematical"]
@@ -731,44 +728,44 @@ The system was unable to run automatic analyses. This may be due to:
                 content_parts.append("### Mathematical Validation")
                 if "overall_valid" in math_data:
                     content_parts.append(f"- **Overall Validity**: {'✓ Valid' if math_data['overall_valid'] else '❌ Invalid'}")
-                
+
                 if "component_results" in math_data:
                     comp_results = math_data["component_results"]
                     for component, result in comp_results.items():
                         if isinstance(result, dict) and "valid" in result:
                             status = "✓" if result["valid"] else "❌"
                             content_parts.append(f"- **{component.replace('_', ' ').title()}**: {status}")
-                
+
                 content_parts.append("")
             else:
                 content_parts.append("### Mathematical Validation")
                 content_parts.append(f"❌ **Error**: {math_data['error']}")
                 content_parts.append("")
-        
+
         # Summary
         content_parts.append("### Analysis Summary")
-        successful_analyses = sum(1 for analysis in automatic_analyses.values() 
+        successful_analyses = sum(1 for analysis in automatic_analyses.values()
                                 if isinstance(analysis, dict) and "error" not in analysis)
         total_analyses = len(automatic_analyses)
-        
+
         content_parts.append(f"- **Successful Analyses**: {successful_analyses}/{total_analyses}")
-        content_parts.append(f"- **Analysis Coverage**: {(successful_analyses/total_analyses)*100:.1f}%")
-        
+        content_parts.append(f"- **Analysis Coverage**: {(successful_analyses / total_analyses)*100:.1f}%")
+
         if successful_analyses == total_analyses:
             content_parts.append("- **Status**: ✅ All analyses completed successfully")
         elif successful_analyses > 0:
             content_parts.append("- **Status**: ⚠️ Partial analysis completion")
         else:
             content_parts.append("- **Status**: ❌ All analyses failed")
-        
+
         content = "\n".join(content_parts)
-        
+
         return {
             "title": title,
             "content": content,
             "metrics": {
                 "successful_analyses": successful_analyses,
                 "total_analyses": total_analyses,
-                "coverage_percentage": (successful_analyses/total_analyses)*100 if total_analyses > 0 else 0
+                "coverage_percentage": (successful_analyses / total_analyses)*100 if total_analyses > 0 else 0
             }
         }

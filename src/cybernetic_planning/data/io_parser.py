@@ -9,8 +9,6 @@ from typing import Dict, Any, Optional, List, Union
 import json
 import csv
 from pathlib import Path
-import pandas as pd
-import numpy as np
 
 class IOParser:
     """

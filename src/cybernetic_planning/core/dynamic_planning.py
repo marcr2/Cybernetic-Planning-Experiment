@@ -7,7 +7,6 @@ and technological change.
 
 from typing import Dict, List, Optional, Any
 import warnings
-import numpy as np
 from .feedback_growth import FeedbackGrowthSystem
 
 class DynamicPlanner:
@@ -67,22 +66,22 @@ class DynamicPlanner:
         self.labor_vectors = {0: self.l_0.copy()}
         self.capital_stocks = {0: self.K_0.copy()}
         self.plans = {}
-        
+
         # Initialize feedback growth system
         # Calculate department indices based on sector count
         n_dept_I = min(50, self.n_sectors // 3)
         n_dept_II = min(50, (self.n_sectors - n_dept_I) // 2)
         n_dept_III = self.n_sectors - n_dept_I - n_dept_II
-        
+
         dept_I_indices = list(range(n_dept_I))
         dept_II_indices = list(range(n_dept_I, n_dept_I + n_dept_II))
         dept_III_indices = list(range(n_dept_I + n_dept_II, self.n_sectors))
-        
+
         self.feedback_growth = FeedbackGrowthSystem(
-            n_sectors=self.n_sectors,
-            dept_I_indices=dept_I_indices,
-            dept_II_indices=dept_II_indices,
-            dept_III_indices=dept_III_indices
+            n_sectors = self.n_sectors,
+            dept_I_indices = dept_I_indices,
+            dept_II_indices = dept_II_indices,
+            dept_III_indices = dept_III_indices
         )
 
     def _validate_inputs(self) -> None:
@@ -117,13 +116,10 @@ class DynamicPlanner:
             new_technology_matrix: New technology matrix (if None, applies technological change)
             new_labor_vector: New labor vector (if None, applies productivity growth)
             technological_change_rate: Base rate of technological change (default 2% per year)
-            
+
         Note: Technology improvements reduce input requirements and labor needs per unit output.
         However, total output and labor costs should still increase over time due to:
-        - Population growth
-        - Rising living standards  
-        - Increased final demand
-        - Capital accumulation effects
+        - Population growth - Rising living standards - Increased final demand - Capital accumulation effects
         """
         if year < 1:
             raise ValueError("Year must be >= 1")
@@ -253,7 +249,7 @@ class DynamicPlanner:
             consumption_demand: Consumption demand vector d_c
             investment_demand: Investment demand vector d_i
             use_optimization: Whether to use constrained optimization
-            use_feedback_growth: Whether to use feedback-driven growth adjustments
+            use_feedback_growth: Whether to use feedback - driven growth adjustments
 
         Returns:
             Dictionary with plan results
@@ -311,20 +307,20 @@ class DynamicPlanner:
                 "consumption_demand": consumption_demand,
                 "investment_demand": investment_demand
             }
-            
+
             # Get previous year's plan for trend analysis
             previous_plan = self.plans.get(year - 1, None)
-            
+
             # Analyze industry performance
             performance_metrics = self.feedback_growth.analyze_industry_performance(
                 initial_plan, previous_plan
             )
-            
+
             # Calculate dynamic growth rates
             growth_rates = self.feedback_growth.calculate_dynamic_growth_rates(
                 performance_metrics, year
             )
-            
+
             # Generate adaptive demands using the base final demand
             # Get the base demand from the planning system's current_data
             base_final_demand = self.feedback_growth.n_sectors  # This is a placeholder, we need the actual base demand
@@ -332,18 +328,18 @@ class DynamicPlanner:
             adaptive_consumption, adaptive_investment = self.feedback_growth.generate_adaptive_demands(
                 consumption_demand, growth_rates, year
             )
-            
+
             # Recalculate plan with adaptive demands if significantly different
             adaptive_demand = adaptive_consumption + adaptive_investment
             demand_change = np.sum(np.abs(adaptive_demand - d_t)) / np.sum(d_t)
-            
+
             if demand_change > 0.05:  # If demand changed by more than 5%
                 # Recalculate with adaptive demands
                 if use_optimization:
                     from .optimization import ConstrainedOptimizer
-                    optimizer = ConstrainedOptimizer(technology_matrix=A_t, direct_labor=l_t, final_demand=adaptive_demand)
+                    optimizer = ConstrainedOptimizer(technology_matrix = A_t, direct_labor = l_t, final_demand = adaptive_demand)
                     result = optimizer.solve()
-                    
+
                     if result["feasible"]:
                         total_output = result["solution"]
                         total_labor_cost = result["total_labor_cost"]
@@ -358,12 +354,12 @@ class DynamicPlanner:
                     leontief = LeontiefModel(A_t, adaptive_demand)
                     total_output = leontief.compute_total_output()
                     total_labor_cost = np.dot(l_t, total_output)
-                
+
                 # Update demands to reflect adaptive values
                 consumption_demand = adaptive_consumption
                 investment_demand = adaptive_investment
                 d_t = adaptive_demand
-            
+
             # Store performance analysis
             self.feedback_growth.performance_history.append({
                 "year": year,
@@ -407,7 +403,7 @@ class DynamicPlanner:
             consumption_demands: List of consumption demand vectors for years 1 - 5
             investment_demands: List of investment demand vectors for years 1 - 5
             use_optimization: Whether to use constrained optimization
-            use_feedback_growth: Whether to use feedback-driven growth adjustments
+            use_feedback_growth: Whether to use feedback - driven growth adjustments
 
         Returns:
             Dictionary with plans for each year

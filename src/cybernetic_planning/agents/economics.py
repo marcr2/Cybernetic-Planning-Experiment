@@ -6,7 +6,6 @@ Performs econometric modeling and forecasts technology matrix changes.
 """
 
 from typing import Dict, Any, List
-import numpy as np
 from .base import BaseAgent
 
 class EconomicsAgent(BaseAgent):
