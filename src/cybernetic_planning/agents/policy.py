@@ -233,7 +233,7 @@ class PolicyAgent(BaseAgent):
         """
         if sector_mapping is None:
             sector_mapping = {}
-            
+
         adjustments = []
 
         for goal in goals:

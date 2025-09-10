@@ -1,0 +1,119 @@
+{
+  "plan_name": "Example Socialist Economic Plan",
+  "plan_period": "2024-2029",
+  "description": "A sample 5-year economic plan for testing the simulation system",
+  "sectors": [
+    "Agriculture",
+    "Manufacturing",
+    "Energy",
+    "Transportation",
+    "Healthcare",
+    "Education",
+    "Construction",
+    "Mining",
+    "Technology",
+    "Public Services"
+  ],
+  "production_targets": {
+    "Agriculture": 1000.0,
+    "Manufacturing": 2500.0,
+    "Energy": 1500.0,
+    "Transportation": 800.0,
+    "Healthcare": 1200.0,
+    "Education": 900.0,
+    "Construction": 1800.0,
+    "Mining": 600.0,
+    "Technology": 1100.0,
+    "Public Services": 700.0
+  },
+  "labor_requirements": {
+    "Agriculture": 150.0,
+    "Manufacturing": 400.0,
+    "Energy": 200.0,
+    "Transportation": 120.0,
+    "Healthcare": 180.0,
+    "Education": 250.0,
+    "Construction": 300.0,
+    "Mining": 100.0,
+    "Technology": 160.0,
+    "Public Services": 140.0
+  },
+  "resource_allocations": {
+    "Raw Materials": 2000.0,
+    "Energy Resources": 3000.0,
+    "Labor Hours": 2000.0,
+    "Capital Equipment": 1500.0,
+    "Transportation Capacity": 1000.0,
+    "Technology Infrastructure": 800.0
+  },
+  "priority_sectors": [
+    "Healthcare",
+    "Education",
+    "Energy",
+    "Agriculture"
+  ],
+  "social_goals": {
+    "full_employment": true,
+    "universal_healthcare": true,
+    "free_education": true,
+    "affordable_housing": true,
+    "environmental_protection": true
+  },
+  "performance_metrics": {
+    "target_gdp_growth": 0.05,
+    "target_inflation_rate": 0.02,
+    "target_unemployment_rate": 0.0,
+    "target_energy_efficiency": 0.85,
+    "target_resource_utilization": 0.90
+  },
+  "regional_development": {
+    "urban_areas": {
+      "priority": "high",
+      "focus": ["Technology", "Manufacturing", "Services"]
+    },
+    "rural_areas": {
+      "priority": "medium",
+      "focus": ["Agriculture", "Mining", "Energy"]
+    },
+    "industrial_zones": {
+      "priority": "high",
+      "focus": ["Manufacturing", "Energy", "Construction"]
+    }
+  },
+  "infrastructure_plans": {
+    "transportation_network": {
+      "roads": 5000,
+      "railways": 2000,
+      "ports": 50,
+      "airports": 20
+    },
+    "utilities": {
+      "power_plants": 15,
+      "water_treatment": 30,
+      "waste_management": 25
+    },
+    "social_infrastructure": {
+      "hospitals": 100,
+      "schools": 500,
+      "housing_units": 10000
+    }
+  },
+  "environmental_targets": {
+    "renewable_energy_share": 0.60,
+    "carbon_emissions_reduction": 0.30,
+    "waste_recycling_rate": 0.80,
+    "water_conservation": 0.25
+  },
+  "international_trade": {
+    "export_targets": {
+      "Manufacturing": 500.0,
+      "Technology": 200.0,
+      "Agriculture": 300.0
+    },
+    "import_requirements": {
+      "Raw Materials": 400.0,
+      "Technology": 150.0,
+      "Energy": 200.0
+    }
+  }
+}

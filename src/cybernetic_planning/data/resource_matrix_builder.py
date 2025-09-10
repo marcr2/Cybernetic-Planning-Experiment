@@ -10,7 +10,6 @@ from pathlib import Path
 import json
 from datetime import datetime
 import numpy as np
-import pandas as pd
 
 from .sector_mapper import SectorMapper
 from .web_scrapers.data_collector import ResourceDataCollector

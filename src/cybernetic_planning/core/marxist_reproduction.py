@@ -232,14 +232,14 @@ class MarxistReproductionSystem:
             # Apply overall multiplier first
             overall_multiplier = production_multipliers.get("overall", 1.0)
             expanded_demand *= overall_multiplier
-            
-            # Apply department-specific multipliers
+
+            # Apply department - specific multipliers
             dept_I_multiplier = production_multipliers.get("dept_I", 1.0)
             expanded_demand[self.dept_I_indices] *= dept_I_multiplier
-            
+
             dept_II_multiplier = production_multipliers.get("dept_II", 1.0)
             expanded_demand[self.dept_II_indices] *= dept_II_multiplier
-            
+
             dept_III_multiplier = production_multipliers.get("dept_III", 1.0)
             expanded_demand[self.dept_III_indices] *= dept_III_multiplier
 

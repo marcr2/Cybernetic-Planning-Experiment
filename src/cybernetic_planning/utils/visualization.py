@@ -6,6 +6,8 @@ to support economic planning analysis.
 """
 
 from typing import Dict, Any
+import numpy as np
+import matplotlib.pyplot as plt
 
 def create_plan_visualizations(plan_data: Dict[str, Any], output_dir: str = "outputs / visualizations") -> Dict[str, str]:
     """
@@ -112,7 +114,7 @@ def create_resource_utilization_chart(plan_data: Dict[str, Any], output_dir: str
     """Create a chart of resource utilization."""
     resource_usage = plan_data["resource_usage"]
     max_resources = plan_data["max_resources"]
-    utilization = resource_usage / (max_resources + 1e - 10)
+    utilization = resource_usage / (max_resources + 1e-10)
 
     plt.figure(figsize=(10, 6))
     resources = [f"Resource {i}" for i in range(len(resource_usage))]
@@ -184,7 +186,7 @@ def create_plan_dashboard(plan_data: Dict[str, Any], output_dir: str) -> str:
 
     # 2. Labor Efficiency
     labor_values = plan_data["labor_values"]
-    labor_efficiency = 1 / (labor_values + 1e - 10)  # Output per labor hour
+    labor_efficiency = 1 / (labor_values + 1e-10)  # Output per labor hour
 
     ax2.bar(sectors, labor_efficiency, color="lightblue", edgecolor="navy", alpha = 0.7)
     ax2.set_title("Labor Efficiency by Sector", fontweight="bold")

@@ -16,7 +16,6 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import time
-import re
 
 class InstallationWizard:
     def __init__(self):
@@ -144,7 +143,7 @@ class InstallationWizard:
         try:
             result = subprocess.run([
                 str(self.python_executable), "-m", "pip", "install", "--upgrade", "pip", "--quiet"
-            ], capture_output=True, text=True, cwd=self.project_root)
+            ], capture_output = True, text = True, cwd = self.project_root)
 
             if result.returncode != 0:
                 self.log(f"WARNING: Failed to upgrade pip: {result.stderr}", "WARNING")
@@ -158,45 +157,50 @@ class InstallationWizard:
             return False
 
     def install_tqdm(self) -> bool:
-        """Install TQDM in the virtual environment for progress tracking."""
+        """Install TQDM in the virtual environment for progress tracking (optional)."""
         self.log("Installing TQDM for progress tracking...")
 
         try:
             result = subprocess.run([
                 str(self.pip_executable), "install", "tqdm", "--quiet"
-            ], capture_output=True, text=True, cwd=self.project_root)
+            ], capture_output = True, text = True, cwd = self.project_root)
 
             if result.returncode != 0:
-                self.log(f"ERROR: Failed to install TQDM: {result.stderr}", "ERROR")
-                return False
+                self.log(f"WARNING: Failed to install TQDM: {result.stderr}", "WARNING")
+                self.log("Continuing without progress bars...", "INFO")
+                return True  # Don't fail installation if TQDM fails
 
             self.log("[OK] TQDM installed successfully")
             return True
 
         except Exception as e:
-            self.log(f"ERROR: Failed to install TQDM: {str(e)}", "ERROR")
-            return False
+            self.log(f"WARNING: Failed to install TQDM: {str(e)}", "WARNING")
+            self.log("Continuing without progress bars...", "INFO")
+            return True  # Don't fail installation if TQDM fails
 
     def install_dependencies(self) -> bool:
-        """Install project dependencies with progress tracking."""
+        """Install project dependencies with optional progress tracking."""
         self.log("Installing project dependencies...")
 
         try:
-            # Import TQDM from virtual environment
-            import sys
-            if platform.system() == "Windows":
-                venv_tqdm_path = str(self.venv_path / "Lib" / "site-packages")
-            else:
-                venv_tqdm_path = str(self.venv_path / "lib" / "site-packages")
-            
-            if venv_tqdm_path not in sys.path:
-                sys.path.insert(0, venv_tqdm_path)
-            
+            # Try to import TQDM from virtual environment (optional)
+            tqdm_available = False
             try:
+                import sys
+                if platform.system() == "Windows":
+                    venv_tqdm_path = str(self.venv_path / "Lib" / "site - packages")
+                else:
+                    venv_tqdm_path = str(self.venv_path / "lib" / "site - packages")
+
+                if venv_tqdm_path not in sys.path:
+                    sys.path.insert(0, venv_tqdm_path)
+
                 from tqdm import tqdm
+                tqdm_available = True
+                self.log("Progress tracking available", "INFO")
             except ImportError:
-                self.log("ERROR: TQDM not available in virtual environment", "ERROR")
-                return False
+                self.log("Progress tracking not available, installing without progress bars", "INFO")
+                tqdm_available = False
 
             # Install from requirements.txt
             requirements_file = self.project_root / "requirements.txt"
@@ -207,42 +211,64 @@ class InstallationWizard:
             # Read requirements to get package count
             with open(requirements_file, 'r') as f:
                 requirements = [line.strip() for line in f if line.strip() and not line.startswith('#')]
-            
+
             total_packages = len(requirements)
             self.log(f"Found {total_packages} packages to install...")
 
-            # Create progress bar for requirements installation
-            with tqdm(total=total_packages, desc="Installing dependencies", 
-                     unit="package", ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
-                
-                # Install packages one by one to track progress
+            # Install packages with or without progress tracking
+            if tqdm_available:
+                # Create progress bar for requirements installation
+                with tqdm(total = total_packages, desc="Installing dependencies",
+                         unit="package", ncols = 80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
+
+                    # Install packages one by one to track progress
+                    for i, package in enumerate(requirements):
+                        package_name = package.split('==')[0].split('>=')[0].split('<=')[0]
+                        pbar.set_description(f"Installing {package_name}")
+
+                        result = subprocess.run([
+                            str(self.pip_executable), "install", package, "--quiet"
+                        ], capture_output = True, text = True, cwd = self.project_root)
+
+                        if result.returncode != 0:
+                            self.log(f"WARNING: Failed to install {package_name}: {result.stderr}", "WARNING")
+
+                        pbar.update(1)
+                        pbar.refresh()
+            else:
+                # Install packages without progress tracking
                 for i, package in enumerate(requirements):
                     package_name = package.split('==')[0].split('>=')[0].split('<=')[0]
-                    pbar.set_description(f"Installing {package_name}")
-                    
+                    self.log(f"Installing {package_name} ({i+1}/{total_packages})...")
+
                     result = subprocess.run([
                         str(self.pip_executable), "install", package, "--quiet"
-                    ], capture_output=True, text=True, cwd=self.project_root)
-                    
+                    ], capture_output = True, text = True, cwd = self.project_root)
+
                     if result.returncode != 0:
                         self.log(f"WARNING: Failed to install {package_name}: {result.stderr}", "WARNING")
-                    
-                    pbar.update(1)
-                    pbar.refresh()
 
             # Install the project itself in development mode
             self.log("Installing project in development mode...")
-            with tqdm(total=1, desc="Installing project", unit="package", 
-                     ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
-                
+            if tqdm_available:
+                with tqdm(total = 1, desc="Installing project", unit="package",
+                         ncols = 80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
+
+                    result = subprocess.run([
+                        str(self.pip_executable), "install", "-e", ".", "--quiet"
+                    ], capture_output = True, text = True, cwd = self.project_root)
+
+                    if result.returncode != 0:
+                        self.log(f"WARNING: Failed to install project in development mode: {result.stderr}", "WARNING")
+
+                    pbar.update(1)
+            else:
                 result = subprocess.run([
                     str(self.pip_executable), "install", "-e", ".", "--quiet"
-                ], capture_output=True, text=True, cwd=self.project_root)
-                
+                ], capture_output = True, text = True, cwd = self.project_root)
+
                 if result.returncode != 0:
                     self.log(f"WARNING: Failed to install project in development mode: {result.stderr}", "WARNING")
-                
-                pbar.update(1)
 
             self.log("[OK] Dependencies installed successfully")
             return True
@@ -315,50 +341,67 @@ class InstallationWizard:
             return False
 
     def validate_installation(self) -> bool:
-        """Validate the installation by running basic tests with progress tracking."""
+        """Validate the installation by running basic tests with optional progress tracking."""
         self.log("Validating installation...")
 
         try:
-            # Import TQDM from virtual environment
-            import sys
-            if platform.system() == "Windows":
-                venv_tqdm_path = str(self.venv_path / "Lib" / "site-packages")
-            else:
-                venv_tqdm_path = str(self.venv_path / "lib" / "site-packages")
-            
-            if venv_tqdm_path not in sys.path:
-                sys.path.insert(0, venv_tqdm_path)
-            
+            # Try to import TQDM from virtual environment (optional)
+            tqdm_available = False
             try:
+                import sys
+                if platform.system() == "Windows":
+                    venv_tqdm_path = str(self.venv_path / "Lib" / "site - packages")
+                else:
+                    venv_tqdm_path = str(self.venv_path / "lib" / "site - packages")
+
+                if venv_tqdm_path not in sys.path:
+                    sys.path.insert(0, venv_tqdm_path)
+
                 from tqdm import tqdm
+                tqdm_available = True
             except ImportError:
-                self.log("ERROR: TQDM not available in virtual environment", "ERROR")
-                return False
+                tqdm_available = False
 
             validation_steps = [
                 ("Testing core Python imports", "import numpy, pandas, scipy, cvxpy, matplotlib; print('All core imports successful')"),
                 ("Testing project imports", "from src.cybernetic_planning.planning_system import CyberneticPlanningSystem; print('Project import successful')")
             ]
-            
-            with tqdm(total=len(validation_steps), desc="Validating installation", 
-                     unit="test", ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
-                
-                for step_name, test_code in validation_steps:
-                    pbar.set_description(step_name)
-                    
+
+            if tqdm_available:
+                with tqdm(total = len(validation_steps), desc="Validating installation",
+                         unit="test", ncols = 80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]') as pbar:
+
+                    for step_name, test_code in validation_steps:
+                        pbar.set_description(step_name)
+
+                        result = subprocess.run([
+                            str(self.python_executable), "-c", test_code
+                        ], capture_output = True, text = True, cwd = self.project_root)
+
+                        if result.returncode != 0:
+                            if "core imports" in step_name:
+                                self.log(f"ERROR: {step_name} failed: {result.stderr}", "ERROR")
+                                pbar.update(1)
+                                return False
+                            else:
+                                self.log(f"WARNING: {step_name} failed: {result.stderr}", "WARNING")
+
+                        pbar.update(1)
+            else:
+                # Run validation without progress tracking
+                for i, (step_name, test_code) in enumerate(validation_steps):
+                    self.log(f"{step_name} ({i+1}/{len(validation_steps)})...")
+
                     result = subprocess.run([
                         str(self.python_executable), "-c", test_code
-                    ], capture_output=True, text=True, cwd=self.project_root)
+                    ], capture_output = True, text = True, cwd = self.project_root)
 
                     if result.returncode != 0:
                         if "core imports" in step_name:
                             self.log(f"ERROR: {step_name} failed: {result.stderr}", "ERROR")
-                            pbar.update(1)
                             return False
                         else:
                             self.log(f"WARNING: {step_name} failed: {result.stderr}", "WARNING")
-                    
-                    pbar.update(1)
 
             self.log("[OK] Installation validation completed")
             return True
@@ -458,8 +501,8 @@ What was installed:
    [OK] Directory structure
 
 How to run the system:
-   Windows: Double-click run_gui.bat or run: .\\run_gui.bat
-   Unix/Mac: Run: ./run_gui.sh
+   Windows: Double - click run_gui.bat or run: .\\run_gui.bat
+   Unix / Mac: Run: ./run_gui.sh
 
 Next steps:
    1. Run the GUI to start planning
@@ -469,7 +512,7 @@ Next steps:
 
 Documentation: See README.md for detailed usage instructions
 
-Troubleshooting: Check logs/installation.log if you encounter issues
+Troubleshooting: Check logs / installation.log if you encounter issues
 
 Happy planning!
         """
@@ -510,9 +553,9 @@ def main():
     # Set up encoding for Windows compatibility
     if sys.platform.startswith('win'):
         import codecs
-        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
-        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
-    
+        sys.stdout = codecs.getwriter('utf - 8')(sys.stdout.detach())
+        sys.stderr = codecs.getwriter('utf - 8')(sys.stderr.detach())
+
     wizard = InstallationWizard()
 
     try:

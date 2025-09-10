@@ -14,6 +14,7 @@ import pkg_resources
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Set
 import time
+import numpy as np
 
 # Optional imports - these may not be available before installation
 try:

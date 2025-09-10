@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from .hierarchical_sector_mapper import HierarchicalSectorMapper
+from .technology_tree_mapper import TechnologyTreeMapper
 
 class MatrixBuilder:
     """
@@ -19,11 +20,17 @@ class MatrixBuilder:
     technology matrices, demand vectors, and constraint matrices.
     """
 
-    def __init__(self, max_sectors: int = 1000):
+    def __init__(self, max_sectors: int = 1000, use_technology_tree: bool = True):
         """Initialize the matrix builder."""
         self.matrices = {}
         self.vectors = {}
-        self.sector_mapper = HierarchicalSectorMapper(max_sectors=max_sectors)
+        self.max_sectors = max_sectors
+        self.use_technology_tree = use_technology_tree
+
+        if use_technology_tree:
+            self.sector_mapper = TechnologyTreeMapper()
+        else:
+            self.sector_mapper = HierarchicalSectorMapper(max_sectors = max_sectors)
 
     def create_technology_matrix(
         self,
@@ -228,24 +235,65 @@ class MatrixBuilder:
         Returns:
             Dictionary containing synthetic data
         """
-        # Ensure we don't exceed the maximum sectors available
+        # DEBUG: Check sector counts
+        print(f"DEBUG MATRIX_BUILDER: Requested sectors: {n_sectors}")
         max_available = self.sector_mapper.get_sector_count()
-        n_sectors = min(n_sectors, max_available)
-        
-        # Get sector names from hierarchical mapper
-        sector_names = self.sector_mapper.get_sector_names()[:n_sectors]
-        
-        # Generate technology matrix with sector-aware interactions
-        tech_matrix = self._generate_synthetic_technology_matrix(n_sectors, technology_density)
-        self.create_technology_matrix(tech_matrix, sectors=sector_names, name = f"{name_prefix}_technology")
+        print(f"DEBUG MATRIX_BUILDER: Available sectors from mapper: {max_available}")
+
+        # BUG FIX: Don't cap the sector count if we're using technology tree
+        # The technology tree mapper should handle generating sectors dynamically
+        if self.use_technology_tree:
+            # Don't limit n_sectors for technology tree - it can generate sectors on demand
+            effective_n_sectors = n_sectors
+            print(f"DEBUG MATRIX_BUILDER: Using technology tree, not capping sector count")
+        else:
+            # Only limit for hierarchical mapper if it can't expand
+            if n_sectors > max_available:
+                # Try to expand the hierarchical mapper first
+                print(f"DEBUG MATRIX_BUILDER: Expanding hierarchical mapper from {max_available} to {n_sectors}")
+                self.sector_mapper = HierarchicalSectorMapper(max_sectors = n_sectors)
+                max_available = self.sector_mapper.get_sector_count()
+            effective_n_sectors = min(n_sectors, max_available)
+
+        print(f"DEBUG MATRIX_BUILDER: Effective sectors to generate: {effective_n_sectors}")
+        n_sectors = effective_n_sectors
+
+        # Get sector information based on mapper type
+        if self.use_technology_tree:
+            # Get available sectors from technology tree
+            available_sector_ids = self.sector_mapper.get_available_sectors(n_sectors)
+            sector_names = self.sector_mapper.get_sector_names_for_sectors(available_sector_ids)
+        else:
+            # Use hierarchical mapper
+            if n_sectors > self.sector_mapper.max_sectors:
+                # Reinitialize the sector mapper with the requested number of sectors
+                self.sector_mapper = HierarchicalSectorMapper(max_sectors = n_sectors)
+            sector_names = self.sector_mapper.get_sector_names()[:n_sectors]
+
+        # Generate technology matrix with sector - aware interactions
+        if self.use_technology_tree:
+            # Use technology tree for more realistic sector interactions
+            tech_matrix = self._generate_technology_tree_matrix(n_sectors, technology_density, available_sector_ids)
+        else:
+            tech_matrix = self._generate_synthetic_technology_matrix(n_sectors, technology_density)
+
+        self.create_technology_matrix(tech_matrix, sectors = sector_names, name = f"{name_prefix}_technology")
 
         # Generate final demand vector with sector importance weighting
-        final_demand = self._generate_synthetic_final_demand(n_sectors)
-        self.create_final_demand_vector(final_demand, sectors=sector_names, name = f"{name_prefix}_final_demand")
+        if self.use_technology_tree:
+            final_demand = self._generate_technology_tree_final_demand(n_sectors, available_sector_ids)
+        else:
+            final_demand = self._generate_synthetic_final_demand(n_sectors)
 
-        # Generate labor input vector with sector-specific labor intensity
-        labor_input = self._generate_synthetic_labor_input(n_sectors)
-        self.create_labor_vector(labor_input, sectors=sector_names, name = f"{name_prefix}_labor")
+        self.create_final_demand_vector(final_demand, sectors = sector_names, name = f"{name_prefix}_final_demand")
+
+        # Generate labor input vector with sector - specific labor intensity
+        if self.use_technology_tree:
+            labor_input = self._generate_technology_tree_labor_input(n_sectors, available_sector_ids)
+        else:
+            labor_input = self._generate_synthetic_labor_input(n_sectors)
+
+        self.create_labor_vector(labor_input, sectors = sector_names, name = f"{name_prefix}_labor")
 
         # Generate resource matrix
         resource_matrix = self._generate_synthetic_resource_matrix(resource_count, n_sectors)
@@ -255,7 +303,8 @@ class MatrixBuilder:
         max_resources = self._generate_synthetic_max_resources(resource_count)
         self.create_max_resources_vector(max_resources, name = f"{name_prefix}_max_resources")
 
-        return {
+        # Create comprehensive data dictionary
+        data = {
             "technology_matrix": tech_matrix,
             "final_demand": final_demand,
             "labor_input": labor_input,
@@ -263,8 +312,19 @@ class MatrixBuilder:
             "max_resources": max_resources,
             "sectors": sector_names,
             "resources": [f"Resource_{i}" for i in range(resource_count)],
-            "sector_definitions": self.sector_mapper.export_sector_definitions(),
+            "sector_definitions": self.sector_mapper.sectors if hasattr(self.sector_mapper, 'sectors') else {}
         }
+
+        # Add technology tree specific data
+        if self.use_technology_tree:
+            data["technology_tree"] = {
+                "sector_ids": available_sector_ids,
+                "development_stage": self.sector_mapper.current_development_stage.value,
+                "unlockable_sectors": self.sector_mapper.get_unlockable_sectors(),
+                "dependency_matrix": self.sector_mapper.get_technology_dependency_matrix(available_sector_ids).tolist()
+            }
+
+        return data
 
     def _generate_synthetic_technology_matrix(self, n_sectors: int, density: float) -> np.ndarray:
         """Generate synthetic technology matrix that is economically viable."""
@@ -303,11 +363,11 @@ class MatrixBuilder:
             i, j = divmod(idx, n_sectors)
             # Base coefficient
             base_coeff = np.random.uniform(coeff_range[0], coeff_range[1])
-            
+
             # Apply sector interaction weighting
             interaction_weight = interaction_matrix[i, j] if i < interaction_matrix.shape[0] and j < interaction_matrix.shape[1] else 0.1
-            
-            # Apply sector-specific characteristics
+
+            # Apply sector - specific characteristics
             if i < len(self.sector_mapper.sectors):
                 sector_i = self.sector_mapper.get_sector_by_id(i)
                 if sector_i:
@@ -317,7 +377,7 @@ class MatrixBuilder:
                     # High technology sectors have more complex interactions
                     if sector_i.technology_level in ["advanced", "high"]:
                         base_coeff *= 1.2
-            
+
             matrix[i, j] = base_coeff * interaction_weight
 
         # Ensure diagonal elements are small (self - consumption)
@@ -385,8 +445,8 @@ class MatrixBuilder:
         # Labor input should be positive and represent person - hours per unit output
         # Some sectors are more labor - intensive than others
         base_labor = np.random.uniform(0.5, 3.0, n_sectors)
-        
-        # Apply sector-specific labor intensity
+
+        # Apply sector - specific labor intensity
         if n_sectors <= self.sector_mapper.get_sector_count():
             for i in range(n_sectors):
                 sector = self.sector_mapper.get_sector_by_id(i)
@@ -403,11 +463,11 @@ class MatrixBuilder:
         base_labor[labor_intensive_sectors] *= np.random.uniform(2, 4, len(labor_intensive_sectors))
 
         return base_labor
-    
+
     def get_sector_mapper(self) -> HierarchicalSectorMapper:
         """Get the hierarchical sector mapper instance."""
         return self.sector_mapper
-    
+
     def get_sector_info(self, sector_name: str) -> Optional[Dict[str, Any]]:
         """Get detailed information about a specific sector."""
         sector = self.sector_mapper.get_sector_by_name(sector_name)
@@ -559,3 +619,79 @@ class MatrixBuilder:
             series.attrs["length"] = vector_info["length"]
 
         return series
+
+    def _generate_technology_tree_matrix(self, n_sectors: int, density: float, sector_ids: List[int]) -> np.ndarray:
+        """Generate technology matrix based on technology tree dependencies."""
+        matrix = np.zeros((n_sectors, n_sectors))
+
+        # Get dependency matrix from technology tree
+        dependency_matrix = self.sector_mapper.get_technology_dependency_matrix(sector_ids)
+
+        # Create technology matrix based on dependencies
+        for i in range(n_sectors):
+            for j in range(n_sectors):
+                if i == j:
+                    # Self - dependency (sector needs its own output)
+                    matrix[i, j] = np.random.uniform(0.1, 0.3)
+                elif dependency_matrix[i, j] > 0:
+                    # Direct dependency (sector j is prerequisite for sector i)
+                    matrix[i, j] = np.random.uniform(0.05, 0.2)
+                elif np.random.random() < density:
+                    # Random connections based on density
+                    matrix[i, j] = np.random.uniform(0.01, 0.1)
+
+        # Ensure economic viability
+        row_sums = np.sum(matrix, axis = 1)
+        for i in range(n_sectors):
+            if row_sums[i] > 0.8:  # Prevent sectors from requiring more than 80% of total output
+                matrix[i, :] *= 0.8 / row_sums[i]
+
+        return matrix
+
+    def _generate_technology_tree_final_demand(self, n_sectors: int, sector_ids: List[int]) -> np.ndarray:
+        """Generate final demand vector based on technology tree sector importance."""
+        # Get importance weights for the selected sectors
+        importance_weights = self.sector_mapper.get_importance_weights_for_sectors(sector_ids)
+
+        # Generate base demand scaled by importance
+        base_demand = np.random.uniform(10, 100, n_sectors)
+        final_demand = base_demand * importance_weights
+
+        # Scale to maintain realistic economy size
+        total_demand = np.sum(final_demand)
+        target_total = min(10000, n_sectors * 20)
+
+        if total_demand > target_total:
+            final_demand *= target_total / total_demand
+
+        return final_demand
+
+    def _generate_technology_tree_labor_input(self, n_sectors: int, sector_ids: List[int]) -> np.ndarray:
+        """Generate labor input vector based on technology tree sector characteristics."""
+        labor_input = np.zeros(n_sectors)
+
+        for i, sector_id in enumerate(sector_ids):
+            if sector_id in self.sector_mapper.sectors:
+                sector = self.sector_mapper.sectors[sector_id]
+
+                # Base labor input based on technology level
+                if sector.technology_level.value == "basic":
+                    base_labor = np.random.uniform(2, 5)
+                elif sector.technology_level.value == "intermediate":
+                    base_labor = np.random.uniform(1, 3)
+                elif sector.technology_level.value == "advanced":
+                    base_labor = np.random.uniform(0.5, 2)
+                elif sector.technology_level.value == "cutting_edge":
+                    base_labor = np.random.uniform(0.2, 1)
+                else:  # future
+                    base_labor = np.random.uniform(0.1, 0.5)
+
+                # Adjust based on labor intensity
+                if sector.labor_intensity == "high":
+                    base_labor *= 2.0
+                elif sector.labor_intensity == "low":
+                    base_labor *= 0.5
+
+                labor_input[i] = base_labor
+
+        return labor_input

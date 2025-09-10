@@ -7,7 +7,6 @@ Ensures data quality for the cybernetic planning system.
 
 from typing import Dict, Any
 import numpy as np
-import pandas as pd
 
 class DataValidator:
     """

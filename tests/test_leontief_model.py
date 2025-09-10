@@ -5,6 +5,7 @@ Tests mathematical accuracy and economic validity of Leontief calculations.
 """
 
 import pytest
+import numpy as np
 from src.cybernetic_planning.core.leontief import LeontiefModel
 
 class TestLeontiefModel:

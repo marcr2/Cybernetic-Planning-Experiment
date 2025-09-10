@@ -7,9 +7,9 @@ subject to demand fulfillment and resource constraints.
 
 from typing import Optional, Dict, Any
 import numpy as np
-import cvxpy as cp
 from scipy.optimize import linprog
 import warnings
+import cvxpy as cp
 
 class ConstrainedOptimizer:
     """
@@ -275,15 +275,15 @@ class ConstrainedOptimizer:
         negativity_violations = np.maximum(0, -solution)
 
         return {
-            "demand_satisfied": np.allclose(demand_violations, 0, atol=1e-6),
+            "demand_satisfied": np.allclose(demand_violations, 0, atol = 1e-6),
             "demand_violations": demand_violations,
-            "resource_satisfied": resource_violations is None or np.allclose(resource_violations, 0, atol=1e-6),
+            "resource_satisfied": resource_violations is None or np.allclose(resource_violations, 0, atol = 1e-6),
             "resource_violations": resource_violations,
-            "non_negative": np.allclose(negativity_violations, 0, atol=1e-6),
+            "non_negative": np.allclose(negativity_violations, 0, atol = 1e-6),
             "negativity_violations": negativity_violations,
             "all_constraints_satisfied": (
-                np.allclose(demand_violations, 0, atol=1e-6)
-                and (resource_violations is None or np.allclose(resource_violations, 0, atol=1e-6))
-                and np.allclose(negativity_violations, 0, atol=1e-6)
+                np.allclose(demand_violations, 0, atol = 1e-6)
+                and (resource_violations is None or np.allclose(resource_violations, 0, atol = 1e-6))
+                and np.allclose(negativity_violations, 0, atol = 1e-6)
             ),
         }

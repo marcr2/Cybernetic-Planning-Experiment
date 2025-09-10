@@ -8,8 +8,8 @@ Based on Marx's Capital Volumes 1, 2, and 3.
 """
 
 from typing import Dict, Any, Tuple, Optional, List
-from dataclasses import dataclass
 import numpy as np
+from dataclasses import dataclass
 
 @dataclass
 class ValueComposition:

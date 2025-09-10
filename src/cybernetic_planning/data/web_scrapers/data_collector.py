@@ -12,7 +12,6 @@ from pathlib import Path
 import os
 import sys
 import numpy as np
-import pandas as pd
 
 # Add project root to path for API key manager
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))

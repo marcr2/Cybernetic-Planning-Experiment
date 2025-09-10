@@ -39,7 +39,7 @@ class CyberneticPlanningSystem:
 
         # Initialize components
         self.parser = IOParser()
-        self.matrix_builder = MatrixBuilder()
+        self.matrix_builder = MatrixBuilder(use_technology_tree = True)
         self.validator = DataValidator()
         self.enhanced_loader = EnhancedDataLoader()
 
@@ -50,8 +50,8 @@ class CyberneticPlanningSystem:
         self.policy_agent = PolicyAgent()
         self.writer_agent = WriterAgent()
 
-        # Initialize validator
-        self.validator = EconomicPlanValidator()
+        # Initialize economic plan validator
+        self.plan_validator = EconomicPlanValidator()
 
         # Initialize new modules
         self.marxist_calculator = None
@@ -81,23 +81,23 @@ class CyberneticPlanningSystem:
                 import json
                 with open(file_path, 'r') as f:
                     raw_data = json.load(f)
-                
+
                 # Process with enhanced loader
                 processed_data = self.enhanced_loader._convert_bea_data_format(raw_data)
-                
+
                 # Convert to numpy arrays
                 technology_matrix = processed_data.get("technology_matrix")
                 if isinstance(technology_matrix, list):
                     technology_matrix = np.array(technology_matrix)
-                
+
                 final_demand = processed_data.get("final_demand")
                 if isinstance(final_demand, list):
                     final_demand = np.array(final_demand)
-                
+
                 labor_input = processed_data.get("labor_input")
                 if isinstance(labor_input, list):
                     labor_input = np.array(labor_input)
-                
+
                 data = {
                     "technology_matrix": technology_matrix,
                     "final_demand": final_demand,
@@ -113,9 +113,9 @@ class CyberneticPlanningSystem:
                 data = self.parser.parse_file(file_path, format_type)
 
             # Validate loaded data
-            validation_results = self.validator.validate_all(data)
+            validation_results = self.plan_validator.validate_plan(data)
 
-            if not validation_results["overall_valid"]:
+            if not validation_results["is_valid"]:
                 # Log validation warnings instead of printing
                 pass
 
@@ -126,6 +126,10 @@ class CyberneticPlanningSystem:
 
             return data
 
+        except FileNotFoundError:
+            raise ValueError(f"Data file not found: {file_path}")
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON format in data file: {e}")
         except Exception as e:
             raise ValueError(f"Error loading data from file: {e}")
 
@@ -140,9 +144,9 @@ class CyberneticPlanningSystem:
             Validated data dictionary
         """
         # Validate data
-        validation_results = self.validator.validate_all(data)
+        validation_results = self.plan_validator.validate_plan(data)
 
-        if not validation_results["overall_valid"]:
+        if not validation_results["is_valid"]:
             # Log validation warnings instead of printing
             pass
 
@@ -171,15 +175,9 @@ class CyberneticPlanningSystem:
             n_sectors = n_sectors, technology_density = technology_density, resource_count = resource_count
         )
 
-        # Debug: Check synthetic data generation
-        print(f"DEBUG SYNTHETIC: Generated data keys: {list(data.keys())}")
-        if "final_demand" in data:
-            final_demand = data["final_demand"]
-            print(f"DEBUG SYNTHETIC: Generated final_demand type: {type(final_demand)}")
-            print(f"DEBUG SYNTHETIC: Generated final_demand sum: {np.sum(final_demand)}")
-            print(f"DEBUG SYNTHETIC: Generated final_demand first 5 values: {final_demand[:5]}")
-        else:
-            print("DEBUG SYNTHETIC: WARNING - No final_demand in generated data!")
+        # Validate synthetic data generation
+        if "final_demand" not in data:
+            raise ValueError("Synthetic data generation failed: missing final_demand")
 
         self.current_data = data
 
@@ -255,9 +253,9 @@ class CyberneticPlanningSystem:
         return data
 
     def create_plan(
-        self, 
-        policy_goals: Optional[List[str]] = None, 
-        use_optimization: bool = True, 
+        self,
+        policy_goals: Optional[List[str]] = None,
+        use_optimization: bool = True,
         max_iterations: int = 10,
         production_multipliers: Optional[Dict[str, float]] = None,
         apply_reproduction: bool = True
@@ -277,6 +275,12 @@ class CyberneticPlanningSystem:
         """
         if not self.current_data:
             raise ValueError("No economic data loaded. Please load data first.")
+        
+        # Validate required data fields
+        required_fields = ["technology_matrix", "final_demand", "labor_input"]
+        missing_fields = [field for field in required_fields if field not in self.current_data]
+        if missing_fields:
+            raise ValueError(f"Missing required data fields: {missing_fields}")
 
         # Set policy goals
         if policy_goals:
@@ -304,14 +308,11 @@ class CyberneticPlanningSystem:
 
         # Get original final demand (production multipliers will be applied by reproduction system)
         final_demand = self.current_data["final_demand"].copy()
-        
-        # Debug: Check the original final_demand from data
-        print(f"DEBUG PLANNING: Original final_demand from data type: {type(final_demand)}")
-        print(f"DEBUG PLANNING: Original final_demand from data shape: {final_demand.shape if hasattr(final_demand, 'shape') else len(final_demand)}")
-        print(f"DEBUG PLANNING: Original final_demand from data sum: {np.sum(final_demand)}")
-        print(f"DEBUG PLANNING: Original final_demand from data first 5 values: {final_demand[:5]}")
-        print(f"DEBUG PLANNING: Number of sectors: {len(self.current_data.get('sectors', []))}")
-        
+
+        # Validate final demand data
+        if not hasattr(final_demand, 'shape') or len(final_demand) == 0:
+            raise ValueError("Invalid final demand data: empty or malformed")
+
         # Create initial plan
         plan_task = {
             "type": "create_plan",
@@ -349,7 +350,7 @@ class CyberneticPlanningSystem:
             self.current_plan = refine_result["plan"]
 
         # Validate the plan
-        validation_result = self.validator.validate_plan(self.current_plan)
+        validation_result = self.plan_validator.validate_plan(self.current_plan)
         self.current_plan["validation"] = validation_result
 
         # Evaluate final plan
@@ -366,42 +367,42 @@ class CyberneticPlanningSystem:
     def _apply_production_multipliers(self, final_demand: np.ndarray, production_multipliers: Dict[str, float]) -> np.ndarray:
         """
         Apply production multipliers to final demand.
-        
+
         Args:
             final_demand: Original final demand vector
             production_multipliers: Dictionary with multipliers for 'overall', 'dept_I', 'dept_II', 'dept_III'
-            
+
         Returns:
             Adjusted final demand vector
         """
         adjusted_demand = final_demand.copy()
         n_sectors = len(final_demand)
-        
+
         # Apply overall multiplier first
         overall_multiplier = production_multipliers.get("overall", 1.0)
         adjusted_demand *= overall_multiplier
-        
-        # Apply department-specific multipliers
+
+        # Apply department - specific multipliers
         # Assuming first 50 sectors are Dept I, next 50 are Dept II, rest are Dept III
         n_dept_I = min(50, n_sectors)
         n_dept_II = min(50, max(0, n_sectors - 50))
         n_dept_III = max(0, n_sectors - 100)
-        
+
         # Department I multiplier
         dept_I_multiplier = production_multipliers.get("dept_I", 1.0)
         if n_dept_I > 0:
             adjusted_demand[:n_dept_I] *= dept_I_multiplier
-        
+
         # Department II multiplier
         dept_II_multiplier = production_multipliers.get("dept_II", 1.0)
         if n_dept_II > 0:
             adjusted_demand[n_dept_I:n_dept_I + n_dept_II] *= dept_II_multiplier
-        
+
         # Department III multiplier
         dept_III_multiplier = production_multipliers.get("dept_III", 1.0)
         if n_dept_III > 0:
             adjusted_demand[n_dept_I + n_dept_II:] *= dept_III_multiplier
-        
+
         return adjusted_demand
 
     def create_five_year_plan(
@@ -427,6 +428,12 @@ class CyberneticPlanningSystem:
         """
         if not self.current_data:
             raise ValueError("No economic data loaded. Please load data first.")
+        
+        # Validate required data fields
+        required_fields = ["technology_matrix", "final_demand", "labor_input"]
+        missing_fields = [field for field in required_fields if field not in self.current_data]
+        if missing_fields:
+            raise ValueError(f"Missing required data fields: {missing_fields}")
 
         # Initialize dynamic planner
         dynamic_planner = DynamicPlanner(
@@ -451,7 +458,7 @@ class CyberneticPlanningSystem:
                 investment_growth_rate = total_growth_rate * 1.2
                 investment_demand = base_final_demand * investment_ratio * ((1 + investment_growth_rate) ** (year - 1))
             else:
-                # Years 2-5: Use feedback-driven growth (will be calculated during planning)
+                # Years 2 - 5: Use feedback - driven growth (will be calculated during planning)
                 # Start with base growth and let feedback system adjust
                 population_growth_rate = 0.01
                 living_standards_growth_rate = consumption_growth_rate - population_growth_rate
@@ -459,16 +466,16 @@ class CyberneticPlanningSystem:
                 consumption_demand = base_final_demand * ((1 + total_growth_rate) ** (year - 1))
                 investment_growth_rate = total_growth_rate * 1.2
                 investment_demand = base_final_demand * investment_ratio * ((1 + investment_growth_rate) ** (year - 1))
-            
+
             consumption_demands.append(consumption_demand)
             investment_demands.append(investment_demand)
 
         # Create 5 - year plan with feedback growth
         five_year_plan = dynamic_planner.create_five_year_plan(
-            consumption_demands = consumption_demands, 
-            investment_demands = investment_demands, 
+            consumption_demands = consumption_demands,
+            investment_demands = investment_demands,
             use_optimization = True,
-            use_feedback_growth = True  # Re-enable feedback growth
+            use_feedback_growth = True  # Re - enable feedback growth
         )
 
         # Apply policy goals if provided
@@ -482,7 +489,7 @@ class CyberneticPlanningSystem:
 
         # Store in history
         self.plan_history.append(five_year_plan)
-        
+
         # Store performance feedback
         self.performance_feedback = dynamic_planner.get_performance_feedback()
 
@@ -550,8 +557,8 @@ class CyberneticPlanningSystem:
     def _save_plan_json(self, file_path: Path) -> None:
         """Save plan as JSON file."""
 
-        def convert_numpy(obj, visited = None):
-            """Recursively convert numpy arrays to lists, handling circular references."""
+        def convert_for_json(obj, visited = None):
+            """Recursively convert objects to JSON - serializable format, handling circular references."""
             if visited is None:
                 visited = set()
 
@@ -562,24 +569,39 @@ class CyberneticPlanningSystem:
 
             if isinstance(obj, np.ndarray):
                 return obj.tolist()
-            elif isinstance(obj, dict):
+            elif hasattr(obj, 'value'):
+                # Handle enum objects like ValidationStatus FIRST
+                return obj.value
+            elif hasattr(obj, '__dict__'):
+                # Handle dataclass objects like ValidationResult
                 visited.add(obj_id)
-                result = {key: convert_numpy(value, visited) for key, value in obj.items()}
+                result = {key: convert_for_json(value, visited) for key, value in obj.__dict__.items()}
                 visited.remove(obj_id)
                 return result
-            elif isinstance(obj, list):
+            elif isinstance(obj, (str, int, float, bool, type(None))):
+                # Handle basic JSON - serializable types
+                return obj
+            elif isinstance(obj, dict):
                 visited.add(obj_id)
-                result = [convert_numpy(item, visited) for item in obj]
+                result = {key: convert_for_json(value, visited) for key, value in obj.items()}
+                visited.remove(obj_id)
+                return result
+            elif isinstance(obj, (list, tuple)):
+                visited.add(obj_id)
+                result = [convert_for_json(item, visited) for item in obj]
                 visited.remove(obj_id)
                 return result
             else:
                 return obj
 
-        # Convert all numpy arrays to lists for JSON serialization
-        json_data = convert_numpy(self.current_plan)
+        # Convert all objects to JSON - serializable format
+        json_data = convert_for_json(self.current_plan)
 
-        with open(file_path, "w") as f:
-            json.dump(json_data, f, indent = 2)
+        try:
+            with open(file_path, "w") as f:
+                json.dump(json_data, f, indent = 2)
+        except (OSError, IOError) as e:
+            raise ValueError(f"Failed to save plan to {file_path}: {e}")
 
     def _save_plan_csv(self, file_path: Path) -> None:
         """Save plan as CSV file."""
@@ -592,31 +614,37 @@ class CyberneticPlanningSystem:
             "labor_values": self.current_plan["labor_values"],
         }
 
-        df = pd.DataFrame(data)
-        df.to_csv(file_path, index = False)
+        try:
+            df = pd.DataFrame(data)
+            df.to_csv(file_path, index = False)
+        except Exception as e:
+            raise ValueError(f"Failed to save CSV plan to {file_path}: {e}")
 
     def _save_plan_excel(self, file_path: Path) -> None:
         """Save plan as Excel file."""
 
-        with pd.ExcelWriter(file_path) as writer:
-            # Main plan data
-            plan_data = {
-                "sector": range(len(self.current_plan["total_output"])),
-                "total_output": self.current_plan["total_output"],
-                "final_demand": self.current_plan["final_demand"],
-                "labor_values": self.current_plan["labor_values"],
-            }
+        try:
+            with pd.ExcelWriter(file_path) as writer:
+                # Main plan data
+                plan_data = {
+                    "sector": range(len(self.current_plan["total_output"])),
+                    "total_output": self.current_plan["total_output"],
+                    "final_demand": self.current_plan["final_demand"],
+                    "labor_values": self.current_plan["labor_values"],
+                }
 
-            df = pd.DataFrame(plan_data)
-            df.to_excel(writer, sheet_name="Plan_Data", index = False)
+                df = pd.DataFrame(plan_data)
+                df.to_excel(writer, sheet_name="Plan_Data", index = False)
 
-            # Technology matrix
-            tech_df = pd.DataFrame(
-                self.current_plan["technology_matrix"],
-                index = range(len(self.current_plan["total_output"])),
-                columns = range(len(self.current_plan["total_output"])),
-            )
-            tech_df.to_excel(writer, sheet_name="Technology_Matrix")
+                # Technology matrix
+                tech_df = pd.DataFrame(
+                    self.current_plan["technology_matrix"],
+                    index = range(len(self.current_plan["total_output"])),
+                    columns = range(len(self.current_plan["total_output"])),
+                )
+                tech_df.to_excel(writer, sheet_name="Technology_Matrix")
+        except Exception as e:
+            raise ValueError(f"Failed to save Excel plan to {file_path}: {e}")
 
     def load_plan(self, file_path: Union[str, Path]) -> Dict[str, Any]:
         """
@@ -631,21 +659,28 @@ class CyberneticPlanningSystem:
         file_path = Path(file_path)
 
         if file_path.suffix.lower() == ".json":
-            with open(file_path, "r") as f:
-                data = json.load(f)
+            try:
+                with open(file_path, "r") as f:
+                    data = json.load(f)
 
-            # Convert lists back to numpy arrays
-            for key, value in data.items():
-                if isinstance(value, list) and key in [
-                    "total_output",
-                    "final_demand",
-                    "labor_values",
-                    "technology_matrix",
-                ]:
-                    data[key] = np.array(value)
+                # Convert lists back to numpy arrays
+                for key, value in data.items():
+                    if isinstance(value, list) and key in [
+                        "total_output",
+                        "final_demand",
+                        "labor_values",
+                        "technology_matrix",
+                    ]:
+                        data[key] = np.array(value)
 
-            self.current_plan = data
-            return data
+                self.current_plan = data
+                return data
+            except FileNotFoundError:
+                raise ValueError(f"Plan file not found: {file_path}")
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON format in plan file: {e}")
+            except Exception as e:
+                raise ValueError(f"Error loading plan from {file_path}: {e}")
         else:
             raise ValueError(f"Unsupported plan format: {file_path.suffix}")
 
@@ -712,6 +747,62 @@ class CyberneticPlanningSystem:
 
         self.parser.export_data(self.current_data, output_path, format_type)
 
+    def export_plan_for_simulation(self, file_path: Union[str, Path]) -> None:
+        """
+        Export current plan in simulation - compatible format.
+
+        Args:
+            file_path: Path to save the simulation plan
+        """
+        if self.current_plan is None:
+            raise ValueError("No current plan to export")
+
+        file_path = Path(file_path)
+
+        # Convert plan to simulation format
+        simulation_plan = self._convert_plan_to_simulation_format(self.current_plan)
+
+        # Save as JSON
+        with open(file_path, "w") as f:
+            json.dump(simulation_plan, f, indent = 2)
+
+    def _convert_plan_to_simulation_format(self, plan: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert a planning system plan to simulation format."""
+        # Extract data from planning plan
+        total_output = np.array(plan.get('total_output', []))
+        labor_vector = np.array(plan.get('labor_vector', []))
+        technology_matrix = np.array(plan.get('technology_matrix', []))
+        final_demand = np.array(plan.get('final_demand', []))
+
+        # Get sector count
+        n_sectors = len(total_output)
+
+        # Create sector names if not available
+        sectors = plan.get('sectors', [f"Sector_{i + 1}" for i in range(n_sectors)])
+
+        # Convert to simulation format
+        simulation_plan = {
+            'sectors': sectors,
+            'production_targets': total_output.tolist(),
+            'labor_requirements': labor_vector.tolist(),
+            'resource_allocations': {
+                'technology_matrix': technology_matrix.tolist(),
+                'final_demand': final_demand.tolist(),
+                'total_labor_cost': plan.get('total_labor_cost', 0),
+                'plan_quality_score': plan.get('plan_quality_score', 0)
+            },
+            'plan_metadata': {
+                'year': plan.get('year', 1),
+                'iteration': plan.get('iteration', 1),
+                'status': plan.get('status', 'unknown'),
+                'validation': plan.get('validation', {}),
+                'constraint_violations': plan.get('constraint_violations', {}),
+                'cybernetic_feedback': plan.get('cybernetic_feedback', {})
+            }
+        }
+
+        return simulation_plan
+
     def _initialize_new_modules(self):
         """Initialize new modules with current data and run automatic analyses."""
         if not self.current_data:
@@ -732,10 +823,10 @@ class CyberneticPlanningSystem:
                     final_demand = self.current_data["final_demand"],
                     labor_vector = self.current_data["labor_input"]
                 )
-            
+
             # Run automatic analyses after initialization
             self._run_automatic_analyses()
-            
+
         except Exception as e:
             print(f"Warning: Could not initialize new modules: {e}")
 
@@ -773,18 +864,18 @@ class CyberneticPlanningSystem:
             "marxist_calculator": self.marxist_calculator,
             "cybernetic_system": self.cybernetic_feedback,
         }
-        
+
         # Add Leontief model if data is available
         if all(key in self.current_data for key in ["technology_matrix", "final_demand"]):
             try:
                 leontief_model = LeontiefModel(
-                    technology_matrix=self.current_data["technology_matrix"],
-                    final_demand=self.current_data["final_demand"]
+                    technology_matrix = self.current_data["technology_matrix"],
+                    final_demand = self.current_data["final_demand"]
                 )
                 system_components["leontief_model"] = leontief_model
             except Exception as e:
                 print(f"Warning: Could not create Leontief model for validation: {e}")
-        
+
         # Add cybernetic result if available
         if self.cybernetic_feedback:
             try:
@@ -792,7 +883,7 @@ class CyberneticPlanningSystem:
                 system_components["cybernetic_result"] = cybernetic_result
             except Exception as e:
                 print(f"Warning: Could not get cybernetic result for validation: {e}")
-        
+
         # Run comprehensive validation
         return self.mathematical_validator.validate_all(system_components)
 
@@ -801,7 +892,7 @@ class CyberneticPlanningSystem:
         try:
             # Store analysis results in the system for easy access
             self.automatic_analyses = {}
-            
+
             # Run Marxist analysis
             if self.marxist_calculator:
                 try:
@@ -811,7 +902,7 @@ class CyberneticPlanningSystem:
                 except Exception as e:
                     print(f"Warning: Marxist analysis failed: {e}")
                     self.automatic_analyses['marxist'] = {"error": str(e)}
-            
+
             # Run cybernetic feedback analysis
             if self.cybernetic_feedback:
                 try:
@@ -821,7 +912,7 @@ class CyberneticPlanningSystem:
                 except Exception as e:
                     print(f"Warning: Cybernetic analysis failed: {e}")
                     self.automatic_analyses['cybernetic'] = {"error": str(e)}
-            
+
             # Run mathematical validation
             try:
                 validation_results = self.get_mathematical_validation()
@@ -830,7 +921,7 @@ class CyberneticPlanningSystem:
             except Exception as e:
                 print(f"Warning: Mathematical validation failed: {e}")
                 self.automatic_analyses['mathematical'] = {"error": str(e)}
-                
+
         except Exception as e:
             print(f"Warning: Automatic analyses failed: {e}")
             self.automatic_analyses = {"error": str(e)}

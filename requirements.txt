@@ -1,60 +1,39 @@
 # Core scientific computing
-numpy==2.3.2
-scipy==1.16.1
-pandas==2.3.2
+numpy>=1.24.0,<2.0.0
+scipy>=1.10.0,<2.0.0
+pandas>=2.0.0,<3.0.0
 
 # Optimization and linear programming
-cvxpy==1.7.2
-osqp==1.0.4
-scs==3.2.8
-clarabel==0.11.1
+cvxpy>=1.3.0,<2.0.0
 
 # Data visualization
-matplotlib==3.10.6
-seaborn==0.13.2
-pillow==11.3.0
-
-# Excel file handling
-openpyxl==3.1.5
-xlrd==2.0.2
-
-# Data validation and processing
-pydantic==2.11.7
-pydantic_core==2.33.2
-jsonschema==4.25.1
+matplotlib>=3.7.0,<4.0.0
+folium>=0.17.0,<1.0.0
+seaborn>=0.12.0,<1.0.0
 
 # Web scraping and data collection
-requests==2.32.5
-beautifulsoup4==4.13.5
-lxml==6.0.1
-urllib3==2.5.0
-certifi==2025.8.3
-charset-normalizer==3.4.3
-idna==3.10
+requests>=2.28.0,<3.0.0
 
-# AI/ML libraries
-google-generativeai==0.8.5
-google-ai-generativelanguage==0.6.15
-google-api-core==2.25.1
-google-api-python-client==2.181.0
-google-auth==2.40.3
-google-auth-httplib2==0.2.0
-googleapis-common-protos==1.70.0
-grpcio==1.74.0
-grpcio-status==1.71.2
+# System monitoring and utilities (optional)
+psutil>=5.9.0,<8.0.0
 
-# Security and encryption
-cryptography==45.0.7
-cffi==2.0.0
-
-# Document processing
-PyPDF2==3.0.1
-python-docx==1.2.0
-
-# System monitoring and utilities
-psutil==7.0.0
-tqdm==4.67.1
-python-dateutil==2.9.0
+# GUI and real-time map functionality
+# =====================================
+# This section includes dependencies for the enhanced GUI with integrated
+# real-time map visualization. The map functionality provides:
+# - Interactive map generation using Folium
+# - Real-time map updates during simulation
+# - Integrated map preview within the GUI
+# - External browser integration for full interactivity
+# - Dynamic map statistics and element tracking
+#
+# Note: The following modules are built-in with Python and don't require installation
+# tkinter - GUI framework for the main application interface
+# webbrowser - For opening maps in external browser
+# subprocess - For system process management
+# platform - For cross-platform compatibility
+# threading - For real-time map updates
+# tempfile - For temporary file handling
 
 # Development dependencies (optional)
 pytest==8.4.2
@@ -65,3 +44,21 @@ mypy==1.17.1
 coverage==7.10.6
 isort==5.13.2
 ruff==0.8.4
+
+# =============================================================================
+# INSTALLATION NOTES
+# =============================================================================
+# To install all dependencies for the Cybernetic Planning System, run:
+#   pip install -r requirements.txt
+#
+# For virtual environment setup:
+#   python -m venv .venv
+#   .venv\Scripts\activate  # Windows
+#   source .venv/bin/activate  # Linux/Mac
+#   pip install -r requirements.txt
+#
+# The system includes core functionality for economic planning with optional
+# map visualization features. All dependencies are minimal and essential only.
+#
+# Note: This requirements.txt has been optimized to include only packages
+# actually used in the codebase, with compatible version ranges for Python 3.9+

@@ -5,6 +5,8 @@ Tests all core Marxist economic formulas and ensures theoretical accuracy.
 """
 
 import pytest
+import numpy as np
+from src.cybernetic_planning.core.marxist_economics import (
     MarxistEconomicCalculator,
     ValueComposition
 )

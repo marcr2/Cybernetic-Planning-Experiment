@@ -8,8 +8,8 @@ Focuses on energy intensity coefficients for the 175 - sector BEA classification
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import os
+import logging
 import numpy as np
-import pandas as pd
 
 from .base_scraper import BaseScraper
 
