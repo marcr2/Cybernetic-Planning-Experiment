@@ -8,11 +8,16 @@ cvxpy==1.7.2
 osqp==1.0.4
 scs==3.2.8
 clarabel==0.11.1
+ecos==2.0.13
 
 # Data visualization
 matplotlib==3.10.6
 seaborn==0.13.2
 pillow==11.3.0
+folium==0.17.0  # Interactive map generation for real-time simulation maps
+branca==0.7.2   # Folium dependency for map styling and utilities
+jinja2==3.1.6   # Folium dependency for HTML template rendering
+xyzservices==2025.4.0  # Folium dependency for map tile services
 
 # Excel file handling
 openpyxl==3.1.5
@@ -56,6 +61,24 @@ psutil==7.0.0
 tqdm==4.67.1
 python-dateutil==2.9.0
 
+# GUI and real-time map functionality
+# =====================================
+# This section includes dependencies for the enhanced GUI with integrated
+# real-time map visualization. The map functionality provides:
+# - Interactive map generation using Folium
+# - Real-time map updates during simulation
+# - Integrated map preview within the GUI
+# - External browser integration for full interactivity
+# - Dynamic map statistics and element tracking
+#
+# Note: The following modules are built-in with Python and don't require installation
+# tkinter - GUI framework for the main application interface
+# webbrowser - For opening maps in external browser
+# subprocess - For system process management
+# platform - For cross-platform compatibility
+# threading - For real-time map updates
+# tempfile - For temporary file handling
+
 # Development dependencies (optional)
 pytest==8.4.2
 pytest-cov==6.3.0
@@ -65,3 +88,20 @@ mypy==1.17.1
 coverage==7.10.6
 isort==5.13.2
 ruff==0.8.4
+
+# =============================================================================
+# INSTALLATION NOTES
+# =============================================================================
+# To install all dependencies for the Cybernetic Planning System with real-time
+# map functionality, run:
+#   pip install -r requirements.txt
+#
+# For virtual environment setup:
+#   python -m venv .venv
+#   .venv\Scripts\activate  # Windows
+#   source .venv/bin/activate  # Linux/Mac
+#   pip install -r requirements.txt
+#
+# The system includes enhanced GUI features with integrated real-time map
+# visualization, supporting dynamic simulation environments with interactive
+# geographic displays.

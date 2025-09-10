@@ -39,7 +39,7 @@ class CyberneticPlanningSystem:
 
         # Initialize components
         self.parser = IOParser()
-        self.matrix_builder = MatrixBuilder()
+        self.matrix_builder = MatrixBuilder(use_technology_tree=True)
         self.validator = DataValidator()
         self.enhanced_loader = EnhancedDataLoader()
 
@@ -113,9 +113,9 @@ class CyberneticPlanningSystem:
                 data = self.parser.parse_file(file_path, format_type)
 
             # Validate loaded data
-            validation_results = self.validator.validate_all(data)
+            validation_results = self.validator.validate_plan(data)
 
-            if not validation_results["overall_valid"]:
+            if not validation_results["is_valid"]:
                 # Log validation warnings instead of printing
                 pass
 
@@ -140,9 +140,9 @@ class CyberneticPlanningSystem:
             Validated data dictionary
         """
         # Validate data
-        validation_results = self.validator.validate_all(data)
+        validation_results = self.validator.validate_plan(data)
 
-        if not validation_results["overall_valid"]:
+        if not validation_results["is_valid"]:
             # Log validation warnings instead of printing
             pass
 
@@ -550,8 +550,8 @@ class CyberneticPlanningSystem:
     def _save_plan_json(self, file_path: Path) -> None:
         """Save plan as JSON file."""
 
-        def convert_numpy(obj, visited = None):
-            """Recursively convert numpy arrays to lists, handling circular references."""
+        def convert_for_json(obj, visited = None):
+            """Recursively convert objects to JSON-serializable format, handling circular references."""
             if visited is None:
                 visited = set()
 
@@ -562,21 +562,33 @@ class CyberneticPlanningSystem:
 
             if isinstance(obj, np.ndarray):
                 return obj.tolist()
-            elif isinstance(obj, dict):
+            elif hasattr(obj, 'value'):
+                # Handle enum objects like ValidationStatus FIRST
+                return obj.value
+            elif hasattr(obj, '__dict__'):
+                # Handle dataclass objects like ValidationResult
                 visited.add(obj_id)
-                result = {key: convert_numpy(value, visited) for key, value in obj.items()}
+                result = {key: convert_for_json(value, visited) for key, value in obj.__dict__.items()}
                 visited.remove(obj_id)
                 return result
-            elif isinstance(obj, list):
+            elif isinstance(obj, (str, int, float, bool, type(None))):
+                # Handle basic JSON-serializable types
+                return obj
+            elif isinstance(obj, dict):
                 visited.add(obj_id)
-                result = [convert_numpy(item, visited) for item in obj]
+                result = {key: convert_for_json(value, visited) for key, value in obj.items()}
+                visited.remove(obj_id)
+                return result
+            elif isinstance(obj, (list, tuple)):
+                visited.add(obj_id)
+                result = [convert_for_json(item, visited) for item in obj]
                 visited.remove(obj_id)
                 return result
             else:
                 return obj
 
-        # Convert all numpy arrays to lists for JSON serialization
-        json_data = convert_numpy(self.current_plan)
+        # Convert all objects to JSON-serializable format
+        json_data = convert_for_json(self.current_plan)
 
         with open(file_path, "w") as f:
             json.dump(json_data, f, indent = 2)
@@ -711,6 +723,62 @@ class CyberneticPlanningSystem:
             raise ValueError("No data to export")
 
         self.parser.export_data(self.current_data, output_path, format_type)
+
+    def export_plan_for_simulation(self, file_path: Union[str, Path]) -> None:
+        """
+        Export current plan in simulation-compatible format.
+
+        Args:
+            file_path: Path to save the simulation plan
+        """
+        if self.current_plan is None:
+            raise ValueError("No current plan to export")
+
+        file_path = Path(file_path)
+        
+        # Convert plan to simulation format
+        simulation_plan = self._convert_plan_to_simulation_format(self.current_plan)
+        
+        # Save as JSON
+        with open(file_path, "w") as f:
+            json.dump(simulation_plan, f, indent=2)
+
+    def _convert_plan_to_simulation_format(self, plan: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert a planning system plan to simulation format."""
+        # Extract data from planning plan
+        total_output = np.array(plan.get('total_output', []))
+        labor_vector = np.array(plan.get('labor_vector', []))
+        technology_matrix = np.array(plan.get('technology_matrix', []))
+        final_demand = np.array(plan.get('final_demand', []))
+        
+        # Get sector count
+        n_sectors = len(total_output)
+        
+        # Create sector names if not available
+        sectors = plan.get('sectors', [f"Sector_{i+1}" for i in range(n_sectors)])
+        
+        # Convert to simulation format
+        simulation_plan = {
+            'sectors': sectors,
+            'production_targets': total_output.tolist(),
+            'labor_requirements': labor_vector.tolist(),
+            'resource_allocations': {
+                'technology_matrix': technology_matrix.tolist(),
+                'final_demand': final_demand.tolist(),
+                'total_labor_cost': plan.get('total_labor_cost', 0),
+                'plan_quality_score': plan.get('plan_quality_score', 0)
+            },
+            'plan_metadata': {
+                'year': plan.get('year', 1),
+                'iteration': plan.get('iteration', 1),
+                'status': plan.get('status', 'unknown'),
+                'validation': plan.get('validation', {}),
+                'constraint_violations': plan.get('constraint_violations', {}),
+                'cybernetic_feedback': plan.get('cybernetic_feedback', {})
+            }
+        }
+        
+        return simulation_plan
 
     def _initialize_new_modules(self):
         """Initialize new modules with current data and run automatic analyses."""

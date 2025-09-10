@@ -216,7 +216,8 @@ class HierarchicalSectorMapper:
     
     def _add_specialized_sectors(self, start_id: int) -> None:
         """Add specialized sectors to reach the target count."""
-        specialized_sectors = [
+        # Base specialized sectors
+        base_specialized_sectors = [
             # Technology and Innovation
             ("information_technology", "IT services, software, and digital infrastructure"),
             ("artificial_intelligence", "AI research, development, and applications"),
@@ -324,7 +325,9 @@ class HierarchicalSectorMapper:
         ]
         
         sector_id = start_id
-        for sector_name, description in specialized_sectors:
+        
+        # First, add all base specialized sectors
+        for sector_name, description in base_specialized_sectors:
             if sector_id >= self.max_sectors:
                 break
                 
@@ -344,6 +347,59 @@ class HierarchicalSectorMapper:
                 capital_intensity=self._assess_capital_intensity(sector_name),
                 technology_level=self._assess_technology_level(sector_name),
                 environmental_impact=self._assess_environmental_impact(sector_name)
+            )
+            
+            self.sectors[sector_id] = sector
+            self.sector_names.append(sector_name)
+            sector_id += 1
+        
+        # Generate additional sectors dynamically to reach target count
+        self._generate_additional_sectors(sector_id)
+    
+    def _generate_additional_sectors(self, start_id: int) -> None:
+        """Generate additional sectors dynamically to reach the target count."""
+        sector_id = start_id
+        
+        # Generate sectors until we reach the target count
+        while sector_id < self.max_sectors:
+            # Create a unique sector name
+            sector_number = sector_id - start_id + 1
+            sector_name = f"sector_{sector_number:03d}"
+            
+            # Generate a random description
+            descriptions = [
+                f"Specialized economic sector {sector_number}",
+                f"Advanced production sector {sector_number}",
+                f"Service sector {sector_number}",
+                f"Manufacturing sector {sector_number}",
+                f"Technology sector {sector_number}",
+                f"Infrastructure sector {sector_number}",
+                f"Resource sector {sector_number}",
+                f"Logistics sector {sector_number}",
+                f"Research sector {sector_number}",
+                f"Development sector {sector_number}"
+            ]
+            
+            description = np.random.choice(descriptions)
+            
+            # Determine category and parent category
+            categories = ["manufacturing", "services", "technology", "infrastructure", "resources", "logistics"]
+            category = np.random.choice(categories)
+            parent_category = self._find_parent_category(category)
+            
+            # Create the sector
+            sector = SectorDefinition(
+                id=sector_id,
+                name=sector_name,
+                category=category,
+                parent_category=parent_category,
+                description=description,
+                importance_weight=np.random.uniform(0.2, 0.7),
+                economic_impact=np.random.choice(["low", "medium", "high"]),
+                labor_intensity=np.random.choice(["low", "medium", "high"]),
+                capital_intensity=np.random.choice(["low", "medium", "high", "very_high"]),
+                technology_level=np.random.choice(["basic", "moderate", "advanced"]),
+                environmental_impact=np.random.choice(["low", "medium", "high", "very_high"])
             )
             
             self.sectors[sector_id] = sector
