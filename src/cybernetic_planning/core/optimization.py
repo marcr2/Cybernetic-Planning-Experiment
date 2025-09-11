@@ -54,18 +54,50 @@ class ConstrainedOptimizer:
     def _validate_inputs(self) -> None:
         """Validate input matrices and vectors."""
         n = self.A.shape[0]
-
+        
         if self.A.ndim != 2 or self.A.shape[0] != self.A.shape[1]:
             raise ValueError("Technology matrix must be square")
-
+        
         if self.l.shape[0] != n or self.d.shape[0] != n:
             raise ValueError("All vectors must have same dimension as technology matrix")
-
+        
+        # Check for invalid values
+        if np.any(np.isnan(self.A)) or np.any(np.isinf(self.A)):
+            raise ValueError("Technology matrix contains NaN or infinite values")
+        
+        if np.any(np.isnan(self.l)) or np.any(np.isinf(self.l)):
+            raise ValueError("Labor vector contains NaN or infinite values")
+            
+        if np.any(np.isnan(self.d)) or np.any(np.isinf(self.d)):
+            raise ValueError("Final demand vector contains NaN or infinite values")
+        
+        # Check for negative values where they shouldn't exist
+        if np.any(self.l < 0):
+            raise ValueError("Labor vector contains negative values")
+            
+        if np.any(self.d < 0):
+            raise ValueError("Final demand contains negative values")
+        
+        # Check if economy is productive (spectral radius < 1)
+        try:
+            eigenvals = np.linalg.eigvals(self.A)
+            spectral_radius = np.max(np.abs(eigenvals))
+            if spectral_radius >= 1.0:
+                warnings.warn(f"Economy may be non-productive (spectral radius = {spectral_radius:.4f})")
+        except np.linalg.LinAlgError:
+            warnings.warn("Could not compute spectral radius - matrix may be ill-conditioned")
+        
         if self.R is not None and self.R_max is not None:
             if self.R.shape[1] != n:
                 raise ValueError("Resource matrix must have same number of columns as technology matrix")
             if self.R.shape[0] != self.R_max.shape[0]:
                 raise ValueError("Resource matrix and max resources must have compatible dimensions")
+            
+            # Check resource matrix for invalid values
+            if np.any(np.isnan(self.R)) or np.any(np.isinf(self.R)):
+                raise ValueError("Resource matrix contains NaN or infinite values")
+            if np.any(np.isnan(self.R_max)) or np.any(np.isinf(self.R_max)):
+                raise ValueError("Max resources contains NaN or infinite values")
 
     def _create_problem(self, use_cvxpy: bool = True) -> None:
         """
@@ -158,49 +190,72 @@ class ConstrainedOptimizer:
             return self._solve_scipy()
 
     def _solve_cvxpy(self, solver: Optional[str] = None) -> Dict[str, Any]:
-        """Solve using CVXPY."""
-        if solver is None:
-            solver = cp.ECOS  # Default solver
+        """Solve using CVXPY with fallback to multiple solvers."""
+        # Try multiple solvers in order of preference
+        solvers_to_try = []
+        if solver is not None:
+            solvers_to_try = [solver]
+        else:
+            # Try solvers in order of preference
+            solvers_to_try = [cp.ECOS, cp.SCS, cp.OSQP, cp.CLARABEL]
+        
+        last_error = None
+        for solver_name in solvers_to_try:
+            try:
+                self._problem.solve(solver=solver_name)
+                self._status = self._problem.status
 
+                if self._status == cp.OPTIMAL:
+                    self._solution = self._problem.variables()[0].value
+                    return {
+                        "status": "optimal",
+                        "solution": self._solution,
+                        "objective_value": self._problem.value,
+                        "total_labor_cost": np.dot(self.l, self._solution),
+                        "feasible": True,
+                        "solver_used": solver_name,
+                    }
+                elif self._status == cp.INFEASIBLE:
+                    return {
+                        "status": "infeasible",
+                        "solution": None,
+                        "objective_value": None,
+                        "total_labor_cost": None,
+                        "feasible": False,
+                        "solver_used": solver_name,
+                    }
+                elif self._status == cp.UNBOUNDED:
+                    return {
+                        "status": "unbounded",
+                        "solution": None,
+                        "objective_value": None,
+                        "total_labor_cost": None,
+                        "feasible": False,
+                        "solver_used": solver_name,
+                    }
+                else:
+                    # Try next solver
+                    continue
+
+            except Exception as e:
+                last_error = e
+                warnings.warn(f"Solver {solver_name} failed: {str(e)}")
+                # Try next solver
+                continue
+        
+        # If all CVXPY solvers failed, try SciPy as fallback
+        warnings.warn(f"All CVXPY solvers failed. Last error: {last_error}. Trying SciPy fallback...")
         try:
-            self._problem.solve(solver = solver)
-            self._status = self._problem.status
-
-            if self._status == cp.OPTIMAL:
-                self._solution = self._problem.variables()[0].value
-                return {
-                    "status": "optimal",
-                    "solution": self._solution,
-                    "objective_value": self._problem.value,
-                    "total_labor_cost": self._problem.value,
-                    "feasible": True,
-                }
-            elif self._status == cp.INFEASIBLE:
-                return {
-                    "status": "infeasible",
-                    "solution": None,
-                    "objective_value": None,
-                    "total_labor_cost": None,
-                    "feasible": False,
-                }
-            else:
-                return {
-                    "status": "unknown",
-                    "solution": None,
-                    "objective_value": None,
-                    "total_labor_cost": None,
-                    "feasible": False,
-                }
-
-        except Exception as e:
-            warnings.warn(f"CVXPY solver failed: {e}")
+            return self._solve_scipy()
+        except Exception as scipy_error:
+            warnings.warn(f"SciPy fallback also failed: {scipy_error}")
             return {
                 "status": "error",
                 "solution": None,
                 "objective_value": None,
                 "total_labor_cost": None,
                 "feasible": False,
-                "error": str(e),
+                "error": f"All solvers failed. CVXPY: {last_error}, SciPy: {scipy_error}",
             }
 
     def _solve_scipy(self) -> Dict[str, Any]:

@@ -473,6 +473,66 @@ class InteractiveMap:
             return filename
         return None
 
+    def save_map_as_image(self, filename: str = "simulation_map.png", width: int = 1200, height: int = 800):
+        """Save the map as a PNG image using selenium."""
+        try:
+            import selenium
+            from selenium import webdriver
+            from selenium.webdriver.chrome.options import Options
+            from selenium.webdriver.common.by import By
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            import time
+            import os
+        except ImportError:
+            print("Selenium not available for image generation. Install with: pip install selenium")
+            return None
+
+        if not self.map:
+            return None
+
+        try:
+            # Create temporary HTML file
+            import tempfile
+            temp_html = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False)
+            self.map.save(temp_html.name)
+            temp_html.close()
+
+            # Set up Chrome options for headless browsing
+            chrome_options = Options()
+            chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument(f"--window-size={width},{height}")
+
+            # Initialize Chrome driver
+            driver = webdriver.Chrome(options=chrome_options)
+            
+            # Load the HTML file
+            file_url = f"file://{os.path.abspath(temp_html.name)}"
+            driver.get(file_url)
+            
+            # Wait for map to load
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CLASS_NAME, "folium-map"))
+            )
+            
+            # Additional wait for tiles to load
+            time.sleep(3)
+            
+            # Take screenshot
+            driver.save_screenshot(filename)
+            
+            # Clean up
+            driver.quit()
+            os.unlink(temp_html.name)
+            
+            return filename
+            
+        except Exception as e:
+            print(f"Error generating map image: {e}")
+            return None
+
     def open_in_browser(self):
         """Open the map in the default web browser."""
         if self.map:

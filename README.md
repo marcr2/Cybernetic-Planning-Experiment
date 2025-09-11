@@ -10,6 +10,8 @@ An AI-enhanced central planning software system that generates comprehensive 5-y
 - **Data Processing**: Comprehensive I-O table parsing and validation
 - **Report Generation**: Detailed markdown reports with mathematical transparency
 - **Visualization**: Charts and graphs for economic analysis
+- **Interactive Maps**: Real-time map visualization with scrolling and native image display
+- **Enhanced GUI**: Integrated map preview with image generation capabilities
 
 ## Installation
 
@@ -37,16 +39,32 @@ The easiest way to install the Cybernetic Planning System is using our automated
 The installation wizard automatically:
 - ✅ Checks Python version compatibility (3.9+ required)
 - ✅ Creates a Python virtual environment
-- ✅ Installs all required dependencies
+- ✅ Installs all required dependencies (including Pillow, Selenium, ECOS solver)
 - ✅ Sets up project directories and configuration
 - ✅ Creates security keys and API templates
 - ✅ Validates the complete installation
 - ✅ Generates launcher scripts for easy startup
 - ✅ Creates comprehensive installation logs
+- ✅ Checks for optional dependencies (Chrome browser for map image generation)
 
 ### 🔧 Manual Installation
 
 If you prefer to install manually or the wizard doesn't work:
+
+#### Option 1: Use the Dependency Installer
+```bash
+# Windows
+install_dependencies.bat
+
+# Linux/macOS
+chmod +x install_dependencies.sh
+./install_dependencies.sh
+
+# Or run directly with Python
+python install_dependencies.py
+```
+
+#### Option 2: Manual pip installation
 
 #### Prerequisites
 
@@ -54,6 +72,18 @@ If you prefer to install manually or the wizard doesn't work:
 - pip package manager
 - 2GB+ free disk space
 - 4GB+ RAM recommended
+
+#### New Dependencies (v2.0+)
+
+The system now includes enhanced map visualization features that require additional dependencies:
+
+- **Pillow (PIL)**: For native image display in the GUI
+- **Selenium**: For automatic map image generation
+- **ECOS/SCS**: Additional optimization solvers (fixes CVXPY warnings)
+- **BeautifulSoup4/LXML**: Enhanced web scraping capabilities
+
+**Optional but Recommended:**
+- **Chrome/Chromium Browser**: Required for full map image generation functionality
 
 #### Setup
 

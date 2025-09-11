@@ -268,13 +268,18 @@ class DynamicPlanner:
 
             optimizer = ConstrainedOptimizer(technology_matrix = A_t, direct_labor = l_t, final_demand = d_t)
 
-            result = optimizer.solve()
+            # Try CVXPY first, then scipy as fallback
+            result = optimizer.solve(use_cvxpy=True)
+            
+            if not result["feasible"]:
+                # Try scipy optimization as fallback
+                result = optimizer.solve(use_cvxpy=False)
 
             if result["feasible"]:
                 total_output = result["solution"]
                 total_labor_cost = result["total_labor_cost"]
             else:
-                warnings.warn(f"Optimization failed for year {year}, using Leontief solution")
+                warnings.warn(f"All optimization methods failed for year {year}, using Leontief solution")
                 from .leontief import LeontiefModel
 
                 leontief = LeontiefModel(A_t, d_t)

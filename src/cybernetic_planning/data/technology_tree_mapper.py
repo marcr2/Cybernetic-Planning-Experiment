@@ -11,7 +11,7 @@ from enum import Enum
 import json
 import numpy as np
 
-from .sector_parser import SectorParser, SectorDefinition, TechnologyLevel, SectorCategory
+from .synthetic_sector_generator import SyntheticSectorGenerator, SectorDefinition, TechnologyLevel, SectorCategory
 
 class DevelopmentStage(Enum):
     """Stages of economic development."""
@@ -38,8 +38,13 @@ class TechnologyTreeMapper:
     - Progressive sector unlocking based on prerequisites - Technology development stages - Research investment requirements - Sector interdependencies - Development cost calculations
     """
 
-    def __init__(self, sectors_file_path: Optional[str] = None):
-        self.parser = SectorParser(sectors_file_path)
+    def __init__(self, sectors_file_path: Optional[str] = None, max_sectors: int = 1000, starting_technology_level: float = 0.0):
+        self.sector_generator = SyntheticSectorGenerator(
+            sectors_file_path=sectors_file_path,
+            max_sectors=max_sectors,
+            min_sectors=6,
+            starting_technology_level=starting_technology_level
+        )
         self.sectors: Dict[int, SectorDefinition] = {}
         self.technology_nodes: Dict[int, TechnologyNode] = {}
         self.sector_names: List[str] = []
@@ -52,9 +57,9 @@ class TechnologyTreeMapper:
         self._initialize_technology_tree()
 
     def _initialize_technology_tree(self):
-        """Initialize the technology tree from the sector parser."""
-        self.sectors = self.parser.parse_sectors()
-        self.sector_names = self.parser.get_sector_names()
+        """Initialize the technology tree from the synthetic sector generator."""
+        self.sectors = self.sector_generator.sectors
+        self.sector_names = self.sector_generator.get_sector_names()
 
         # Create technology nodes
         for sector_id, sector in self.sectors.items():
@@ -66,7 +71,7 @@ class TechnologyTreeMapper:
 
     def _unlock_basic_sectors(self):
         """Unlock all basic technology level sectors."""
-        basic_sectors = self.parser.get_sectors_by_technology_level(TechnologyLevel.BASIC)
+        basic_sectors = self.sector_generator.get_sectors_by_technology_level(TechnologyLevel.BASIC)
         for sector in basic_sectors:
             self._unlock_sector(sector.id)
 
@@ -78,41 +83,53 @@ class TechnologyTreeMapper:
             self.developed_sectors.add(sector_id)
 
     def get_available_sectors(self, max_sectors: int = 1000) -> List[int]:
-        """Get available sectors up to the specified limit."""
+        """Get available sectors up to the specified limit based on current technology level."""
         # DEBUG: Log the request
         print(f"DEBUG TECH_TREE: Requested {max_sectors} sectors")
 
-        # Start with basic sectors
+        # Check if we need to expand the sector generator
+        current_max = self.sector_generator.max_sectors
+        if max_sectors > current_max:
+            print(f"DEBUG TECH_TREE: Expanding sector generator from {current_max} to {max_sectors}")
+            # Create a new sector generator with the requested max_sectors
+            self.sector_generator = SyntheticSectorGenerator(
+                sectors_file_path=self.sector_generator.sectors_file_path,
+                max_sectors=max_sectors,
+                min_sectors=6
+            )
+            # Reinitialize the technology tree with the expanded generator
+            self._initialize_technology_tree()
+
+        # Get current technology level
+        current_tech_level = self.sector_generator.technological_level
+        print(f"DEBUG TECH_TREE: Current technology level: {current_tech_level}")
+
+        # Start with available sectors
         available = []
 
-        # Add basic sectors first (all of them, not just 6)
-        basic_sectors = [s.id for s in self.parser.get_sectors_by_technology_level(TechnologyLevel.BASIC)]
-        print(f"DEBUG TECH_TREE: Found {len(basic_sectors)} basic sectors")
-        available.extend(basic_sectors[:max_sectors])
+        # Technology level thresholds
+        tech_level_thresholds = {
+            TechnologyLevel.BASIC: 0.0,
+            TechnologyLevel.INTERMEDIATE: 0.2,
+            TechnologyLevel.ADVANCED: 0.5,
+            TechnologyLevel.CUTTING_EDGE: 0.8,
+            TechnologyLevel.FUTURE: 0.95
+        }
 
-        # Add intermediate sectors
-        if len(available) < max_sectors:
-            intermediate_sectors = [s.id for s in self.parser.get_sectors_by_technology_level(TechnologyLevel.INTERMEDIATE)]
-            print(f"DEBUG TECH_TREE: Found {len(intermediate_sectors)} intermediate sectors")
-            available.extend(intermediate_sectors[:max_sectors - len(available)])
-
-        # Add advanced sectors
-        if len(available) < max_sectors:
-            advanced_sectors = [s.id for s in self.parser.get_sectors_by_technology_level(TechnologyLevel.ADVANCED)]
-            print(f"DEBUG TECH_TREE: Found {len(advanced_sectors)} advanced sectors")
-            available.extend(advanced_sectors[:max_sectors - len(available)])
-
-        # Add cutting - edge sectors
-        if len(available) < max_sectors:
-            cutting_edge_sectors = [s.id for s in self.parser.get_sectors_by_technology_level(TechnologyLevel.CUTTING_EDGE)]
-            print(f"DEBUG TECH_TREE: Found {len(cutting_edge_sectors)} cutting - edge sectors")
-            available.extend(cutting_edge_sectors[:max_sectors - len(available)])
-
-        # Add future sectors
-        if len(available) < max_sectors:
-            future_sectors = [s.id for s in self.parser.get_sectors_by_technology_level(TechnologyLevel.FUTURE)]
-            print(f"DEBUG TECH_TREE: Found {len(future_sectors)} future sectors")
-            available.extend(future_sectors[:max_sectors - len(available)])
+        # Add sectors based on technology level thresholds
+        for tech_level, threshold in tech_level_thresholds.items():
+            if current_tech_level >= threshold:
+                sectors_at_level = [s.id for s in self.sector_generator.get_sectors_by_technology_level(tech_level)]
+                print(f"DEBUG TECH_TREE: Found {len(sectors_at_level)} {tech_level.value} sectors (threshold: {threshold})")
+                
+                # Add sectors up to the limit
+                remaining_slots = max_sectors - len(available)
+                if remaining_slots > 0:
+                    available.extend(sectors_at_level[:remaining_slots])
+                    print(f"DEBUG TECH_TREE: Added {min(len(sectors_at_level), remaining_slots)} {tech_level.value} sectors")
+            else:
+                sectors_at_level = [s.id for s in self.sector_generator.get_sectors_by_technology_level(tech_level)]
+                print(f"DEBUG TECH_TREE: Skipping {len(sectors_at_level)} {tech_level.value} sectors (threshold: {threshold}, current: {current_tech_level})")
 
         print(f"DEBUG TECH_TREE: Returning {len(available)} sectors (requested {max_sectors})")
         return available[:max_sectors]
@@ -211,7 +228,7 @@ class TechnologyTreeMapper:
 
     def get_unlockable_sectors(self) -> List[int]:
         """Get sectors that can be unlocked with current development."""
-        return self.parser.get_unlocked_sectors(self.developed_sectors)
+        return self.sector_generator.get_unlocked_sectors(self.developed_sectors)
 
     def invest_in_research(self, sector_id: int, amount: float) -> bool:
         """Invest research funding in a sector."""
@@ -350,6 +367,15 @@ class TechnologyTreeMapper:
         with open(filepath, 'w', encoding='utf - 8') as f:
             json.dump(tree_data, f, indent = 2, ensure_ascii = False)
 
+    def get_technology_tree_visualization(self) -> Dict[str, Any]:
+        """Get technology tree visualization data."""
+        return self.sector_generator.get_technology_tree_visualization()
+    
+    def get_available_sectors_by_tech_level(self) -> Dict[str, List[int]]:
+        """Get sectors available at current technology level."""
+        available = self.sector_generator.get_available_sectors_by_tech_level()
+        return {level.value: sectors for level, sectors in available.items()}
+    
     def get_sector_by_id(self, sector_id: int) -> Optional[SectorDefinition]:
         """Get sector definition by ID."""
         return self.sectors.get(sector_id)

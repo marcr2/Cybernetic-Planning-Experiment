@@ -82,6 +82,20 @@
         "growth_rate": 0.03,
         "employment_share": 0.05
       }
+    },
+    "regional_characteristics": {
+      "downstate": {
+        "description": "NYC, Long Island, Westchester",
+        "dominant_sectors": ["financial_services", "technology", "healthcare"],
+        "population_share": 0.65,
+        "gdp_share": 0.75
+      },
+      "upstate": {
+        "description": "Albany, Buffalo, Rochester, Syracuse",
+        "dominant_sectors": ["manufacturing", "education", "healthcare"],
+        "population_share": 0.35,
+        "gdp_share": 0.25
+      }
     }
   },
   "sector_mapping": {
@@ -106,7 +120,39 @@
       "Real Estate and Construction",
       "Media and Entertainment",
       "Professional Services"
-    ]
+    ],
+    "department_classification": {
+      "department_I": {
+        "description": "Means of Production",
+        "sectors": [
+          "Energy",
+          "Advanced Manufacturing", 
+          "Technology and Software",
+          "Transportation and Logistics",
+          "Construction Materials"
+        ]
+      },
+      "department_II": {
+        "description": "Consumer Goods",
+        "sectors": [
+          "Food and Agriculture",
+          "Healthcare",
+          "Education",
+          "Tourism and Hospitality",
+          "Media and Entertainment"
+        ]
+      },
+      "department_III": {
+        "description": "Services",
+        "sectors": [
+          "Financial Services",
+          "Professional Services",
+          "Real Estate",
+          "Government Services",
+          "Research and Development"
+        ]
+      }
+    }
   },
   "economic_parameters": {
     "growth_rates": {
@@ -130,19 +176,35 @@
     "feedback_strength": 0.12,
     "adaptation_rate": 0.06,
     "convergence_threshold": 1e-6,
-    "max_iterations": 100
+    "max_iterations": 100,
+    "stability_parameters": {
+      "max_demand_adjustment": 0.3,
+      "smoothing_factor": 0.7,
+      "oscillation_detection": true
+    }
   },
   "data_processing": {
     "max_file_size_mb": 100,
     "supported_formats": ["csv", "xlsx", "json"],
     "auto_validate": true,
-    "backup_original": true
+    "backup_original": true,
+    "nys_data_sources": [
+      "New York State Department of Labor",
+      "Bureau of Economic Analysis",
+      "Federal Reserve Bank of New York",
+      "New York State Energy Research and Development Authority"
+    ]
   },
   "visualization": {
     "default_style": "seaborn-v0_8",
     "figure_size": [12, 8],
     "dpi": 300,
-    "save_formats": ["png", "pdf", "svg"]
+    "save_formats": ["png", "pdf", "svg"],
+    "nys_theme": {
+      "colors": ["#003366", "#FF6B35", "#4A90E2", "#7ED321"],
+      "map_center": [42.1657, -74.9481],
+      "map_zoom": 6
+    }
   },
   "security": {
     "encrypt_sensitive_data": true,
