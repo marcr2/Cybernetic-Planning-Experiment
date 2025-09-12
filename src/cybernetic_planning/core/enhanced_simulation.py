@@ -13,6 +13,11 @@ import warnings
 from .leontief import LeontiefModel
 from .optimization import ConstrainedOptimizer
 from .labor_values import LaborValueCalculator
+from .simulation_cache import SimulationCache, MatrixOperationCache, LaborValueCache, TechnologyEfficiencyCache
+from .memory_optimizer import SimulationMemoryManager
+from .parallel_processor import ParallelProcessor, SectorParallelProcessor, MatrixParallelProcessor, ParallelConfig
+from .io_optimizer import SimulationIO, IOConfig
+from .performance_monitor import PerformanceMonitor, SimulationProfiler
 from ..utils.population_health_tracker import PopulationHealthTracker
 
 
@@ -74,6 +79,29 @@ class EnhancedEconomicSimulation:
         self.leontief_model = LeontiefModel(self.A, self.d)
         self.labor_calculator = LaborValueCalculator(self.A, self.l)
         
+        # Initialize caching system
+        self.cache = SimulationCache(max_cache_size=2000, max_memory_mb=1000)
+        self.matrix_cache = MatrixOperationCache(self.cache)
+        self.labor_cache = LaborValueCache(self.cache)
+        self.tech_efficiency_cache = TechnologyEfficiencyCache(self.cache)
+        
+        # Initialize memory management
+        self.memory_manager = SimulationMemoryManager(max_history_months=120, max_memory_mb=1000)
+        
+        # Initialize parallel processing
+        parallel_config = ParallelConfig(max_workers=0, use_threading=False)
+        self.parallel_processor = ParallelProcessor(parallel_config)
+        self.sector_processor = SectorParallelProcessor(self.parallel_processor)
+        self.matrix_processor = MatrixParallelProcessor(self.parallel_processor)
+        
+        # Initialize I/O optimization
+        io_config = IOConfig(use_compression=True, use_binary_format=True, background_saving=True)
+        self.io_manager = SimulationIO(io_config)
+        
+        # Initialize performance monitoring
+        self.performance_monitor = PerformanceMonitor()
+        self.profiler = SimulationProfiler(self)
+        
         # Simulation state
         self.current_technology_level = 0.0
         self.current_living_standards = 0.5
@@ -120,17 +148,18 @@ class EnhancedEconomicSimulation:
         Returns:
             Dictionary with simulation results
         """
-        # Calculate technology-driven efficiency improvements
-        tech_efficiency = self._calculate_technology_efficiency()
+        # Get technology and living standards from tracker if available
+        if population_health_tracker:
+            tech_level = population_health_tracker.current_technology_level
+            living_standards = population_health_tracker.current_living_standards
+        else:
+            tech_level = self.current_technology_level
+            living_standards = self.current_living_standards
         
-        # Update technology matrix based on current technology level
-        A_modified = self._apply_technology_improvements(self.A, tech_efficiency)
-        
-        # Update labor vector based on technology and living standards
-        l_modified = self._apply_labor_improvements(self.l, tech_efficiency)
-        
-        # Calculate living standards-optimized final demand
-        d_modified = self._optimize_final_demand_for_living_standards(self.d)
+        # Use cached matrix operations
+        A_modified, l_modified, d_modified = self.matrix_cache.get_modified_matrices(
+            self.A, self.l, self.d, tech_level, living_standards
+        )
         
         if use_optimization:
             # Use constrained optimization for labor-time minimization
@@ -145,6 +174,13 @@ class EnhancedEconomicSimulation:
         # Store results
         self.simulation_history.append(metrics)
         
+        # Store in memory-efficient buffers
+        self.memory_manager.store_simulation_data(month, {
+            'total_economic_output': metrics.total_economic_output,
+            'average_efficiency': metrics.average_efficiency,
+            'labor_productivity': metrics.labor_productivity
+        })
+        
         return {
             'month': month,
             'production': results['production'],
@@ -157,25 +193,10 @@ class EnhancedEconomicSimulation:
     
     def _calculate_technology_efficiency(self) -> np.ndarray:
         """Calculate technology-driven efficiency improvements for each sector."""
-        n = len(self.sector_names)
-        efficiency = np.ones(n)
-        
-        # Technology level affects all sectors differently
-        tech_multiplier = 1.0 + self.current_technology_level * 0.5  # Up to 50% improvement
-        
-        # Different sectors benefit differently from technology
-        tech_sectors = ['Technology', 'Manufacturing', 'Energy', 'Healthcare', 'Education']
-        high_tech_sectors = ['Technology', 'Healthcare', 'Education', 'Research']
-        
-        for i, sector in enumerate(self.sector_names):
-            if sector in high_tech_sectors:
-                efficiency[i] = tech_multiplier * 1.2  # High-tech sectors benefit more
-            elif sector in tech_sectors:
-                efficiency[i] = tech_multiplier * 1.1  # Medium-tech sectors benefit moderately
-            else:
-                efficiency[i] = tech_multiplier * 1.05  # Low-tech sectors benefit less
-        
-        return efficiency
+        return self.tech_efficiency_cache.get_technology_efficiency(
+            self.current_technology_level, 
+            self.sector_names
+        )
     
     def _apply_technology_improvements(self, A: np.ndarray, efficiency: np.ndarray) -> np.ndarray:
         """Apply technology improvements to the technology matrix."""
@@ -361,6 +382,7 @@ class EnhancedEconomicSimulation:
             return {}
         
         latest_metrics = self.simulation_history[-1]
+        cache_stats = self.cache.get_cache_stats()
         
         return {
             'total_economic_output': latest_metrics.total_economic_output,
@@ -370,5 +392,182 @@ class EnhancedEconomicSimulation:
             'labor_productivity': latest_metrics.labor_productivity,
             'resource_utilization': latest_metrics.resource_utilization,
             'consumer_demand_fulfillment': latest_metrics.consumer_demand_fulfillment,
-            'simulation_months': len(self.simulation_history)
+            'simulation_months': len(self.simulation_history),
+            'cache_performance': cache_stats
         }
+    
+    def invalidate_cache(self) -> None:
+        """Invalidate all cached computations."""
+        self.cache.clear()
+    
+    def invalidate_technology_cache(self) -> None:
+        """Invalidate technology-related cache entries."""
+        self.cache.invalidate_tech_efficiency_cache()
+        self.cache.invalidate_matrix_cache()
+    
+    def get_cache_performance(self) -> Dict[str, Any]:
+        """Get cache performance statistics."""
+        return self.cache.get_cache_stats()
+    
+    def optimize_memory(self) -> Dict[str, Any]:
+        """Optimize memory usage and return statistics."""
+        return self.memory_manager.optimize_memory_usage()
+    
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """Get memory usage statistics."""
+        stats = self.memory_manager.get_memory_stats()
+        return {
+            'total_memory_mb': stats.total_memory_mb,
+            'available_memory_mb': stats.available_memory_mb,
+            'memory_usage_percent': stats.memory_usage_percent,
+            'simulation_memory_mb': stats.simulation_memory_mb,
+            'cache_memory_mb': stats.cache_memory_mb,
+            'matrix_memory_mb': stats.matrix_memory_mb
+        }
+    
+    def get_recent_metrics(self, months: int = 12) -> Dict[str, np.ndarray]:
+        """Get recent simulation metrics from memory-efficient storage."""
+        return self.memory_manager.get_recent_metrics(months)
+    
+    def get_parallel_performance(self) -> Dict[str, Any]:
+        """Get parallel processing performance statistics."""
+        return self.parallel_processor.get_performance_stats()
+    
+    def parallel_sector_analysis(self, sectors_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Perform parallel sector efficiency analysis."""
+        return self.sector_processor.calculate_sector_efficiency(
+            sectors_data, self.current_technology_level
+        )
+    
+    def parallel_production_calculation(self, sectors_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Calculate sector production in parallel."""
+        return self.sector_processor.calculate_sector_production(
+            sectors_data, self.d, self.A
+        )
+    
+    def save_simulation_state(self, file_path: str, use_background: bool = True) -> Dict[str, Any]:
+        """Save complete simulation state with I/O optimization."""
+        simulation_data = {
+            'technology_level': self.current_technology_level,
+            'living_standards': self.current_living_standards,
+            'simulation_history': [asdict(metric) for metric in self.simulation_history],
+            'cache_stats': self.cache.get_cache_stats(),
+            'memory_stats': self.get_memory_stats(),
+            'parallel_stats': self.get_parallel_performance()
+        }
+        return self.io_manager.save_simulation_state(file_path, simulation_data, use_background)
+    
+    def load_simulation_state(self, file_path: str) -> Optional[Dict[str, Any]]:
+        """Load complete simulation state with I/O optimization."""
+        return self.io_manager.load_simulation_state(file_path)
+    
+    def save_simulation_results(self, file_path: str, use_background: bool = True) -> Dict[str, Any]:
+        """Save simulation results with I/O optimization."""
+        results = []
+        for i, metrics in enumerate(self.simulation_history):
+            results.append({
+                'month': i + 1,
+                'metrics': asdict(metrics),
+                'technology_level': self.current_technology_level,
+                'living_standards': self.current_living_standards
+            })
+        return self.io_manager.save_simulation_results(file_path, results, use_background)
+    
+    def get_io_performance(self) -> Dict[str, Any]:
+        """Get I/O performance statistics."""
+        return self.io_manager.get_io_performance()
+    
+    def start_performance_monitoring(self) -> None:
+        """Start performance monitoring."""
+        self.performance_monitor.start_monitoring()
+    
+    def stop_performance_monitoring(self) -> None:
+        """Stop performance monitoring."""
+        self.performance_monitor.stop_monitoring()
+    
+    def get_performance_profile(self) -> Dict[str, Any]:
+        """Get comprehensive performance profile."""
+        return self.profiler.profile_simulation(months=12)
+    
+    def benchmark_optimizations(self) -> Dict[str, Any]:
+        """Benchmark optimization effectiveness."""
+        return self.profiler.benchmark_optimizations()
+    
+    def export_performance_report(self, file_path: str) -> None:
+        """Export detailed performance report."""
+        self.profiler.export_detailed_report(file_path)
+    
+    def simulate_batch_months(
+        self, 
+        start_month: int, 
+        batch_size: int = 12,
+        population_health_tracker: Optional[PopulationHealthTracker] = None,
+        use_optimization: bool = True
+    ) -> List[Dict[str, Any]]:
+        """
+        Process multiple months in a single batch for better performance.
+        
+        Args:
+            start_month: Starting month number
+            batch_size: Number of months to process in batch
+            population_health_tracker: Population health tracker for living standards
+            use_optimization: Whether to use optimization (True) or simple Leontief (False)
+        
+        Returns:
+            List of simulation results for each month in the batch
+        """
+        results = []
+        
+        # Pre-allocate arrays for better performance
+        tech_levels = np.zeros(batch_size)
+        living_standards_levels = np.zeros(batch_size)
+        
+        # Get initial values
+        if population_health_tracker:
+            initial_tech = population_health_tracker.current_technology_level
+            initial_living = population_health_tracker.current_living_standards
+        else:
+            initial_tech = self.current_technology_level
+            initial_living = self.current_living_standards
+        
+        # Process batch without individual UI updates
+        for i in range(batch_size):
+            month = start_month + i
+            
+            # Update technology and living standards (simplified for batch processing)
+            if population_health_tracker:
+                tech_levels[i] = population_health_tracker.current_technology_level
+                living_standards_levels[i] = population_health_tracker.current_living_standards
+            else:
+                tech_levels[i] = self.current_technology_level
+                living_standards_levels[i] = self.current_living_standards
+            
+            # Use cached matrix operations for the batch
+            A_modified, l_modified, d_modified = self.matrix_cache.get_modified_matrices(
+                self.A, self.l, self.d, tech_levels[i], living_standards_levels[i]
+            )
+            
+            if use_optimization:
+                # Use constrained optimization for labor-time minimization
+                month_results = self._run_optimization(A_modified, l_modified, d_modified)
+            else:
+                # Use simple Leontief model
+                month_results = self._run_leontief_simulation(A_modified, l_modified, d_modified)
+            
+            # Calculate comprehensive metrics
+            metrics = self._calculate_comprehensive_metrics(month_results, population_health_tracker)
+            
+            # Store results
+            self.simulation_history.append(metrics)
+            
+            results.append({
+                'month': month,
+                'production': month_results['production'],
+                'labor_allocation': month_results['labor_allocation'],
+                'resource_usage': month_results.get('resource_usage', {}),
+                'metrics': metrics,
+                'technology_level': tech_levels[i],
+                'living_standards': living_standards_levels[i]
+            })
+        
+        return results

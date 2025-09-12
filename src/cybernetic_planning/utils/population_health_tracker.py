@@ -320,7 +320,21 @@ class PopulationHealthTracker:
         # Add resource availability factor
         resource_availability = 1.0
         if resource_data:
-            total_resources = sum(resource_data.values()) if isinstance(resource_data, dict) else 0
+            total_resources = 0
+            if isinstance(resource_data, dict):
+                for resource_value in resource_data.values():
+                    if isinstance(resource_value, dict):
+                        actual_value = resource_value.get('actual', 0)
+                        # Handle case where actual_value is a list
+                        if isinstance(actual_value, list):
+                            # Sum all numeric values in the list
+                            for item in actual_value:
+                                if isinstance(item, (int, float)):
+                                    total_resources += item
+                        else:
+                            total_resources += actual_value
+                    else:
+                        total_resources += float(resource_value) if isinstance(resource_value, (int, float)) else 0
             resource_availability = min(1.0, total_resources / max(1, total_output))
         
         # Apply resource availability as a multiplier
@@ -375,7 +389,21 @@ class PopulationHealthTracker:
         indicators['death_rate'] = 0.015 - (living_standards * 0.010)
         
         # Employment rate increases with economic output
-        total_output = sum(production_data.get('sectors', {}).values()) if isinstance(production_data.get('sectors'), dict) else 0
+        total_output = 0
+        if isinstance(production_data.get('sectors'), dict):
+            for sector_data in production_data['sectors'].values():
+                if isinstance(sector_data, dict):
+                    total_output += sector_data.get('actual', 0)
+                else:
+                    total_output += float(sector_data) if isinstance(sector_data, (int, float)) else 0
+        else:
+            # Calculate total output from production_data directly
+            for sector_name, sector_data in production_data.items():
+                if isinstance(sector_data, dict):
+                    total_output += sector_data.get('actual', 0)
+                else:
+                    total_output += float(sector_data) if isinstance(sector_data, (int, float)) else 0
+        
         indicators['employment_rate'] = min(0.98, 0.80 + (total_output / 10000000.0) * 0.18)
         
         # Income per capita based on total output
@@ -503,9 +531,9 @@ class PopulationHealthTracker:
         technology_growth_rate = (tech_levels[-1] - tech_levels[0]) / tech_levels[0] if tech_levels[0] > 0 else 0.0
         
         # Living standards statistics
-        living_standards = [m.living_standards_index for m in self.monthly_metrics]
-        average_living_standards = np.mean(living_standards)
-        living_standards_growth_rate = (living_standards[-1] - living_standards[0]) / living_standards[0] if living_standards[0] > 0 else 0.0
+        living_standards_list = [m.living_standards_index for m in self.monthly_metrics]
+        average_living_standards = np.mean(living_standards_list)
+        living_standards_growth_rate = (living_standards_list[-1] - living_standards_list[0]) / living_standards_list[0] if living_standards_list[0] > 0 else 0.0
         
         # Consumer demand fulfillment statistics
         demand_fulfillment = [m.consumer_demand_fulfillment for m in self.monthly_metrics]

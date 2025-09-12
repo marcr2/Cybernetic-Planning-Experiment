@@ -1,0 +1,32 @@
+{
+  "data_management": {
+    "economic_data": {
+      "sectors": "1000",
+      "density": "0.9",
+      "resources": "300",
+      "starting_tech_level": "1"
+    },
+    "population_demographics": {
+      "total_population": "340000000",
+      "employment_rate": "95",
+      "dependency_ratio": "53.3",
+      "tech_level": 1.0
+    },
+    "regional_distribution": {
+      "num_cities": "10",
+      "num_towns": "19490",
+      "rural_percentage": "15",
+      "urban_concentration": "0.275"
+    },
+    "terrain_distribution": {
+      "forest_percentage": "33",
+      "mountain_percentage": "15",
+      "water_percentage": "3",
+      "base_terrain_percentage": "49.0"
+    }
+  },
+  "metadata": {
+    "saved_at": "2025-09-11 20:29:25",
+    "version": "1.0"
+  }
+}

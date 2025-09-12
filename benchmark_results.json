@@ -1,0 +1,9 @@
+{
+  "Sleep Delay Optimization": true,
+  "Caching System": true,
+  "Memory Optimization": true,
+  "Parallel Processing": true,
+  "I/O Optimization": true,
+  "Batch Processing": true,
+  "Full Simulation": true
+}

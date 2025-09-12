@@ -1,158 +1,29 @@
 {
   "system": {
-    "name": "Cybernetic Planning System - New York State",
+    "name": "Cybernetic Planning System",
     "version": "0.1.0",
     "python_version": "3.13",
-    "installation_date": "2025-01-09 12:44:22",
-    "region": "New York State",
-    "description": "Economic planning system configured for New York State's economy"
+    "installation_date": "2025-09-11 19:53:04"
   },
   "paths": {
     "data_directory": "data",
     "exports_directory": "exports",
     "logs_directory": "logs",
-    "cache_directory": "cache",
-    "outputs_directory": "outputs",
-    "config_directory": "config"
+    "cache_directory": "cache"
   },
   "planning": {
-    "default_sectors": 12,
+    "default_sectors": 8,
     "default_years": 5,
     "convergence_threshold": 0.005,
-    "max_iterations": 15,
-    "optimization_solver": "ECOS",
-    "technology_density": 0.4
+    "max_iterations": 15
   },
-  "nys_economy": {
-    "description": "New York State Economic Configuration",
-    "population": 19500000,
-    "gdp_2024": 1800000000000,
-    "major_sectors": {
-      "financial_services": {
-        "weight": 0.25,
-        "description": "Wall Street, banking, insurance, real estate",
-        "growth_rate": 0.03,
-        "employment_share": 0.15
-      },
-      "healthcare": {
-        "weight": 0.18,
-        "description": "Medical services, pharmaceuticals, biotechnology",
-        "growth_rate": 0.04,
-        "employment_share": 0.12
-      },
-      "technology": {
-        "weight": 0.15,
-        "description": "Software, IT services, digital media, fintech",
-        "growth_rate": 0.06,
-        "employment_share": 0.08
-      },
-      "manufacturing": {
-        "weight": 0.12,
-        "description": "Advanced manufacturing, electronics, chemicals",
-        "growth_rate": 0.02,
-        "employment_share": 0.10
-      },
-      "education": {
-        "weight": 0.10,
-        "description": "Higher education, research institutions, K-12",
-        "growth_rate": 0.03,
-        "employment_share": 0.08
-      },
-      "tourism_hospitality": {
-        "weight": 0.08,
-        "description": "Tourism, hotels, restaurants, entertainment",
-        "growth_rate": 0.04,
-        "employment_share": 0.10
-      },
-      "agriculture": {
-        "weight": 0.05,
-        "description": "Dairy, wine, apples, vegetables, maple products",
-        "growth_rate": 0.02,
-        "employment_share": 0.03
-      },
-      "energy": {
-        "weight": 0.04,
-        "description": "Renewable energy, natural gas, hydroelectric",
-        "growth_rate": 0.05,
-        "employment_share": 0.02
-      },
-      "transportation": {
-        "weight": 0.03,
-        "description": "Logistics, shipping, public transit, airports",
-        "growth_rate": 0.03,
-        "employment_share": 0.05
-      }
-    }
-  },
-  "sector_mapping": {
-    "core_sectors": [
-      "Healthcare",
-      "Food and Agriculture", 
-      "Energy",
-      "Housing and Construction",
-      "Education",
-      "Transportation"
-    ],
-    "nys_priority_sectors": [
-      "Financial Services",
-      "Technology and Software",
-      "Healthcare and Biotechnology",
-      "Advanced Manufacturing",
-      "Education and Research",
-      "Tourism and Hospitality",
-      "Agriculture and Food Processing",
-      "Renewable Energy",
-      "Transportation and Logistics",
-      "Real Estate and Construction",
-      "Media and Entertainment",
-      "Professional Services"
-    ]
-  },
-  "economic_parameters": {
-    "growth_rates": {
-      "base_population_growth": 0.008,
-      "base_living_standards_growth": 0.025,
-      "base_technology_rate": 0.03,
-      "base_capital_rate": 0.12
+  "gpu_settings": {
+    "enabled": true,
+    "solver": "SCS",
+    "monitoring": {
+      "show_utilization": true,
+      "benchmark_mode": false
     },
-    "labor_parameters": {
-      "average_wage": 65000,
-      "unemployment_target": 0.04,
-      "labor_productivity_growth": 0.02
-    },
-    "investment_parameters": {
-      "savings_rate": 0.15,
-      "depreciation_rate": 0.08,
-      "capital_formation_rate": 0.20
-    }
-  },
-  "cybernetic_feedback": {
-    "feedback_strength": 0.12,
-    "adaptation_rate": 0.06,
-    "convergence_threshold": 1e-6,
-    "max_iterations": 100
-  },
-  "data_processing": {
-    "max_file_size_mb": 100,
-    "supported_formats": ["csv", "xlsx", "json"],
-    "auto_validate": true,
-    "backup_original": true
-  },
-  "visualization": {
-    "default_style": "seaborn-v0_8",
-    "figure_size": [12, 8],
-    "dpi": 300,
-    "save_formats": ["png", "pdf", "svg"]
-  },
-  "security": {
-    "encrypt_sensitive_data": true,
-    "log_api_usage": true,
-    "max_api_calls_per_hour": 1000
-  },
-  "logging": {
-    "level": "INFO",
-    "max_file_size_mb": 10,
-    "backup_count": 5,
-    "log_to_console": true
+    "fallback_to_cpu": true
   }
 }

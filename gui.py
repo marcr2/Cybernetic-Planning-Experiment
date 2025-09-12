@@ -16,14 +16,9 @@ import threading
 import webbrowser
 import numpy as np
 from datetime import datetime
+import traceback
+import inspect
 
-# Import map visualization
-try:
-    from src.cybernetic_planning.utils.map_visualization import InteractiveMap, MapGenerator, create_simulation_map
-    MAP_AVAILABLE = True
-except ImportError as e:
-    print(f"Warning: Map visualization not available: {e}")
-    MAP_AVAILABLE = False
 from datetime import datetime
 import math
 import random
@@ -39,6 +34,31 @@ except ImportError as e:
     print("Some features may not work properly")
     PLANNING_SYSTEM_AVAILABLE = False
     CyberneticPlanningSystem = None
+
+def log_error_with_traceback(error_msg, exception=None, context=""):
+    """Log detailed error information with traceback and line numbers."""
+    print(f"\n{'='*60}")
+    print(f"ERROR: {error_msg}")
+    print(f"Context: {context}")
+    print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"{'='*60}")
+    
+    if exception:
+        print(f"Exception Type: {type(exception).__name__}")
+        print(f"Exception Message: {str(exception)}")
+        print("\nFull Traceback:")
+        traceback.print_exc()
+        
+        # Get the current frame for line number
+        current_frame = inspect.currentframe()
+        if current_frame and current_frame.f_back:
+            caller_frame = current_frame.f_back
+            filename = caller_frame.f_code.co_filename
+            line_number = caller_frame.f_lineno
+            function_name = caller_frame.f_code.co_name
+            print(f"\nError occurred in: {os.path.basename(filename)}:{line_number} in function {function_name}")
+    
+    print(f"{'='*60}\n")
 
 class WebBrowserWidget:
     """An enhanced web browser widget with HTML preview and external browser integration."""
@@ -239,7 +259,7 @@ class WebBrowserWidget:
 
         try:
             # Import the map visualization module
-            from src.cybernetic_planning.utils.map_visualization import InteractiveMap
+            # Map visualization removed
             import tempfile
             import os
 
@@ -457,7 +477,7 @@ class CyberneticPlanningGUI:
         self.create_planning_tab()
         self.create_results_tab()
         self.create_simulation_tab()
-        self.create_realtime_map_tab()
+        self.create_gpu_settings_tab()
         self.create_export_tab()
         self.create_about_tab()
 
@@ -475,6 +495,15 @@ class CyberneticPlanningGUI:
         ttk.Button(source_frame, text="Generate Synthetic Data", command = self.generate_synthetic_data).pack(
             side="left", padx = self._scale_padding(5)
         )
+        ttk.Button(source_frame, text="Save Synthetic Data", command = self.save_synthetic_data).pack(
+            side="left", padx = self._scale_padding(5)
+        )
+        
+        # Config management buttons
+        config_buttons_frame = ttk.Frame(source_frame)
+        config_buttons_frame.pack(side="right", padx = self._scale_padding(5))
+        ttk.Button(config_buttons_frame, text="Save Config", command = self.save_data_config).pack(side="left", padx = self._scale_padding(5))
+        ttk.Button(config_buttons_frame, text="Load Config", command = self.load_data_config).pack(side="left", padx = self._scale_padding(5))
 
         # Data configuration
         config_frame = ttk.LabelFrame(self.data_frame, text="Economic Data Configuration", padding = self._scale_padding(10))
@@ -735,32 +764,106 @@ class CyberneticPlanningGUI:
 
         # Max iterations
         ttk.Label(options_frame, text="Max Iterations:").pack(anchor="w", pady=(10, 0))
-        self.max_iterations_var = tk.StringVar(value="10")
+        self.max_iterations_var = tk.StringVar(value="1000")
         ttk.Entry(options_frame, textvariable = self.max_iterations_var, width = 10).pack(anchor="w")
 
-        # Plan type
-        plan_type_frame = ttk.Frame(options_frame)
-        plan_type_frame.pack(fill="x", pady = 10)
+        # Plan duration
+        plan_duration_frame = ttk.Frame(options_frame)
+        plan_duration_frame.pack(fill="x", pady = 10)
 
-        ttk.Label(plan_type_frame, text="Plan Type:").pack(side="left")
-        self.plan_type_var = tk.StringVar(value="single_year")
-        ttk.Radiobutton(plan_type_frame, text="Single Year", variable = self.plan_type_var, value="single_year").pack(
-            side="left", padx = 10
+        ttk.Label(plan_duration_frame, text="Plan Duration (Years):").pack(side="left")
+        self.plan_duration_var = tk.IntVar(value=5)
+        self.plan_duration_scale = ttk.Scale(
+            plan_duration_frame,
+            from_=1,
+            to=20,
+            variable=self.plan_duration_var,
+            orient="horizontal",
+            command=self.update_plan_duration_label
         )
-        ttk.Radiobutton(plan_type_frame, text="Five Year", variable = self.plan_type_var, value="five_year").pack(
-            side="left", padx = 10
-        )
+        self.plan_duration_scale.pack(side="left", padx=10, fill="x", expand=True)
+        
+        self.plan_duration_label = ttk.Label(plan_duration_frame, text="5 years")
+        self.plan_duration_label.pack(side="left", padx=10)
 
-        # Five - year plan options
-        self.five_year_frame = ttk.Frame(options_frame)
+        # Multi-year plan options
+        self.multi_year_frame = ttk.Frame(options_frame)
 
-        ttk.Label(self.five_year_frame, text="Consumption Growth Rate:").grid(row = 0, column = 0, sticky="w", padx = 5)
+        ttk.Label(self.multi_year_frame, text="Consumption Growth Rate:").grid(row = 0, column = 0, sticky="w", padx = 5)
         self.growth_rate_var = tk.StringVar(value="0.02")
-        ttk.Entry(self.five_year_frame, textvariable = self.growth_rate_var, width = 10).grid(row = 0, column = 1, padx = 5)
+        ttk.Entry(self.multi_year_frame, textvariable = self.growth_rate_var, width = 10).grid(row = 0, column = 1, padx = 5)
 
-        ttk.Label(self.five_year_frame, text="Investment Ratio:").grid(row = 0, column = 2, sticky="w", padx = 5)
+        ttk.Label(self.multi_year_frame, text="Investment Ratio:").grid(row = 0, column = 2, sticky="w", padx = 5)
         self.investment_ratio_var = tk.StringVar(value="0.15")
-        ttk.Entry(self.five_year_frame, textvariable = self.investment_ratio_var, width = 10).grid(row = 0, column = 3, padx = 5)
+        ttk.Entry(self.multi_year_frame, textvariable = self.investment_ratio_var, width = 10).grid(row = 0, column = 3, padx = 5)
+
+        # Real-time convergence graph
+        convergence_frame = ttk.LabelFrame(self.planning_scrollable_frame, text="Plan Convergence Monitor", padding=10)
+        convergence_frame.pack(fill="x", padx=10, pady=5)
+        
+        # Initialize convergence tracking
+        self.convergence_data = {
+            'iterations': [],
+            'plan_changes': [],
+            'relative_changes': [],
+            'total_outputs': []
+        }
+        
+        # Create matplotlib figure for real-time plotting
+        try:
+            import matplotlib.pyplot as plt
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            from matplotlib.figure import Figure
+            import matplotlib.animation as animation
+            
+            # Create figure and subplots
+            self.convergence_fig = Figure(figsize=(10, 6), dpi=100)
+            self.convergence_ax1 = self.convergence_fig.add_subplot(211)
+            self.convergence_ax2 = self.convergence_fig.add_subplot(212)
+            
+            # Configure subplots
+            self.convergence_ax1.set_title('Plan Change Convergence')
+            self.convergence_ax1.set_xlabel('Iteration')
+            self.convergence_ax1.set_ylabel('Plan Change (Absolute)')
+            self.convergence_ax1.set_yscale('log')
+            self.convergence_ax1.grid(True, alpha=0.3)
+            
+            self.convergence_ax2.set_title('Relative Change Convergence')
+            self.convergence_ax2.set_xlabel('Iteration')
+            self.convergence_ax2.set_ylabel('Relative Change')
+            self.convergence_ax2.set_yscale('log')
+            self.convergence_ax2.grid(True, alpha=0.3)
+            
+            # Create canvas and pack it
+            self.convergence_canvas = FigureCanvasTkAgg(self.convergence_fig, convergence_frame)
+            self.convergence_canvas.draw()
+            self.convergence_canvas.get_tk_widget().pack(fill="both", expand=True)
+            
+            # Initialize plot lines
+            self.convergence_line1, = self.convergence_ax1.plot([], [], 'b-', linewidth=2, label='Plan Change')
+            self.convergence_line2, = self.convergence_ax2.plot([], [], 'r-', linewidth=2, label='Relative Change')
+            
+            # Add legends
+            self.convergence_ax1.legend()
+            self.convergence_ax2.legend()
+            
+            # Status label
+            self.convergence_status_label = ttk.Label(convergence_frame, text="Ready to monitor convergence...")
+            self.convergence_status_label.pack(pady=5)
+            
+            # Control buttons
+            convergence_controls = ttk.Frame(convergence_frame)
+            convergence_controls.pack(fill="x", pady=5)
+            
+            ttk.Button(convergence_controls, text="Clear Graph", command=self.clear_convergence_graph).pack(side="left", padx=5)
+            ttk.Button(convergence_controls, text="Export Graph", command=self.export_convergence_graph).pack(side="left", padx=5)
+            
+            self.convergence_graph_available = True
+            
+        except ImportError:
+            # Fallback if matplotlib is not available
+            self.convergence_graph_available = False
+            ttk.Label(convergence_frame, text="Matplotlib not available - convergence graph disabled").pack(pady=10)
 
         # Control buttons
         control_frame = ttk.Frame(self.planning_scrollable_frame)
@@ -997,9 +1100,14 @@ To get started:
         time_frame = ttk.Frame(params_frame)
         time_frame.pack(fill="x", pady = self._scale_padding(5))
 
-        ttk.Label(time_frame, text="Simulation Duration (years):").pack(side="left", padx = self._scale_padding(5))
+        # Simulation duration
+        sim_duration_frame = ttk.Frame(time_frame)
+        sim_duration_frame.pack(fill="x", pady = self._scale_padding(5))
+        
+        ttk.Label(sim_duration_frame, text="Simulation Duration (years):").pack(side="left", padx = self._scale_padding(5))
         self.sim_duration_var = tk.StringVar(value="5")
-        ttk.Spinbox(time_frame, from_ = 1, to = 20, textvariable = self.sim_duration_var, width = 10).pack(side="left", padx = self._scale_padding(5))
+        ttk.Spinbox(sim_duration_frame, from_ = 1, to = 100, textvariable = self.sim_duration_var, width = 10).pack(side="left", padx = self._scale_padding(5))
+        ttk.Label(sim_duration_frame, text="(Auto-syncs with plan duration)", font=("Arial", 8), foreground="gray").pack(side="left", padx = self._scale_padding(10))
 
         ttk.Label(time_frame, text="Time Step (months):").pack(side="left", padx = self._scale_padding(20))
         self.time_step_var = tk.StringVar(value="1")
@@ -1010,24 +1118,16 @@ To get started:
         env_frame.pack(fill="x", pady = self._scale_padding(5))
 
         ttk.Label(env_frame, text="Map Size (km):").pack(side="left", padx = self._scale_padding(5))
-        self.map_size_var = tk.StringVar(value="1000")
-        ttk.Spinbox(env_frame, from_ = 100, to = 10000, textvariable = self.map_size_var, width = 10).pack(side="left", padx = self._scale_padding(5))
+        # Map size variable removed - map functionality removed
 
-        ttk.Label(env_frame, text="Settlements:").pack(side="left", padx = self._scale_padding(20))
-        self.settlements_var = tk.StringVar(value="50")
-        ttk.Spinbox(env_frame, from_ = 10, to = 500, textvariable = self.settlements_var, width = 10).pack(side="left", padx = self._scale_padding(5))
-
-        # Economic sectors
+        # Economic sectors (derived from loaded plan)
         sectors_frame = ttk.Frame(params_frame)
         sectors_frame.pack(fill="x", pady = self._scale_padding(5))
 
         ttk.Label(sectors_frame, text="Economic Sectors:").pack(side="left", padx = self._scale_padding(5))
-        self.sim_sectors_var = tk.StringVar(value="15")
-        ttk.Spinbox(sectors_frame, from_ = 5, to = 50, textvariable = self.sim_sectors_var, width = 10).pack(side="left", padx = self._scale_padding(5))
-
-        ttk.Label(sectors_frame, text="Population Density:").pack(side="left", padx = self._scale_padding(20))
-        self.pop_density_var = tk.StringVar(value="100")
-        ttk.Spinbox(sectors_frame, from_ = 10, to = 1000, textvariable = self.pop_density_var, width = 10).pack(side="left", padx = self._scale_padding(5))
+        self.sectors_display_var = tk.StringVar(value="Not loaded")
+        ttk.Label(sectors_frame, textvariable=self.sectors_display_var, foreground="blue").pack(side="left", padx = self._scale_padding(5))
+        ttk.Label(sectors_frame, text="(from loaded plan)", font=("TkDefaultFont", 8), foreground="gray").pack(side="left", padx = self._scale_padding(5))
 
         # Stochastic Events Section
         events_frame = ttk.LabelFrame(self.simulation_scrollable_frame, text="Stochastic Events", padding = self._scale_padding(10))
@@ -1272,389 +1372,29 @@ Click 'Generate Preview' to create a visual representation of your simulation en
         self.simulation_preview = None
         self.simulation_preview_file_path = None
 
-    def create_realtime_map_tab(self):
-        """Create dedicated real-time map tab with centered, user-friendly layout."""
-        self.realtime_map_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.realtime_map_frame, text="Real-time Map")
-
-        # Create main container with centered layout
-        main_container = ttk.Frame(self.realtime_map_frame)
-        main_container.pack(fill="both", expand=True, padx=20, pady=20)
-        
-        # Center the content with a maximum width
-        content_frame = ttk.Frame(main_container)
-        content_frame.pack(expand=True, fill="both")
-        
-        # Create a centered panel with fixed width
-        self.map_panel = ttk.Frame(content_frame)
-        self.map_panel.pack(expand=True, fill="both")
-        
-        # Top section: Map controls (centered)
-        self.map_controls_frame = ttk.Frame(self.map_panel)
-        self.map_controls_frame.pack(fill="x", pady=(0, 10))
-
-        # Bottom section: Map display (centered)
-        self.map_display_frame = ttk.Frame(self.map_panel)
-        self.map_display_frame.pack(fill="both", expand=True)
-
-        # Create the map controls and display
-        self.create_map_controls_section()
-        self.create_map_display_section()
-
-        # Initialize map variables
-        self.realtime_map = None
-        self.realtime_map_file_path = None
-        self.map_update_interval = 1.0  # seconds
-        self.current_simulation_time = 0  # months
-        self.map_update_timer = None
-        self.map_update_active = False
-        self.realtime_map_thread = None
-        
-        # Simulation integration variables
-        self.simulation_map_settings = None
-        self.map_simulation_data = None
-
-    def create_map_controls_section(self):
-        """Create the map controls section for the dedicated map tab with centered, user-friendly layout."""
-        # Welcome message - centered
-        welcome_frame = ttk.LabelFrame(self.map_controls_frame, text="🗺️ Interactive Map & Simulation System", padding=15)
-        welcome_frame.pack(fill="x", pady=(0, 15))
-        
-        welcome_text = """Generate and visualize dynamic simulation environments with integrated economic planning.
-
-✨ Features:
-• Geographic features (mountains, forests, water bodies)
-• Settlement networks (cities, towns, rural areas)  
-• Economic zones and infrastructure networks
-• Real-time simulation updates and monitoring
-• Infrastructure development (roads, railroads, utilities)
-
-🎯 The map automatically updates based on your simulation results and economic plans."""
-        
-        welcome_label = ttk.Label(welcome_frame, text=welcome_text, justify="center", wraplength=700, font=('Arial', 10))
-        welcome_label.pack(pady=10)
-
-        # Create a centered configuration panel
-        config_panel = ttk.Frame(self.map_controls_frame)
-        config_panel.pack(expand=True, fill="x")
-        
-        # Map Configuration Section - centered
-        config_frame = ttk.LabelFrame(config_panel, text="📍 Map Configuration", padding=15)
-        config_frame.pack(fill="x", pady=(0, 15))
-
-        # Center coordinates in a centered row
-        center_row = ttk.Frame(config_frame)
-        center_row.pack(expand=True, fill="x", pady=10)
-        
-        # Center the coordinate controls
-        coord_frame = ttk.Frame(center_row)
-        coord_frame.pack(expand=True)
-        
-        ttk.Label(coord_frame, text="Center Latitude:", font=('Arial', 9, 'bold')).pack(side="left", padx=(0, 5))
-        self.map_center_lat_var = tk.StringVar(value="45.0")
-        lat_spinbox = ttk.Spinbox(coord_frame, from_=-90, to=90, increment=0.1, textvariable=self.map_center_lat_var, width=12)
-        lat_spinbox.pack(side="left", padx=(0, 20))
-
-        ttk.Label(coord_frame, text="Center Longitude:", font=('Arial', 9, 'bold')).pack(side="left", padx=(0, 5))
-        self.map_center_lon_var = tk.StringVar(value="-75.0")
-        lon_spinbox = ttk.Spinbox(coord_frame, from_=-180, to=180, increment=0.1, textvariable=self.map_center_lon_var, width=12)
-        lon_spinbox.pack(side="left")
-
-        # Map parameters in a centered row
-        params_row = ttk.Frame(config_frame)
-        params_row.pack(expand=True, fill="x", pady=10)
-        
-        params_frame = ttk.Frame(params_row)
-        params_frame.pack(expand=True)
-        
-        ttk.Label(params_frame, text="Geographic Features:", font=('Arial', 9, 'bold')).pack(side="left", padx=(0, 5))
-        self.geo_features_var = tk.StringVar(value="20")
-        geo_spinbox = ttk.Spinbox(params_frame, from_=5, to=100, textvariable=self.geo_features_var, width=10)
-        geo_spinbox.pack(side="left", padx=(0, 20))
-
-        ttk.Label(params_frame, text="Economic Zones:", font=('Arial', 9, 'bold')).pack(side="left", padx=(0, 5))
-        self.econ_zones_var = tk.StringVar(value="30")
-        econ_spinbox = ttk.Spinbox(params_frame, from_=5, to=200, textvariable=self.econ_zones_var, width=10)
-        econ_spinbox.pack(side="left")
-
-        # Simulation Integration Section
-        sim_frame = ttk.LabelFrame(config_panel, text="🔄 Simulation Integration", padding=15)
-        sim_frame.pack(fill="x", pady=(0, 15))
-        
-        sim_info_text = """The map will automatically reflect your simulation results:
-• Infrastructure development based on economic plans
-• Population growth and settlement expansion
-• Resource allocation and production centers
-• Transportation network optimization"""
-        
-        sim_info_label = ttk.Label(sim_frame, text=sim_info_text, justify="center", wraplength=600, font=('Arial', 9))
-        sim_info_label.pack(pady=5)
-
-        # Map Controls Section - centered
-        controls_frame = ttk.LabelFrame(config_panel, text="🎮 Map Controls", padding=15)
-        controls_frame.pack(fill="x", pady=(0, 15))
-
-        # Control buttons - centered
-        button_row = ttk.Frame(controls_frame)
-        button_row.pack(expand=True, fill="x", pady=10)
-        
-        button_frame = ttk.Frame(button_row)
-        button_frame.pack(expand=True)
-        
-        # Primary action button (larger, centered)
-        self.generate_map_btn = ttk.Button(button_frame, text="🚀 Generate Map", command=self.generate_realtime_map, 
-                                         style="Accent.TButton")
-        self.generate_map_btn.pack(side="left", padx=5)
-        
-        # Secondary buttons
-        ttk.Button(button_frame, text="🌐 Open in Browser", command=self.open_realtime_map_in_browser).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="🔄 Refresh Map", command=self.refresh_map_display).pack(side="left", padx=5)
-
-        # Speed Control - centered
-        speed_row = ttk.Frame(controls_frame)
-        speed_row.pack(expand=True, fill="x", pady=10)
-        
-        speed_frame = ttk.Frame(speed_row)
-        speed_frame.pack(expand=True)
-        
-        ttk.Label(speed_frame, text="⏱️ Update Speed:", font=('Arial', 9, 'bold')).pack(side="left", padx=(0, 10))
-        self.map_speed_var = tk.StringVar(value="1 day / sec")
-        speed_combo = ttk.Combobox(speed_frame, textvariable=self.map_speed_var, width=15, state="readonly")
-        speed_combo['values'] = ("1 hour / sec", "1 day / sec", "1 month / sec", "1 year / sec")
-        speed_combo.pack(side="left", padx=(0, 20))
-
-        # Update control buttons - centered
-        update_row = ttk.Frame(controls_frame)
-        update_row.pack(expand=True, fill="x", pady=10)
-        
-        update_frame = ttk.Frame(update_row)
-        update_frame.pack(expand=True)
-
-        ttk.Button(update_frame, text="▶️ Start Updates", command=self.start_map_updates).pack(side="left", padx=5)
-        ttk.Button(update_frame, text="⏸️ Pause Updates", command=self.pause_map_updates).pack(side="left", padx=5)
-        ttk.Button(update_frame, text="⏹️ Stop Updates", command=self.stop_map_updates).pack(side="left", padx=5)
-
-        # Map Status - centered
-        status_row = ttk.Frame(controls_frame)
-        status_row.pack(expand=True, fill="x", pady=5)
-        
-        self.realtime_map_status = ttk.Label(status_row, text="No map generated", foreground="red", font=('Arial', 9, 'bold'))
-        self.realtime_map_status.pack(expand=True)
-
-    def create_map_display_section(self):
-        """Create the map display section for the dedicated map tab with centered layout."""
-        # Map Display Area - centered
-        self.realtime_map_display_frame = ttk.LabelFrame(self.map_display_frame, text="🗺️ Interactive Map Display", padding=15)
-        self.realtime_map_display_frame.pack(fill="both", expand=True)
-
-        # Create notebook for map display and info
-        self.map_display_notebook = ttk.Notebook(self.realtime_map_display_frame)
-        self.map_display_notebook.pack(fill="both", expand=True, padx=5, pady=5)
-
-        # Interactive Map tab
-        self.map_view_frame = ttk.Frame(self.map_display_notebook)
-        self.map_display_notebook.add(self.map_view_frame, text="🗺️ Interactive Map")
-
-        # Map info tab
-        self.map_info_frame = ttk.Frame(self.map_display_notebook)
-        self.map_display_notebook.add(self.map_info_frame, text="📊 Map Information")
-
-        # Create centered map display area
-        map_container = ttk.Frame(self.map_view_frame)
-        map_container.pack(fill="both", expand=True, padx=10, pady=10)
-        
-        # Create scrollable frame for map display
-        self.map_canvas = tk.Canvas(map_container, bg='white', highlightthickness=0)
-        self.map_scrollbar_v = ttk.Scrollbar(map_container, orient="vertical", command=self.map_canvas.yview)
-        self.map_scrollbar_h = ttk.Scrollbar(map_container, orient="horizontal", command=self.map_canvas.xview)
-        self.map_scrollable_frame = ttk.Frame(self.map_canvas)
-
-        # Configure scrolling
-        self.map_canvas.configure(yscrollcommand=self.map_scrollbar_v.set, xscrollcommand=self.map_scrollbar_h.set)
-        self.map_canvas.bind('<Configure>', lambda e: self.map_canvas.configure(scrollregion=self.map_canvas.bbox("all")))
-
-        # Pack scrollable area
-        self.map_canvas.pack(side="left", fill="both", expand=True)
-        self.map_scrollbar_v.pack(side="right", fill="y")
-        self.map_scrollbar_h.pack(side="bottom", fill="x")
-
-        # Create window in canvas for the scrollable frame
-        self.map_canvas.create_window((0, 0), window=self.map_scrollable_frame, anchor="nw")
-
-        # Map display area (web browser widget)
-        self.map_browser_widget = WebBrowserWidget(self.map_scrollable_frame, width=800, height=600)
-        self.map_browser_widget.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
-
-        # Map info display
-        self.realtime_map_info_text = scrolledtext.ScrolledText(self.map_info_frame, height=20, width=60)
-        self.realtime_map_info_text.pack(fill="both", expand=True, padx=self._scale_padding(5), pady=self._scale_padding(5))
-
-        # Initialize with welcome message
-        self.realtime_map_info_text.insert("1.0", "No map generated. Click 'Generate Map' to create a simulation environment.")
-
-        # Add mouse wheel scrolling support
-        def _on_mousewheel(event):
-            self.map_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        
-        def _on_mousewheel_h(event):
-            self.map_canvas.xview_scroll(int(-1*(event.delta/120)), "units")
-        
-        # Bind mouse wheel events
-        self.map_canvas.bind("<MouseWheel>", _on_mousewheel)
-        self.map_canvas.bind("<Shift-MouseWheel>", _on_mousewheel_h)
 
     def generate_simulation_preview(self):
         """Generate a simulation preview for the simulation tab."""
-        if not MAP_AVAILABLE:
-            messagebox.showerror("Error", "Map visualization is not available. Please install required dependencies.")
-            return
-
-        try:
-            # Get simulation parameters from the simulation tab
-            center_lat = float(self.map_center_lat_var.get())
-            center_lon = float(self.map_center_lon_var.get())
-            
-            # Calculate map bounds based on simulation parameters
-            lat_range = 2.0  # Default range
-            lon_range = 2.0  # Default range
-            
-            map_bounds = (
-                (center_lat - lat_range / 2, center_lon - lon_range / 2),
-                (center_lat + lat_range / 2, center_lon + lon_range / 2)
-            )
-
-            # Generate the preview map
-            self.simulation_preview = create_simulation_map(map_bounds)
-
-            # Save the preview
-            self.simulation_preview_file_path = "simulation_preview.html"
-            self.simulation_preview.save_map(self.simulation_preview_file_path)
-
-            # Update status
-            self.preview_status.config(text="Preview generated", foreground="green")
-
-            # Update preview info display
-            self.update_simulation_preview_info()
-
-            # Display the preview in the GUI
-            self.display_preview_in_gui()
-
-            messagebox.showinfo("Success", "Simulation preview generated successfully!")
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to generate simulation preview: {str(e)}")
-            self.preview_status.config(text="Preview generation failed", foreground="red")
+        messagebox.showinfo("Info", "Simulation preview functionality has been removed. Use the simulation tab for running simulations.")
 
     def update_simulation_preview_info(self):
         """Update the simulation preview information display."""
-        if not self.simulation_preview:
-            self.preview_info_text.delete("1.0", tk.END)
-            self.preview_info_text.insert("1.0", "No preview generated. Click 'Generate Preview' to create a simulation environment preview.")
-            return
-
-        # Get environment data
-        env_data = self.simulation_preview.get_environment_data()
-
-        # Create info text
-        info_text = f"=== Simulation Environment Preview ===\n\n"
-        info_text += f"Map Center: {self.map_center_lat_var.get()}, {self.map_center_lon_var.get()}\n"
-        info_text += f"Preview Status: Generated\n\n"
-
-        info_text += f"=== Environment Statistics ===\n"
-        info_text += f"Geographic Features: {len(env_data['geographic_features'])}\n"
-        info_text += f"Settlements: {len(env_data['settlements'])}\n"
-        info_text += f"Economic Zones: {len(env_data['economic_zones'])}\n"
-        info_text += f"Infrastructure: {len(env_data['infrastructure'])}\n\n"
-
-        # Settlement breakdown
-        settlements = env_data['settlements']
-        # Handle both dataclass and dictionary formats
-        if settlements and hasattr(settlements[0], 'settlement_type'):
-            # Dataclass format
-            city_count = len([s for s in settlements if s.settlement_type == 'city'])
-            town_count = len([s for s in settlements if s.settlement_type == 'town'])
-            rural_count = len([s for s in settlements if s.settlement_type == 'rural'])
-        else:
-            # Dictionary format
-            city_count = len([s for s in settlements if s.get('settlement_type') == 'city'])
-            town_count = len([s for s in settlements if s.get('settlement_type') == 'town'])
-            rural_count = len([s for s in settlements if s.get('settlement_type') == 'rural'])
-        
-        info_text += f"=== Settlement Breakdown ===\n"
-        info_text += f"Cities: {city_count}\n"
-        info_text += f"Towns: {town_count}\n"
-        info_text += f"Rural Areas: {rural_count}\n\n"
-
-        # Infrastructure breakdown
-        infra = env_data['infrastructure']
-        # Handle both dataclass and dictionary formats
-        if infra and hasattr(infra[0], 'infrastructure_type'):
-            # Dataclass format
-            road_count = len([i for i in infra if i.infrastructure_type == 'road'])
-            rail_count = len([i for i in infra if i.infrastructure_type == 'railway'])
-        else:
-            # Dictionary format
-            road_count = len([i for i in infra if i.get('infrastructure_type') == 'road'])
-            rail_count = len([i for i in infra if i.get('infrastructure_type') == 'railway'])
-        info_text += f"=== Infrastructure ===\n"
-        info_text += f"Roads: {road_count}\n"
-        info_text += f"Railways: {rail_count}\n"
-
-        # Update the display
         self.preview_info_text.delete("1.0", tk.END)
-        self.preview_info_text.insert("1.0", info_text)
+        self.preview_info_text.insert("1.0", "Simulation preview functionality has been removed. Use the simulation tab for running simulations.")
 
     def display_preview_in_gui(self):
         """Display the simulation preview in the GUI."""
-        if not self.simulation_preview or not self.simulation_preview_file_path:
-            self.preview_browser_widget.preview_text.delete("1.0", tk.END)
-            self.preview_browser_widget.preview_text.insert("1.0", "No preview available. Click 'Generate Preview' to create a simulation environment preview.")
-            self.preview_browser_widget.status_label.config(text="No preview loaded")
-            return
-
-        try:
-            # Load the HTML file into the web browser widget
-            success = self.preview_browser_widget.load_html_file(self.simulation_preview_file_path)
-            if success:
-                self.preview_status.config(text="Preview displayed in GUI", foreground="green")
-            else:
-                self.preview_status.config(text="Preview display failed", foreground="red")
-
-        except Exception as e:
-            self.preview_browser_widget.preview_text.delete("1.0", tk.END)
-            self.preview_browser_widget.preview_text.insert("1.0", f"Error loading preview: {str(e)}")
-            self.preview_browser_widget.status_label.config(text="Error loading preview")
+        self.preview_browser_widget.preview_text.delete("1.0", tk.END)
+        self.preview_browser_widget.preview_text.insert("1.0", "Simulation preview functionality has been removed. Use the simulation tab for running simulations.")
+        self.preview_browser_widget.status_label.config(text="Preview functionality removed")
 
     def refresh_simulation_preview(self):
         """Refresh the simulation preview with updated data."""
-        if not self.simulation_preview:
-            return
-
-        try:
-            # Regenerate the preview with updated data
-            self.simulation_preview.create_map()
-            self.simulation_preview.save_map(self.simulation_preview_file_path)
-
-            # Refresh the web browser widget
-            self.preview_browser_widget.refresh()
-
-        except Exception as e:
-            print(f"Error refreshing preview display: {e}")
+        pass  # Functionality removed
 
     def open_simulation_preview_in_browser(self):
         """Open the simulation preview in the default web browser."""
-        if not self.simulation_preview or not self.simulation_preview_file_path:
-            messagebox.showwarning("Warning", "No preview generated. Please generate a preview first.")
-            return
-
-        try:
-            if os.path.exists(self.simulation_preview_file_path):
-                webbrowser.open(f'file://{os.path.abspath(self.simulation_preview_file_path)}')
-                self.preview_status.config(text="Preview opened in browser", foreground="green")
-            else:
-                messagebox.showerror("Error", "Preview file not found. Please regenerate the preview.")
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to open preview in browser: {str(e)}")
+        messagebox.showinfo("Info", "Simulation preview functionality has been removed. Use the simulation tab for running simulations.")
 
     def create_results_tab(self):
         """Create results display tab."""
@@ -1732,6 +1472,13 @@ Click 'Generate Preview' to create a visual representation of your simulation en
         ttk.Button(export_frame, text="📄 Export Complete Report as PDF", command = self._export_summary_pdf).pack(side="left", padx = 5)
         ttk.Button(export_frame, text="🏥 Population Health Report", command = self._generate_population_health_report).pack(side="left", padx = 5)
 
+        # Synthetic Dataset Export
+        synthetic_frame = ttk.LabelFrame(self.export_frame, text="Synthetic Dataset Export", padding = 10)
+        synthetic_frame.pack(fill="x", padx = 10, pady = 5)
+
+        ttk.Button(synthetic_frame, text="💾 Save Synthetic Dataset", command = self.save_synthetic_dataset).pack(side="left", padx = 5)
+        ttk.Label(synthetic_frame, text="Saves current synthetic data to data/synthetic_datasets/", font=("Arial", 8)).pack(side="left", padx = 10)
+
         # Load plan
         load_frame = ttk.LabelFrame(self.export_frame, text="Load Plan", padding = 10)
         load_frame.pack(fill="x", padx = 10, pady = 5)
@@ -1741,6 +1488,108 @@ Click 'Generate Preview' to create a visual representation of your simulation en
         # Status
         self.export_status = ttk.Label(self.export_frame, text="No plan to export")
         self.export_status.pack(pady = 10)
+
+    def create_gpu_settings_tab(self):
+        """Create GPU settings tab."""
+        self.gpu_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.gpu_frame, text="GPU Settings")
+
+        # GPU Detection Section
+        detection_frame = ttk.LabelFrame(self.gpu_frame, text="GPU Detection", padding=self._scale_padding(10))
+        detection_frame.pack(fill="x", padx=self._scale_padding(10), pady=self._scale_padding(5))
+
+        # GPU Status
+        self.gpu_status_label = ttk.Label(detection_frame, text="Checking GPU availability...")
+        self.gpu_status_label.pack(pady=self._scale_padding(5))
+
+        # Refresh GPU Status Button
+        ttk.Button(detection_frame, text="Refresh GPU Status", command=self.refresh_gpu_status).pack(pady=self._scale_padding(5))
+
+        # GPU Information Display
+        self.gpu_info_text = scrolledtext.ScrolledText(
+            detection_frame, 
+            width=80, 
+            height=8,
+            wrap=tk.WORD
+        )
+        self.gpu_info_text.pack(fill="both", expand=True, pady=self._scale_padding(5))
+
+        # GPU Settings Section
+        settings_frame = ttk.LabelFrame(self.gpu_frame, text="GPU Settings", padding=self._scale_padding(10))
+        settings_frame.pack(fill="x", padx=self._scale_padding(10), pady=self._scale_padding(5))
+
+        # Enable GPU Checkbox
+        self.gpu_enabled_var = tk.BooleanVar()
+        gpu_checkbox = ttk.Checkbutton(
+            settings_frame, 
+            text="Enable GPU Acceleration", 
+            variable=self.gpu_enabled_var,
+            command=self.on_gpu_enabled_changed
+        )
+        gpu_checkbox.pack(anchor="w", pady=self._scale_padding(5))
+
+        # Solver Selection
+        solver_frame = ttk.Frame(settings_frame)
+        solver_frame.pack(fill="x", pady=self._scale_padding(5))
+
+        ttk.Label(solver_frame, text="Preferred Solver:").pack(side="left")
+        self.solver_var = tk.StringVar(value="CuClarabel")
+        solver_combo = ttk.Combobox(
+            solver_frame, 
+            textvariable=self.solver_var,
+            values=["CuClarabel", "SCS", "ECOS", "OSQP", "CLARABEL"],
+            state="readonly",
+            width=15
+        )
+        solver_combo.pack(side="left", padx=self._scale_padding(5))
+
+        # Monitoring Settings
+        monitoring_frame = ttk.LabelFrame(settings_frame, text="Performance Monitoring", padding=self._scale_padding(5))
+        monitoring_frame.pack(fill="x", pady=self._scale_padding(5))
+
+        self.show_utilization_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            monitoring_frame, 
+            text="Show GPU Utilization", 
+            variable=self.show_utilization_var
+        ).pack(anchor="w")
+
+        self.benchmark_mode_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            monitoring_frame, 
+            text="Enable Benchmark Mode", 
+            variable=self.benchmark_mode_var
+        ).pack(anchor="w")
+
+        # Save Settings Button
+        ttk.Button(settings_frame, text="Save GPU Settings", command=self.save_gpu_settings).pack(pady=self._scale_padding(10))
+
+        # Performance Monitoring Section
+        performance_frame = ttk.LabelFrame(self.gpu_frame, text="Performance Monitoring", padding=self._scale_padding(10))
+        performance_frame.pack(fill="both", expand=True, padx=self._scale_padding(10), pady=self._scale_padding(5))
+
+        # GPU Memory Usage
+        memory_frame = ttk.Frame(performance_frame)
+        memory_frame.pack(fill="x", pady=self._scale_padding(5))
+
+        ttk.Label(memory_frame, text="GPU Memory Usage:").pack(side="left")
+        self.gpu_memory_label = ttk.Label(memory_frame, text="N/A")
+        self.gpu_memory_label.pack(side="left", padx=self._scale_padding(10))
+
+        # Benchmark Button
+        ttk.Button(performance_frame, text="Run GPU vs CPU Benchmark", command=self.run_gpu_benchmark).pack(pady=self._scale_padding(5))
+
+        # Benchmark Results
+        self.benchmark_text = scrolledtext.ScrolledText(
+            performance_frame, 
+            width=80, 
+            height=10,
+            wrap=tk.WORD
+        )
+        self.benchmark_text.pack(fill="both", expand=True, pady=self._scale_padding(5))
+
+        # Initialize GPU status
+        self.refresh_gpu_status()
 
     def create_about_tab(self):
         """Create about tab."""
@@ -1969,22 +1818,106 @@ DISPLAY INFORMATION:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate data: {str(e)}")
 
+    def save_synthetic_data(self):
+        """Save the current synthetic data to data/synthetic_data directory."""
+        if not hasattr(self, 'current_data') or not self.current_data:
+            messagebox.showwarning("Warning", "No synthetic data to save. Please generate synthetic data first.")
+            return
+        
+        try:
+            import os
+            import json
+            from datetime import datetime
+            
+            # Create synthetic_data directory if it doesn't exist
+            synthetic_dir = os.path.join("data", "synthetic_data")
+            os.makedirs(synthetic_dir, exist_ok=True)
+            
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"synthetic_data_{timestamp}.json"
+            filepath = os.path.join(synthetic_dir, filename)
+            
+            # Convert numpy arrays and complex objects to JSON-serializable format
+            def convert_for_json(obj, visited=None):
+                """Recursively convert objects to JSON-serializable format."""
+                if visited is None:
+                    visited = set()
+                
+                # Handle circular references
+                obj_id = id(obj)
+                if obj_id in visited:
+                    return "<circular_reference>"
+                
+                if hasattr(obj, 'tolist'):  # numpy array
+                    return obj.tolist()
+                elif hasattr(obj, 'value'):  # enum objects
+                    return obj.value
+                elif hasattr(obj, '__dict__'):  # dataclass objects like SectorDefinition
+                    visited.add(obj_id)
+                    result = {key: convert_for_json(value, visited) for key, value in obj.__dict__.items()}
+                    visited.remove(obj_id)
+                    return result
+                elif isinstance(obj, (str, int, float, bool, type(None))):
+                    return obj
+                elif isinstance(obj, dict):
+                    visited.add(obj_id)
+                    result = {key: convert_for_json(value, visited) for key, value in obj.items()}
+                    visited.remove(obj_id)
+                    return result
+                elif isinstance(obj, (list, tuple)):
+                    visited.add(obj_id)
+                    result = [convert_for_json(item, visited) for item in obj]
+                    visited.remove(obj_id)
+                    return result
+                else:
+                    return str(obj)
+            
+            data_to_save = convert_for_json(self.current_data)
+            
+            # Save to file
+            with open(filepath, 'w') as f:
+                json.dump(data_to_save, f, indent=2)
+            
+            # Also save a copy without timestamp for easy access
+            latest_filepath = os.path.join(synthetic_dir, "latest_synthetic_data.json")
+            with open(latest_filepath, 'w') as f:
+                json.dump(data_to_save, f, indent=2)
+            
+            messagebox.showinfo("Success", f"Synthetic data saved to:\n{filepath}\n\nAlso saved as: latest_synthetic_data.json")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save synthetic data: {str(e)}")
+
     def _generate_population_demographics(self, total_population, employment_rate, dependency_ratio, 
                                         tech_level, num_cities, num_towns, rural_percentage, urban_concentration):
-        """Generate population demographics data."""
+        """Generate population demographics data using correct economic definitions."""
         import random
         import numpy as np
         
-        # Calculate population segments
-        employed_population = int(total_population * employment_rate)
-        unemployed_population = int(total_population * (1 - employment_rate) * (1 - dependency_ratio))
+        # CORRECTED LOGIC: Follow standard economic definitions
+        # 1. Calculate dependent population (not in labor force)
         dependent_population = int(total_population * dependency_ratio)
         
-        # Verify total
+        # 2. Calculate labor force (total population minus dependents)
+        labor_force = total_population - dependent_population
+        
+        # 3. Calculate unemployment rate from employment rate
+        unemployment_rate = 1.0 - employment_rate
+        
+        # 4. Calculate unemployed population from labor force
+        unemployed_population = int(labor_force * unemployment_rate)
+        
+        # 5. Calculate employed population as remainder of labor force
+        employed_population = labor_force - unemployed_population
+        
+        # 6. Verify total (should always be correct now)
         total_calculated = employed_population + unemployed_population + dependent_population
         if total_calculated != total_population:
-            # Adjust employed population to match total
-            employed_population = total_population - unemployed_population - dependent_population
+            # This should never happen with correct logic, but add safety check
+            print(f"WARNING: Population calculation error. Expected: {total_population}, Got: {total_calculated}")
+            # Adjust dependent population to fix any rounding errors
+            dependent_population = total_population - employed_population - unemployed_population
         
         # Generate regional distribution
         urban_population = int(total_population * (1 - rural_percentage))
@@ -2057,10 +1990,12 @@ DISPLAY INFORMATION:
         return {
             'population_demographics': {
                 'total_population': total_population,
+                'labor_force': labor_force,
                 'employed_population': employed_population,
                 'unemployed_population': unemployed_population,
                 'dependent_population': dependent_population,
                 'employment_rate': employment_rate,
+                'unemployment_rate': unemployment_rate,
                 'dependency_ratio': dependency_ratio,
                 'tech_level': tech_level
             },
@@ -2117,6 +2052,124 @@ DISPLAY INFORMATION:
         except ValueError:
             # Handle invalid input gracefully
             self.base_terrain_label.config(text="Error", foreground="red")
+
+    def save_data_config(self):
+        """Save current data management settings to a config file."""
+        try:
+            # Collect all data management settings
+            config_data = {
+                "data_management": {
+                    "economic_data": {
+                        "sectors": self.sectors_var.get(),
+                        "density": self.density_var.get(),
+                        "resources": self.resources_var.get(),
+                        "starting_tech_level": self.starting_tech_var.get()
+                    },
+                    "population_demographics": {
+                        "total_population": self.total_population_var.get(),
+                        "employment_rate": self.employment_rate_var.get(),
+                        "dependency_ratio": self.dependency_ratio_var.get(),
+                        "tech_level": self.tech_level_var.get()
+                    },
+                    "regional_distribution": {
+                        "num_cities": self.num_cities_var.get(),
+                        "num_towns": self.num_towns_var.get(),
+                        "rural_percentage": self.rural_percentage_var.get(),
+                        "urban_concentration": self.urban_concentration_var.get()
+                    },
+                    "terrain_distribution": {
+                        "forest_percentage": self.forest_percentage_var.get(),
+                        "mountain_percentage": self.mountain_percentage_var.get(),
+                        "water_percentage": self.water_percentage_var.get(),
+                        "base_terrain_percentage": self.base_terrain_percentage_var.get()
+                    }
+                },
+                "metadata": {
+                    "saved_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "version": "1.0"
+                }
+            }
+            
+            # Ask user for file location
+            file_path = filedialog.asksaveasfilename(
+                title="Save Data Management Config",
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                initialdir="."
+            )
+            
+            if file_path:
+                with open(file_path, 'w') as f:
+                    json.dump(config_data, f, indent=2)
+                
+                messagebox.showinfo("Success", f"Data management config saved to:\n{file_path}")
+                self.data_status.config(text=f"Config saved: {os.path.basename(file_path)}", foreground="green")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save config: {str(e)}")
+            self.data_status.config(text="Error saving config", foreground="red")
+
+    def load_data_config(self):
+        """Load data management settings from a config file."""
+        try:
+            # Ask user for file location
+            file_path = filedialog.askopenfilename(
+                title="Load Data Management Config",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                initialdir="."
+            )
+            
+            if file_path:
+                with open(file_path, 'r') as f:
+                    config_data = json.load(f)
+                
+                # Validate config structure
+                if "data_management" not in config_data:
+                    raise ValueError("Invalid config file: missing 'data_management' section")
+                
+                dm_config = config_data["data_management"]
+                
+                # Load economic data settings
+                if "economic_data" in dm_config:
+                    econ = dm_config["economic_data"]
+                    self.sectors_var.set(econ.get("sectors", "175"))
+                    self.density_var.set(econ.get("density", "0.4"))
+                    self.resources_var.set(econ.get("resources", "3"))
+                    self.starting_tech_var.set(econ.get("starting_tech_level", "0.0"))
+                
+                # Load population demographics settings
+                if "population_demographics" in dm_config:
+                    demo = dm_config["population_demographics"]
+                    self.total_population_var.set(demo.get("total_population", "1000000"))
+                    self.employment_rate_var.set(demo.get("employment_rate", "60"))
+                    self.dependency_ratio_var.set(demo.get("dependency_ratio", "40"))
+                    self.tech_level_var.set(demo.get("tech_level", "1.0"))
+                
+                # Load regional distribution settings
+                if "regional_distribution" in dm_config:
+                    region = dm_config["regional_distribution"]
+                    self.num_cities_var.set(region.get("num_cities", "5"))
+                    self.num_towns_var.set(region.get("num_towns", "15"))
+                    self.rural_percentage_var.set(region.get("rural_percentage", "30"))
+                    self.urban_concentration_var.set(region.get("urban_concentration", "0.7"))
+                
+                # Load terrain distribution settings
+                if "terrain_distribution" in dm_config:
+                    terrain = dm_config["terrain_distribution"]
+                    self.forest_percentage_var.set(terrain.get("forest_percentage", "25"))
+                    self.mountain_percentage_var.set(terrain.get("mountain_percentage", "15"))
+                    self.water_percentage_var.set(terrain.get("water_percentage", "10"))
+                    # Update base terrain percentage
+                    self._update_terrain_percentages()
+                
+                # Show success message
+                saved_at = config_data.get("metadata", {}).get("saved_at", "Unknown")
+                messagebox.showinfo("Success", f"Data management config loaded from:\n{file_path}\n\nSaved: {saved_at}")
+                self.data_status.config(text=f"Config loaded: {os.path.basename(file_path)}", foreground="green")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load config: {str(e)}")
+            self.data_status.config(text="Error loading config", foreground="red")
 
     def check_api_keys(self):
         """Check API key status."""
@@ -2394,9 +2447,10 @@ DISPLAY INFORMATION:
 Population Demographics:
 ========================
 Total Population: {demo.get('total_population', 0):,}
-├─ Employed: {demo.get('employed_population', 0):,} ({demo.get('employment_rate', 0)*100:.1f}%)
-├─ Unemployed: {demo.get('unemployed_population', 0):,}
-└─ Dependents: {demo.get('dependent_population', 0):,} ({demo.get('dependency_ratio', 0)*100:.1f}%)
+├─ Labor Force: {demo.get('labor_force', 0):,} ({((demo.get('labor_force', 0) / demo.get('total_population', 1)) * 100):.1f}%)
+│  ├─ Employed: {demo.get('employed_population', 0):,} ({demo.get('employment_rate', 0)*100:.1f}% of labor force)
+│  └─ Unemployed: {demo.get('unemployed_population', 0):,} ({demo.get('unemployment_rate', 0)*100:.1f}% of labor force)
+└─ Dependents: {demo.get('dependent_population', 0):,} ({demo.get('dependency_ratio', 0)*100:.1f}% of total population)
 
 Regional Distribution:
 =====================
@@ -2421,6 +2475,23 @@ Demand per Capita: {economic.get('demand_per_capita', 0):.0f}
 Productivity per Worker: {economic.get('productivity_per_worker', 0):.0f}
 """
 
+        # Add resource allocation information if available
+        resource_info = ""
+        if hasattr(self, 'current_simulation_plan') and self.current_simulation_plan and 'resource_allocations' in self.current_simulation_plan:
+            resource_allocations = self.current_simulation_plan['resource_allocations']
+            resource_info = f"""
+
+Resource Allocations:
+====================
+Technology Matrix: {len(resource_allocations.get('technology_matrix', []))}x{len(resource_allocations.get('technology_matrix', [[]])[0]) if resource_allocations.get('technology_matrix') else 0}
+Final Demand: {len(resource_allocations.get('final_demand', []))} sectors
+Total Labor Cost: {resource_allocations.get('total_labor_cost', 0):,.0f}
+Plan Quality Score: {resource_allocations.get('plan_quality_score', 0):.2f}
+Resource Matrix: {len(resource_allocations.get('resource_matrix', []))} resources
+Max Resources: {len(resource_allocations.get('max_resources', []))} constraints
+Resource Names: {', '.join(resource_allocations.get('resource_names', [])) if resource_allocations.get('resource_names') else 'None'}
+"""
+
         summary = f"""Data Summary:
 ================
 
@@ -2440,7 +2511,7 @@ Labor Input Values:
 
 Technology Matrix (first 4x4):
 {tech_slice}
-{population_info}
+{population_info}{resource_info}
         """
 
         self.data_text.delete("1.0", tk.END)
@@ -2463,7 +2534,7 @@ Technology Matrix (first 4x4):
         # Get planning options
         use_optimization = self.use_optimization_var.get()
         max_iterations = int(self.max_iterations_var.get())
-        plan_type = self.plan_type_var.get()
+        plan_duration = int(self.plan_duration_var.get())
 
         # Get production adjustment settings
         production_multipliers = {
@@ -2480,6 +2551,9 @@ Technology Matrix (first 4x4):
         print(f"Production multipliers: {production_multipliers}")
         print(f"Apply reproduction: {apply_reproduction}")
 
+        # Start convergence monitoring
+        self.start_convergence_monitoring()
+        
         # Start planning in a separate thread
         self.create_plan_button.config(state="disabled")
         self.progress_bar.start()
@@ -2490,8 +2564,9 @@ Technology Matrix (first 4x4):
                 print(f"Creating plan with {len(policy_goals)} policy goals")
                 print(f"Data available: {bool(self.current_data)}")
 
-                if plan_type == "single_year":
-                    self.current_plan = self.planning_system.create_plan(
+                if plan_duration == 1:
+                    # Single year plan with convergence monitoring
+                    self.current_plan = self._create_plan_with_monitoring(
                         policy_goals = policy_goals,
                         use_optimization = use_optimization,
                         max_iterations = max_iterations,
@@ -2501,19 +2576,24 @@ Technology Matrix (first 4x4):
                     print(f"Plan created successfully: {type(self.current_plan)}")
                     if isinstance(self.current_plan, dict):
                         print(f"Plan keys: {list(self.current_plan.keys())}")
-                else:  # five_year
+                else:
+                    # Multi-year plan
                     growth_rate = float(self.growth_rate_var.get())
                     investment_ratio = float(self.investment_ratio_var.get())
 
-                    self.current_plan = self.planning_system.create_five_year_plan(
+                    self.current_plan = self.planning_system.create_multi_year_plan(
+                        plan_duration_years = plan_duration,
                         policy_goals = policy_goals,
                         consumption_growth_rate = growth_rate,
                         investment_ratio = investment_ratio,
                         production_multipliers = production_multipliers,
                         apply_reproduction = apply_reproduction
                     )
-                    print(f"Five - year plan created successfully: {type(self.current_plan)}")
+                    print(f"{plan_duration}-year plan created successfully: {type(self.current_plan)}")
 
+                # Stop convergence monitoring
+                self.root.after(0, self.stop_convergence_monitoring)
+                
                 # Update UI in main thread
                 self.root.after(0, self.plan_created_successfully)
 
@@ -2604,7 +2684,7 @@ Technology Matrix (first 4x4):
         self.export_status.config(text="Plan ready for export and simulation", foreground="green")
         
         # Update map settings if map is already generated
-        if hasattr(self, 'simulation_map_settings') and self.simulation_map_settings:
+        if False:  # Map functionality removed
             self._update_map_with_simulation_data()
 
     def _auto_load_plan_to_simulator(self):
@@ -2630,15 +2710,28 @@ Technology Matrix (first 4x4):
             self.notebook.select(self.simulation_frame)
             
             # Auto-generate map if not already generated
-            if not hasattr(self, 'realtime_map') or not self.realtime_map:
+            if False:  # Map functionality removed
                 self._auto_generate_map_for_simulation()
 
             print(f"✓ Plan automatically loaded into simulator with {len(simulation_plan['sectors'])} sectors")
+            
+            # Automatically initialize the simulation (but don't start it)
+            self._auto_initialize_simulation()
 
         except Exception as e:
             print(f"Warning: Failed to auto - load plan to simulator: {e}")
             # Don't fail the plan creation if simulator loading fails
             pass
+
+    def _auto_initialize_simulation(self):
+        """Automatically initialize the simulation after plan creation (but don't start it)."""
+        try:
+            # Initialize the simulation
+            self.initialize_simulation()
+            print("✓ Simulation automatically initialized and ready to start")
+            
+        except Exception as e:
+            print(f"Warning: Failed to auto-initialize simulation: {e}")
 
     def plan_creation_failed(self, error_msg):
         """Handle plan creation failure."""
@@ -2667,6 +2760,14 @@ Technology Matrix (first 4x4):
 
         dept_III_val = self.dept_III_production_var.get()
         self.dept_III_production_label.config(text = f"{dept_III_val * 100:.0f}%")
+
+    def update_plan_duration_label(self, value=None):
+        """Update the plan duration label when slider changes."""
+        duration = int(self.plan_duration_var.get())
+        if duration == 1:
+            self.plan_duration_label.config(text="1 year")
+        else:
+            self.plan_duration_label.config(text=f"{duration} years")
 
     def reset_production_sliders(self):
         """Reset all production sliders to normal (100%) levels."""
@@ -2986,6 +3087,40 @@ Year - by - Year Summary:
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to export data: {str(e)}")
 
+    def save_synthetic_dataset(self):
+        """Save current synthetic dataset to data/synthetic_datasets/ with a safe filename."""
+        if not self.current_data:
+            messagebox.showerror("Error", "No synthetic data to save")
+            return
+
+        try:
+            # Ensure the synthetic datasets directory exists
+            synthetic_dir = "data/synthetic_datasets"
+            os.makedirs(synthetic_dir, exist_ok=True)
+            
+            # Generate a safe filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_filename = f"synthetic_dataset_{timestamp}.json"
+            file_path = os.path.join(synthetic_dir, safe_filename)
+            
+            # Save the synthetic data
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(self.current_data, f, indent=2, ensure_ascii=False, default=str)
+            
+            # Update status
+            self.export_status.config(text=f"Synthetic dataset saved to {file_path}", foreground="green")
+            
+            # Show success message
+            messagebox.showinfo("Success", f"Synthetic dataset saved successfully!\n\nFile: {file_path}")
+            
+            print(f"✓ Synthetic dataset saved to: {file_path}")
+            
+        except Exception as e:
+            error_msg = f"Failed to save synthetic dataset: {str(e)}"
+            messagebox.showerror("Error", error_msg)
+            self.export_status.config(text=error_msg, foreground="red")
+            print(f"❌ {error_msg}")
+
     def load_plan(self):
         """Load a plan from file."""
         file_path = filedialog.askopenfilename(
@@ -3021,6 +3156,178 @@ Year - by - Year Summary:
             # Handle basic JSON - serializable types
             return obj
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+    def refresh_gpu_status(self):
+        """Refresh GPU status and display information."""
+        try:
+            # Import GPU acceleration module
+            from src.cybernetic_planning.core.gpu_acceleration import gpu_detector, settings_manager
+            
+            # Detect GPU capabilities
+            gpu_info = gpu_detector.detect_gpu_capabilities()
+            
+            # Update status label
+            if gpu_info.get("gpu_available", False):
+                self.gpu_status_label.config(text="✅ GPU Available", foreground="green")
+            else:
+                self.gpu_status_label.config(text="❌ GPU Not Available", foreground="red")
+            
+            # Update GPU information display
+            info_text = f"""GPU Detection Results:
+{'='*50}
+
+CuPy Available: {gpu_info.get('cupy_available', False)}
+CUDA Available: {gpu_info.get('cuda_available', False)}
+ROCm Available: {gpu_info.get('rocm_available', False)}
+GPU Count: {gpu_info.get('gpu_count', 0)}
+
+GPU Names: {', '.join(gpu_info.get('gpu_names', []))}
+GPU Memory: {gpu_info.get('gpu_memory', 0) / (1024**3):.2f} GB
+Compute Capability: {gpu_info.get('compute_capability', 'N/A')}
+
+Error: {gpu_info.get('error', 'None')}
+
+Current Settings:
+{'='*50}
+GPU Enabled: {settings_manager.is_gpu_enabled()}
+Solver Preference: {settings_manager.get_solver_preference()}
+Fallback to CPU: {settings_manager.should_fallback_to_cpu()}
+"""
+            
+            self.gpu_info_text.delete(1.0, tk.END)
+            self.gpu_info_text.insert(1.0, info_text)
+            
+            # Update settings from current configuration
+            self.gpu_enabled_var.set(settings_manager.is_gpu_enabled())
+            self.solver_var.set(settings_manager.get_solver_preference())
+            
+            # Update memory usage
+            memory_usage = gpu_detector.get_gpu_memory_usage()
+            if memory_usage["total"] > 0:
+                used_gb = memory_usage["used"] / (1024**3)
+                total_gb = memory_usage["total"] / (1024**3)
+                self.gpu_memory_label.config(text=f"{used_gb:.2f} GB / {total_gb:.2f} GB")
+            else:
+                self.gpu_memory_label.config(text="N/A")
+                
+        except Exception as e:
+            self.gpu_status_label.config(text=f"❌ Error: {str(e)}", foreground="red")
+            self.gpu_info_text.delete(1.0, tk.END)
+            self.gpu_info_text.insert(1.0, f"Error detecting GPU: {str(e)}")
+
+    def on_gpu_enabled_changed(self):
+        """Handle GPU enabled checkbox change."""
+        if not self.gpu_enabled_var.get():
+            # If disabling GPU, show warning
+            result = messagebox.askyesno(
+                "Disable GPU Acceleration",
+                "Disabling GPU acceleration will use CPU-only computation, which may be slower for large problems. Continue?"
+            )
+            if not result:
+                self.gpu_enabled_var.set(True)
+
+    def save_gpu_settings(self):
+        """Save GPU settings to configuration."""
+        try:
+            from src.cybernetic_planning.core.gpu_acceleration import settings_manager
+            
+            success = settings_manager.save_settings(
+                gpu_enabled=self.gpu_enabled_var.get(),
+                solver_type=self.solver_var.get(),
+                monitoring_enabled=self.show_utilization_var.get(),
+                benchmark_mode=self.benchmark_mode_var.get()
+            )
+            
+            if success:
+                messagebox.showinfo("Success", "GPU settings saved successfully!")
+                self.refresh_gpu_status()
+            else:
+                messagebox.showerror("Error", "Failed to save GPU settings")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save GPU settings: {str(e)}")
+
+    def run_gpu_benchmark(self):
+        """Run GPU vs CPU benchmark."""
+        try:
+            from src.cybernetic_planning.core.gpu_acceleration import performance_monitor, gpu_detector
+            
+            if not gpu_detector.is_gpu_available():
+                messagebox.showwarning("Warning", "GPU not available for benchmarking")
+                return
+            
+            # Create a simple test problem
+            import numpy as np
+            from src.cybernetic_planning.core.optimization import ConstrainedOptimizer
+            
+            # Create test matrices with proper economic constraints
+            n = 50  # Test with 50 sectors
+            
+            # Create a productive technology matrix (spectral radius < 1)
+            # Use a more conservative approach to ensure economic viability
+            A = np.random.rand(n, n) * 0.05  # Lower coefficients for productivity
+            # Ensure diagonal dominance for stability
+            np.fill_diagonal(A, 0)  # Remove self-consumption
+            # Scale down to ensure spectral radius < 1
+            A = A * 0.3
+            
+            l = np.random.rand(n) * 0.1 + 0.01  # Labor coefficients (small positive values)
+            d = np.random.rand(n) * 10 + 1  # Final demand (smaller, positive values)
+            
+            # Create optimizer
+            optimizer = ConstrainedOptimizer(A, l, d, use_gpu=True)
+            
+            # Run benchmark
+            self.benchmark_text.delete(1.0, tk.END)
+            self.benchmark_text.insert(1.0, "Running benchmark... Please wait...\n")
+            self.root.update()
+            
+            # Test if the problem is solvable first
+            test_result = optimizer.solve(use_cvxpy=True)
+            if not test_result.get('feasible', False):
+                self.benchmark_text.delete(1.0, tk.END)
+                self.benchmark_text.insert(1.0, "Benchmark Error: Test problem is not feasible. Cannot run benchmark.")
+                return
+            
+            benchmark_result = optimizer.benchmark_gpu_vs_cpu()
+            
+            # Display results
+            if "error" in benchmark_result and benchmark_result["error"] is not None:
+                result_text = f"Benchmark Error: {benchmark_result['error']}"
+            else:
+                result_text = f"""Benchmark Results:
+{'='*50}
+
+Operation: {benchmark_result.get('operation', 'N/A')}
+GPU Time: {benchmark_result.get('gpu_time', 'N/A'):.4f} seconds
+CPU Time: {benchmark_result.get('cpu_time', 'N/A'):.4f} seconds
+Speedup: {benchmark_result.get('speedup', 'N/A'):.2f}x
+GPU Success: {benchmark_result.get('gpu_success', False)}
+CPU Success: {benchmark_result.get('cpu_success', False)}
+
+Performance Summary:
+{'='*50}
+"""
+                
+                # Get overall performance summary
+                summary = performance_monitor.get_performance_summary()
+                if "message" not in summary:
+                    result_text += f"""Total Benchmarks: {summary.get('total_benchmarks', 0)}
+Successful Benchmarks: {summary.get('successful_benchmarks', 0)}
+Average Speedup: {summary.get('average_speedup', 0):.2f}x
+Maximum Speedup: {summary.get('max_speedup', 0):.2f}x
+Minimum Speedup: {summary.get('min_speedup', 0):.2f}x
+"""
+                else:
+                    result_text += summary["message"]
+            
+            self.benchmark_text.delete(1.0, tk.END)
+            self.benchmark_text.insert(1.0, result_text)
+            
+        except Exception as e:
+            self.benchmark_text.delete(1.0, tk.END)
+            self.benchmark_text.insert(1.0, f"Benchmark Error: {str(e)}")
+            messagebox.showerror("Error", f"Failed to run benchmark: {str(e)}")
 
     def export_marxist_analysis(self):
         """Export Marxist analysis results."""
@@ -3123,9 +3430,15 @@ Year - by - Year Summary:
             self.current_simulation_plan = plan_data
             self.plan_status.config(text = f"Plan loaded: {os.path.basename(plan_file)}", foreground="green")
 
-            # Update simulation parameters based on plan
+            # Update sector count display based on plan
             if 'sectors' in plan_data:
-                self.sectors_var.set(str(len(plan_data['sectors'])))
+                sector_count = len(plan_data['sectors'])
+                self.sectors_display_var.set(f"{sector_count} sectors")
+            elif 'technology_matrix' in plan_data:
+                sector_count = len(plan_data['technology_matrix'])
+                self.sectors_display_var.set(f"{sector_count} sectors")
+            else:
+                self.sectors_display_var.set("Unknown sectors")
 
             messagebox.showinfo("Success", "Plan loaded successfully for simulation.")
 
@@ -3298,19 +3611,23 @@ Year - by - Year Summary:
             # Get simulation parameters
             duration = int(self.sim_duration_var.get())
             time_step = int(self.time_step_var.get())
-            map_size = int(self.map_size_var.get())
-            settlements = int(self.settlements_var.get())
-            sectors = int(self.sim_sectors_var.get())
-            pop_density = int(self.pop_density_var.get())
+            
+            # Determine sectors from loaded plan
+            if hasattr(self, 'current_simulation_plan') and self.current_simulation_plan:
+                if 'sectors' in self.current_simulation_plan:
+                    sectors = len(self.current_simulation_plan['sectors'])
+                elif 'technology_matrix' in self.current_simulation_plan:
+                    sectors = len(self.current_simulation_plan['technology_matrix'])
+                else:
+                    sectors = 15  # fallback
+            else:
+                sectors = 15  # fallback when no plan loaded
 
             # Initialize simulation environment
             self.simulation_environment = {
                 'duration_years': duration,
                 'time_step_months': time_step,
-                'map_size_km': map_size,
-                'settlements': settlements,
                 'economic_sectors': sectors,
-                'population_density': pop_density,
                 'current_time': 0,
                 'current_month': 0,
                 'current_year': 0
@@ -3338,9 +3655,8 @@ Year - by - Year Summary:
             init_message = f"""Simulation Initialized Successfully!
 
 Environment Parameters:
-- Duration: {duration} years - Time Step: {time_step} months - Map Size: {map_size} km - Settlements: {settlements}
-- Economic Sectors: {sectors}
-- Population Density: {pop_density} per km²
+- Duration: {duration} years - Time Step: {time_step} months
+- Economic Sectors: {sectors} (from loaded plan)
 
 Plan Loaded:
 - Sectors: {len(self.current_simulation_plan.get('sectors', []))}
@@ -3409,56 +3725,67 @@ Ready to start simulation.
                 # Update monitoring display
                 self.update_monitoring_display(month)
 
-                # Small delay to prevent UI freezing
+                # Minimal delay to prevent UI freezing (optimized for performance)
                 import time
-                time.sleep(0.1)
+                time.sleep(0.01)  # Reduced from 0.1s to 0.01s for 10x speed improvement
+                
+                # Performance monitoring
+                if hasattr(self, 'simulation') and hasattr(self.simulation, 'performance_monitor'):
+                    self.simulation.performance_monitor.record_operation(
+                        'simulation_step', 
+                        time.time() - step_start_time,
+                        cache_hits=getattr(self.simulation.cache, 'hit_count', 0),
+                        cache_misses=getattr(self.simulation.cache, 'miss_count', 0)
+                    )
 
             # Simulation completed
             self.root.after(0, self.simulation_completed)
 
         except Exception as e:
             error_msg = str(e)
+            log_error_with_traceback(f"Simulation failed: {error_msg}", e, "run_simulation method")
             self.root.after(0, lambda: self.simulation_failed(error_msg))
 
     def simulate_time_step(self, month):
         """Simulate one time step of the simulation."""
-        year = month // 12
-        month_in_year = month % 12
+        try:
+            year = month // 12
+            month_in_year = month % 12
 
-        # Basic economic simulation based on loaded plan
-        if hasattr(self, 'current_simulation_plan'):
-            # Simulate production based on plan targets
-            production_results = self.simulate_production(month)
+            # Basic economic simulation based on loaded plan
+            if hasattr(self, 'current_simulation_plan'):
+                # Simulate production based on plan targets
+                production_results = self.simulate_production(month)
 
-            # Simulate resource allocation
-            resource_results = self.simulate_resource_allocation(month)
+                # Simulate resource allocation
+                resource_results = self.simulate_resource_allocation(month)
 
-            # Simulate labor allocation
-            labor_results = self.simulate_labor_allocation(month)
+                # Simulate labor allocation
+                labor_results = self.simulate_labor_allocation(month)
 
-            # Initialize population health tracker if not exists
-            if not hasattr(self, 'population_health_tracker'):
-                from src.cybernetic_planning.utils.population_health_tracker import PopulationHealthTracker
-                initial_population = self.current_simulation_plan.get('population', 1000000)
-                initial_tech_level = getattr(self, 'current_technology_level', 0.0)
-                self.population_health_tracker = PopulationHealthTracker(
-                    initial_population=initial_population,
-                    initial_technology_level=initial_tech_level
-                )
+                # Initialize population health tracker if not exists
+                if not hasattr(self, 'population_health_tracker'):
+                    from src.cybernetic_planning.utils.population_health_tracker import PopulationHealthTracker
+                    initial_population = self.current_simulation_plan.get('population', 1000000)
+                    initial_tech_level = getattr(self, 'current_technology_level', 0.0)
+                    self.population_health_tracker = PopulationHealthTracker(
+                        initial_population=initial_population,
+                        initial_technology_level=initial_tech_level
+                    )
+                    
+                    # Set R&D sectors for technology growth
+                    rd_sectors = self._get_rd_sector_indices()
+                    self.population_health_tracker.set_rd_sectors(rd_sectors)
                 
-                # Set R&D sectors for technology growth
-                rd_sectors = self._get_rd_sector_indices()
-                self.population_health_tracker.set_rd_sectors(rd_sectors)
-            
-            # Initialize enhanced simulation if not exists
-            if not hasattr(self, 'enhanced_simulation'):
-                self._initialize_enhanced_simulation()
+                # Initialize enhanced simulation if not exists
+                if not hasattr(self, 'enhanced_simulation'):
+                    self._initialize_enhanced_simulation()
 
-            # Update population health metrics
-            sector_mapping = self._get_sector_mapping()
-            health_metrics = self.population_health_tracker.update_monthly_metrics(
-                production_results, resource_results, labor_results, sector_mapping
-            )
+                # Update population health metrics
+                sector_mapping = self._get_sector_mapping()
+                health_metrics = self.population_health_tracker.update_monthly_metrics(
+                    production_results, resource_results, labor_results, sector_mapping
+                )
 
             # Store results
             if not hasattr(self, 'simulation_results'):
@@ -3491,48 +3818,55 @@ Ready to start simulation.
             self.current_simulation_time = month
             
             # Update map with simulation progress
-            if hasattr(self, 'realtime_map') and self.realtime_map:
+            if False:  # Map functionality removed
                 self._update_map_with_simulation_data()
+        except Exception as e:
+            log_error_with_traceback(f"Error in simulate_time_step for month {month}", e, f"simulate_time_step(month={month})")
+            raise
 
     def simulate_production(self, month):
         """Simulate production for the current time step using enhanced optimization."""
-        # Use enhanced simulation if available
-        if hasattr(self, 'enhanced_simulation') and self.enhanced_simulation:
-            try:
-                # Get current population health tracker
-                population_health_tracker = getattr(self, 'population_health_tracker', None)
-                
-                # Run enhanced simulation
-                simulation_result = self.enhanced_simulation.simulate_month(
-                    month=month,
-                    population_health_tracker=population_health_tracker,
-                    use_optimization=True
-                )
-                
-                # Update technology and living standards from simulation
-                if population_health_tracker:
-                    self.enhanced_simulation.update_technology_level(
-                        population_health_tracker.current_technology_level
+        try:
+            # Use enhanced simulation if available
+            if hasattr(self, 'enhanced_simulation') and self.enhanced_simulation:
+                try:
+                    # Get current population health tracker
+                    population_health_tracker = getattr(self, 'population_health_tracker', None)
+                    
+                    # Run enhanced simulation
+                    simulation_result = self.enhanced_simulation.simulate_month(
+                        month=month,
+                        population_health_tracker=population_health_tracker,
+                        use_optimization=True
                     )
-                    self.enhanced_simulation.update_living_standards(
-                        population_health_tracker.current_living_standards
-                    )
+                    
+                    # Update technology and living standards from simulation
+                    if population_health_tracker:
+                        self.enhanced_simulation.update_technology_level(
+                            population_health_tracker.current_technology_level
+                        )
+                        self.enhanced_simulation.update_living_standards(
+                            population_health_tracker.current_living_standards
+                        )
+                    
+                    # The enhanced simulation returns a different structure
+                    # Convert it to match the expected format
+                    production_data = simulation_result.get('production', {})
+                    if production_data:
+                        # Enhanced simulation already returns the correct format
+                        return production_data
+                    else:
+                        # Fallback if no production data
+                        return {}
                 
-                # The enhanced simulation returns a different structure
-                # Convert it to match the expected format
-                production_data = simulation_result.get('production', {})
-                if production_data:
-                    # Enhanced simulation already returns the correct format
-                    return production_data
-                else:
-                    # Fallback if no production data
-                    return {}
-                
-            except Exception as e:
-                print(f"Enhanced simulation failed: {e}, falling back to basic simulation")
+                except Exception as e:
+                    print(f"Enhanced simulation failed: {e}, falling back to basic simulation")
+                    return self._simulate_production_basic(month)
+            else:
                 return self._simulate_production_basic(month)
-        else:
-            return self._simulate_production_basic(month)
+        except Exception as e:
+            log_error_with_traceback(f"Error in simulate_production for month {month}", e, f"simulate_production(month={month})")
+            raise
     
     def _simulate_production_basic(self, month):
         """Basic production simulation as fallback."""
@@ -3611,15 +3945,94 @@ Ready to start simulation.
 
         return production_results
 
+    def _create_default_simulation_plan(self):
+        """Create a default simulation plan with basic resource allocation data."""
+        try:
+            # Create synthetic data for default simulation
+            if self.planning_system:
+                synthetic_data = self.planning_system.create_synthetic_data(
+                    n_sectors=10, 
+                    technology_density=0.3, 
+                    resource_count=5
+                )
+                self.current_simulation_plan = self._create_simulation_plan_from_synthetic_data(synthetic_data)
+            else:
+                # Create minimal default plan if planning system not available
+                self.current_simulation_plan = {
+                    'sectors': [f'Sector_{i+1}' for i in range(10)],
+                    'production_targets': {f'Sector_{i+1}': 100.0 for i in range(10)},
+                    'labor_requirements': {f'Sector_{i+1}': 10.0 for i in range(10)},
+                    'resource_allocations': {
+                        'technology_matrix': [[0.3 if i == j else 0.1 for j in range(10)] for i in range(10)],
+                        'final_demand': [100.0] * 10,
+                        'total_labor_cost': 1000.0,
+                        'plan_quality_score': 0.5,
+                        'resource_matrix': [[1.0] * 10 for _ in range(5)],
+                        'max_resources': [1000.0] * 5,
+                        'resource_names': ['Energy', 'Materials', 'Labor', 'Capital', 'Land']
+                    },
+                    'population': 1000000,
+                    'metadata': {
+                        'source': 'default_simulation',
+                        'generated_at': datetime.now().isoformat(),
+                        'sector_count': 10,
+                        'resource_count': 5,
+                        'technology_density': 0.3
+                    }
+                }
+            print("✓ Default simulation plan created")
+        except Exception as e:
+            print(f"Warning: Failed to create default simulation plan: {e}")
+            # Create minimal fallback plan
+            self.current_simulation_plan = {
+                'sectors': ['Sector_1', 'Sector_2'],
+                'production_targets': {'Sector_1': 100.0, 'Sector_2': 100.0},
+                'labor_requirements': {'Sector_1': 10.0, 'Sector_2': 10.0},
+                'resource_allocations': {
+                    'technology_matrix': [[0.3, 0.1], [0.1, 0.3]],
+                    'final_demand': [100.0, 100.0],
+                    'total_labor_cost': 200.0,
+                    'plan_quality_score': 0.5,
+                    'resource_matrix': [[1.0, 1.0], [1.0, 1.0]],
+                    'max_resources': [1000.0, 1000.0],
+                    'resource_names': ['Resource_1', 'Resource_2']
+                },
+                'population': 1000000,
+                'metadata': {'source': 'fallback', 'generated_at': datetime.now().isoformat()}
+            }
+
     def _initialize_enhanced_simulation(self):
         """Initialize the enhanced simulation system."""
         try:
             from src.cybernetic_planning.core.enhanced_simulation import EnhancedEconomicSimulation
             import numpy as np
             
+            # Ensure current_simulation_plan exists and has resource_allocations
+            if not hasattr(self, 'current_simulation_plan') or self.current_simulation_plan is None:
+                print("No simulation plan available. Creating default simulation plan...")
+                self._create_default_simulation_plan()
+            
             # Extract data from current simulation plan
             if 'resource_allocations' in self.current_simulation_plan:
                 resource_data = self.current_simulation_plan['resource_allocations']
+            else:
+                print("No resource_allocations found in simulation plan. Creating default resource allocation data...")
+                # Create default resource allocation data
+                n_sectors = len(self.current_simulation_plan.get('sectors', []))
+                if n_sectors == 0:
+                    n_sectors = 10
+                
+                resource_data = {
+                    'technology_matrix': [[0.3 if i == j else 0.1 for j in range(n_sectors)] for i in range(n_sectors)],
+                    'final_demand': [100.0] * n_sectors,
+                    'total_labor_cost': 1000.0,
+                    'plan_quality_score': 0.5,
+                    'resource_matrix': [[1.0] * n_sectors for _ in range(5)],
+                    'max_resources': [1000.0] * 5,
+                    'resource_names': ['Energy', 'Materials', 'Labor', 'Capital', 'Land']
+                }
+                # Add it to the simulation plan for future use
+                self.current_simulation_plan['resource_allocations'] = resource_data
                 
                 # Try to extract technology matrix and other data
                 if 'technology_matrix' in resource_data:
@@ -3670,9 +4083,6 @@ Ready to start simulation.
                 )
                 
                 print("Enhanced simulation initialized successfully")
-            else:
-                print("No resource allocation data available for enhanced simulation")
-                self.enhanced_simulation = None
                 
         except Exception as e:
             print(f"Failed to initialize enhanced simulation: {e}")
@@ -3711,78 +4121,86 @@ Ready to start simulation.
 
     def simulate_resource_allocation(self, month):
         """Simulate resource allocation for the current time step."""
-        resource_results = {}
+        try:
+            resource_results = {}
 
-        if 'resource_allocations' in self.current_simulation_plan:
-            # resource_allocations is a dictionary, so we can iterate over it
-            for resource, allocation in self.current_simulation_plan['resource_allocations'].items():
-                # Base availability for events
-                base_availability = 1.0
-                if hasattr(self, 'current_events') and self.current_events:
-                    base_availability *= 0.9  # Reduce availability during events
+            if 'resource_allocations' in self.current_simulation_plan:
+                # resource_allocations is a dictionary, so we can iterate over it
+                for resource, allocation in self.current_simulation_plan['resource_allocations'].items():
+                    # Base availability for events
+                    base_availability = 1.0
+                    if hasattr(self, 'current_events') and self.current_events:
+                        base_availability *= 0.9  # Reduce availability during events
 
-                # Resource-specific characteristics
-                resource_id = hash(resource) % 100  # Use resource name hash for consistency
-                
-                # Different resources have different availability levels
-                base_resource_efficiency = 0.7 + 0.3 * (resource_id % 10) / 10  # 0.7 to 1.0 range
-                
-                # Seasonal variation (different for each resource)
-                seasonal_factor = 1.0 + 0.2 * math.sin(2 * math.pi * (month % 12) / 12 + resource_id * 0.2)
-                
-                # Random variation (different for each resource)
-                random_factor = 0.85 + 0.3 * (hash(resource + str(month + 2000)) % 100) / 100  # 0.85 to 1.15 range
-                
-                # Calculate final availability
-                availability = base_resource_efficiency * seasonal_factor * random_factor * base_availability
-                availability = max(0.2, min(1.2, availability))  # Clamp between 20% and 120%
+                    # Resource-specific characteristics
+                    resource_id = hash(resource) % 100  # Use resource name hash for consistency
+                    
+                    # Different resources have different availability levels
+                    base_resource_efficiency = 0.7 + 0.3 * (resource_id % 10) / 10  # 0.7 to 1.0 range
+                    
+                    # Seasonal variation (different for each resource)
+                    seasonal_factor = 1.0 + 0.2 * math.sin(2 * math.pi * (month % 12) / 12 + resource_id * 0.2)
+                    
+                    # Random variation (different for each resource)
+                    random_factor = 0.85 + 0.3 * (hash(resource + str(month + 2000)) % 100) / 100  # 0.85 to 1.15 range
+                    
+                    # Calculate final availability
+                    availability = base_resource_efficiency * seasonal_factor * random_factor * base_availability
+                    availability = max(0.2, min(1.2, availability))  # Clamp between 20% and 120%
 
-                # Handle both scalar and list allocations
-                if isinstance(allocation, list):
-                    actual_allocation = []
-                    for i, a in enumerate(allocation):
-                        if isinstance(a, (int, float)):
-                            # Add sector-specific variation for list allocations
-                            sector_variation = 0.9 + 0.2 * (i % 10) / 10  # 0.9 to 1.1 range
-                            actual_allocation.append(a * availability * sector_variation)
-                        else:
-                            actual_allocation.append(a)  # Keep non-numeric values unchanged
-                else:
-                    if isinstance(allocation, (int, float)):
-                        actual_allocation = allocation * availability
+                    # Handle both scalar and list allocations
+                    if isinstance(allocation, list):
+                        actual_allocation = []
+                        for i, a in enumerate(allocation):
+                            if isinstance(a, (int, float)):
+                                # Add sector-specific variation for list allocations
+                                sector_variation = 0.9 + 0.2 * (i % 10) / 10  # 0.9 to 1.1 range
+                                actual_allocation.append(a * availability * sector_variation)
+                            else:
+                                actual_allocation.append(a)  # Keep non-numeric values unchanged
                     else:
-                        actual_allocation = allocation  # Keep non-numeric values unchanged
+                        if isinstance(allocation, (int, float)):
+                            actual_allocation = allocation * availability
+                        else:
+                            actual_allocation = allocation  # Keep non-numeric values unchanged
 
-                resource_results[resource] = {
-                    'planned': allocation,
-                    'actual': actual_allocation,
-                    'availability': availability
-                }
+                    resource_results[resource] = {
+                        'planned': allocation,
+                        'actual': actual_allocation,
+                        'availability': availability
+                    }
 
-        return resource_results
+            return resource_results
+        except Exception as e:
+            log_error_with_traceback(f"Error in simulate_resource_allocation for month {month}", e, f"simulate_resource_allocation(month={month})")
+            raise
 
     def simulate_labor_allocation(self, month):
         """Simulate labor allocation for the current time step using enhanced optimization."""
-        # Use enhanced simulation if available
-        if hasattr(self, 'enhanced_simulation') and self.enhanced_simulation:
-            try:
-                # Get current population health tracker
-                population_health_tracker = getattr(self, 'population_health_tracker', None)
-                
-                # Run enhanced simulation
-                simulation_result = self.enhanced_simulation.simulate_month(
-                    month=month,
-                    population_health_tracker=population_health_tracker,
-                    use_optimization=True
-                )
-                
-                return simulation_result['labor_allocation']
-                
-            except Exception as e:
-                print(f"Enhanced labor simulation failed: {e}, falling back to basic simulation")
+        try:
+            # Use enhanced simulation if available
+            if hasattr(self, 'enhanced_simulation') and self.enhanced_simulation:
+                try:
+                    # Get current population health tracker
+                    population_health_tracker = getattr(self, 'population_health_tracker', None)
+                    
+                    # Run enhanced simulation
+                    simulation_result = self.enhanced_simulation.simulate_month(
+                        month=month,
+                        population_health_tracker=population_health_tracker,
+                        use_optimization=True
+                    )
+                    
+                    return simulation_result['labor_allocation']
+                    
+                except Exception as e:
+                    print(f"Enhanced labor simulation failed: {e}, falling back to basic simulation")
+                    return self._simulate_labor_allocation_basic(month)
+            else:
                 return self._simulate_labor_allocation_basic(month)
-        else:
-            return self._simulate_labor_allocation_basic(month)
+        except Exception as e:
+            log_error_with_traceback(f"Error in simulate_labor_allocation for month {month}", e, f"simulate_labor_allocation(month={month})")
+            raise
     
     def _simulate_labor_allocation_basic(self, month):
         """Basic labor allocation simulation as fallback."""
@@ -3824,7 +4242,7 @@ Ready to start simulation.
                     'productivity': productivity
                 }
 
-        return labor_results
+            return labor_results
 
     def should_trigger_event(self):
         """Determine if a stochastic event should be triggered."""
@@ -4330,7 +4748,7 @@ Production Status:
                     pop_months = [data.month for data in health_data]
                     population = [data.population for data in health_data]
                     tech_level = [data.technology_level for data in health_data]
-                    living_standards = [data.living_standards_index for data in health_data]
+                    living_standards_list = [data.living_standards_index for data in health_data]
                     
                     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10))
                     
@@ -4349,7 +4767,7 @@ Production Status:
                     ax2.legend()
                     
                     # Living Standards
-                    ax3.plot(pop_months, living_standards, 'r-', linewidth=2, label='Living Standards')
+                    ax3.plot(pop_months, living_standards_list, 'r-', linewidth=2, label='Living Standards')
                     ax3.set_title('Living Standards Over Time', fontweight='bold')
                     ax3.set_xlabel('Month')
                     ax3.set_ylabel('Living Standards Index')
@@ -4639,7 +5057,7 @@ Technical Details:
 • Simulation Resolution: Monthly
 • Stochastic Events: {'Enabled' if hasattr(self, 'stochastic_events') else 'Disabled'}
 • Monitoring Frequency: Real-time
-• Map Integration: {'Available' if MAP_AVAILABLE else 'Not Available'}
+• Map Integration: Not Available (Removed)
 
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 System: Cybernetic Planning Experiment v1.0
@@ -4948,7 +5366,7 @@ System: Cybernetic Planning Experiment v1.0
                 story.append(Spacer(1, 20))
                 
                 # Generate 5-year plan report
-                plan_report = self._generate_five_year_plan_report()
+                plan_report = self._generate_multi_year_plan_report()
                 self._add_plan_report_to_pdf(story, plan_report, styles)
             
             # Build PDF
@@ -5194,13 +5612,13 @@ System: Cybernetic Planning Experiment v1.0
             print(f"Error generating graphs: {str(e)}")
             return []
     
-    def _generate_five_year_plan_report(self):
-        """Generate a comprehensive 5-year plan report."""
+    def _generate_multi_year_plan_report(self):
+        """Generate a comprehensive multi-year plan report."""
         try:
             if not hasattr(self, 'current_plan') or not self.current_plan:
-                return "No 5-year plan data available."
+                return "No multi-year plan data available."
             
-            # Check if it's a 5-year plan
+            # Check if it's a multi-year plan
             if isinstance(self.current_plan, dict) and "total_output" in self.current_plan:
                 # Single year plan
                 return self.planning_system.generate_report(self.current_plan)
@@ -5208,9 +5626,12 @@ System: Cybernetic Planning Experiment v1.0
                 # Multi-year plan - generate comprehensive report
                 report_sections = []
                 
-                # Executive Summary
+                total_years = len(self.current_plan)
+                report_sections.append(f"# {total_years}-Year Economic Plan Report")
+                report_sections.append(f"- **Plan Duration**: {total_years} years")
+                report_sections.append("")
                 report_sections.append("## Executive Summary")
-                report_sections.append("This 5-year economic plan has been generated using cybernetic planning principles,")
+                report_sections.append(f"This {total_years}-year economic plan has been generated using cybernetic planning principles,")
                 report_sections.append("combining Input-Output analysis with labor-time accounting.")
                 report_sections.append("")
                 
@@ -5477,1079 +5898,159 @@ System: Cybernetic Planning Experiment v1.0
 
     def generate_simulation_map(self):
         """Generate an interactive map for the simulation environment."""
-        if not MAP_AVAILABLE:
-            messagebox.showerror("Error", "Map visualization is not available. Please install required dependencies.")
-            return
-
-        try:
-            # Get simulation parameters
-            map_size = float(self.map_size_var.get())
-            settlements_count = int(self.settlements_var.get())
-
-            # Calculate map bounds based on size
-            # Convert km to approximate lat / lon degrees (rough approximation)
-            lat_range = map_size / 111.0  # 1 degree latitude ≈ 111 km
-            lon_range = map_size / (111.0 * np.cos(np.radians(45)))  # Adjust for longitude
-
-            # Center around a reasonable location (Northeast US)
-            center_lat, center_lon = 45.0, -75.0
-            map_bounds = (
-                (center_lat - lat_range / 2, center_lon - lon_range / 2),
-                (center_lat + lat_range / 2, center_lon + lon_range / 2)
-            )
-
-            # Generate the map
-            self.current_map = create_simulation_map(map_bounds)
-
-            # Save the map
-            self.map_file_path = self.current_map.save_map("simulation_map.html")
-
-            # Update status
-            self.map_status.config(text="Map generated successfully", foreground="green")
-
-            # Update map info display
-            self.update_map_info_display()
-
-            messagebox.showinfo("Success", f"Simulation map generated successfully!\nSaved to: {self.map_file_path}")
-
-        except Exception as e:
-            self.map_status.config(text="Map generation failed", foreground="red")
-            messagebox.showerror("Error", f"Failed to generate map: {str(e)}")
+        messagebox.showinfo("Info", "Map functionality has been removed. Use the simulation tab for running simulations.")
 
     def open_map_in_browser(self):
         """Open the generated map in the default web browser."""
-        if not self.current_map:
-            messagebox.showwarning("Warning", "No map generated. Please generate a map first.")
-            return
-
-        try:
-            if self.map_file_path and os.path.exists(self.map_file_path):
-                import webbrowser
-                webbrowser.open(f'file://{os.path.abspath(self.map_file_path)}')
-                self.map_status.config(text="Map opened in browser", foreground="green")
-            else:
-                # Generate a new map if file doesn't exist
-                self.generate_simulation_map()
-                if self.map_file_path:
-                    import webbrowser
-                    webbrowser.open(f'file://{os.path.abspath(self.map_file_path)}')
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to open map in browser: {str(e)}")
+        messagebox.showinfo("Info", "Map functionality has been removed. Use the simulation tab for running simulations.")
 
     def refresh_simulation_map(self):
         """Refresh the current simulation map."""
-        if not self.current_map:
-            messagebox.showwarning("Warning", "No map to refresh. Please generate a map first.")
-            return
-
-        try:
-            # Regenerate the map with current parameters
-            self.generate_simulation_map()
-            messagebox.showinfo("Success", "Map refreshed successfully!")
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to refresh map: {str(e)}")
+        messagebox.showinfo("Info", "Map functionality has been removed. Use the simulation tab for running simulations.")
 
     def generate_realtime_map(self):
         """Generate a real-time map for the simulation environment with simulation integration."""
-        if not MAP_AVAILABLE:
-            messagebox.showerror("Error", "Map visualization is not available. Please install required dependencies.")
-            return
-
-        try:
-            # Get map parameters from UI
-            center_lat = float(self.map_center_lat_var.get())
-            center_lon = float(self.map_center_lon_var.get())
-            geo_features = int(self.geo_features_var.get())
-            econ_zones = int(self.econ_zones_var.get())
-
-            # Calculate map bounds based on simulation data if available
-            if hasattr(self, 'current_simulation_plan') and self.current_simulation_plan:
-                # Use simulation data to determine map size and features
-                map_size = self._calculate_map_size_from_simulation()
-                settlements_count = self._calculate_settlements_from_simulation()
-            else:
-                # Default parameters
-                map_size = 500  # km
-                settlements_count = 20
-
-            lat_range = map_size / 111.0  # Approximate km per degree latitude
-            lon_range = map_size / (111.0 * math.cos(math.radians(center_lat)))  # Adjust for longitude
-
-            map_bounds = (
-                (center_lat - lat_range / 2, center_lon - lon_range / 2),
-                (center_lat + lat_range / 2, center_lon + lon_range / 2)
-            )
-
-            # Store map settings for simulation integration
-            self.simulation_map_settings = {
-                'center_lat': center_lat,
-                'center_lon': center_lon,
-                'map_size': map_size,
-                'geo_features': geo_features,
-                'econ_zones': econ_zones,
-                'settlements_count': settlements_count,
-                'map_bounds': map_bounds
-            }
-
-            # Generate the map with simulation data
-            self.realtime_map = self._create_simulation_integrated_map(map_bounds, geo_features, econ_zones)
-
-            # Save the map
-            self.realtime_map_file_path = "realtime_simulation_map.html"
-            self.realtime_map.save_map(self.realtime_map_file_path)
-
-            # Try to generate image version
-            try:
-                self.realtime_map_image_path = "realtime_simulation_map.png"
-                image_path = self.realtime_map.save_map_as_image(self.realtime_map_image_path, width=1200, height=800)
-                if image_path:
-                    self.realtime_map_image_path = image_path
-            except Exception as e:
-                print(f"Image generation failed: {e}")
-                self.realtime_map_image_path = None
-
-            # Update status
-            self.realtime_map_status.config(text="Map generated with simulation integration", foreground="green")
-
-            # Update map info display
-            self.update_realtime_map_info()
-
-            # Display the map in the GUI
-            self.display_map_in_gui()
-
-            messagebox.showinfo("Success", "Real-time map generated successfully with simulation integration!")
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to generate real-time map: {str(e)}")
-            self.realtime_map_status.config(text="Map generation failed", foreground="red")
+        messagebox.showinfo("Info", "Map functionality has been removed. Use the simulation tab for running simulations.")
 
     def _calculate_map_size_from_simulation(self):
         """Calculate map size based on simulation data and population."""
-        if not hasattr(self, 'current_simulation_plan') or not self.current_simulation_plan:
-            return 500  # Default size in km
-        
-        # Base size on population if available
-        if hasattr(self, 'current_data') and self.current_data and 'population_demographics' in self.current_data:
-            total_population = self.current_data['population_demographics'].get('total_population', 0)
-            # Scale map size with population (roughly 1km per 1000 people)
-            base_size = max(200, total_population / 1000)
-        else:
-            # Fallback to sector-based calculation
-            sectors = self.current_simulation_plan.get('sectors', [])
-            base_size = 200 + len(sectors) * 10  # 200km base + 10km per sector
-        
-        # Adjust based on production targets
-        production_targets = self.current_simulation_plan.get('production_targets', [])
-        if production_targets:
-            total_production = sum(production_targets)
-            size_multiplier = min(2.0, max(0.5, total_production / 1000000))  # Scale based on production
-            base_size *= size_multiplier
-        
-        return min(2000, max(200, int(base_size)))  # Clamp between 200-2000km
+        return 500  # Default size - map functionality removed
 
     def _calculate_settlements_from_simulation(self):
         """Calculate number of settlements based on simulation data."""
-        if not hasattr(self, 'current_simulation_plan') or not self.current_simulation_plan:
-            return 20  # Default count
-        
-        # Base settlements on economic zones and sectors
-        sectors = self.current_simulation_plan.get('sectors', [])
-        econ_zones = self.current_simulation_plan.get('economic_zones', [])
-        
-        # Calculate based on sectors (more sectors = more settlements)
-        base_settlements = 10 + len(sectors) // 2
-        
-        # Add settlements for economic zones
-        if econ_zones:
-            base_settlements += len(econ_zones) // 3
-        
-        return min(100, max(10, base_settlements))  # Clamp between 10-100
+        return 20  # Default count - map functionality removed
 
     def _create_simulation_integrated_map(self, map_bounds, geo_features, econ_zones):
         """Create a map integrated with simulation data and terrain distribution."""
-        # Create the base map
-        map_generator = MapGenerator(map_bounds)
-        interactive_map = InteractiveMap(map_generator)
-        
-        # Generate settlements first to determine appropriate forest sizes
-        interactive_map.settlements = map_generator.generate_settlements()
-        
-        # Generate geographic features with terrain distribution settings
-        if hasattr(self, 'current_data') and self.current_data and 'terrain_distribution' in self.current_data:
-            terrain_dist = self.current_data['terrain_distribution']
-            interactive_map.geographic_features = self._generate_terrain_with_distribution(
-                map_bounds, terrain_dist, interactive_map.settlements
-            )
-        else:
-            interactive_map.geographic_features = map_generator.generate_geographic_features(geo_features)
-        
-        interactive_map.economic_zones = map_generator.generate_economic_zones(interactive_map.settlements)
-        
-        # Add simulation-specific infrastructure if available
-        if hasattr(self, 'current_simulation_plan') and self.current_simulation_plan:
-            interactive_map.infrastructure = self._generate_simulation_infrastructure(interactive_map.settlements)
-        else:
-            interactive_map.infrastructure = map_generator.generate_infrastructure(interactive_map.settlements)
-        
-        # Create the map
-        interactive_map.create_map()
-        
-        # Store simulation data for updates (convert to dictionaries for consistency)
-        self.map_simulation_data = {
-            'settlements': [
-                {
-                    'name': s.name,
-                    'coordinates': s.coordinates,
-                    'population': s.population,
-                    'settlement_type': s.settlement_type,
-                    'economic_sectors': s.economic_sectors
-                } for s in interactive_map.settlements
-            ],
-            'economic_zones': [
-                {
-                    'name': z.name,
-                    'coordinates': z.coordinates,
-                    'zone_type': z.zone_type,
-                    'sectors': z.sectors,
-                    'production_capacity': z.production_capacity
-                } for z in interactive_map.economic_zones
-            ],
-            'infrastructure': interactive_map.infrastructure,
-            'geographic_features': [
-                {
-                    'name': f.name,
-                    'coordinates': f.coordinates,
-                    'feature_type': f.feature_type,
-                    'properties': f.properties
-                } for f in interactive_map.geographic_features
-            ]
-        }
-        
-        return interactive_map
+        return None  # Map functionality removed
 
     def _generate_terrain_with_distribution(self, map_bounds, terrain_dist, settlements):
         """Generate terrain features based on user-defined distribution percentages."""
-        import random
-        import math
-        from src.cybernetic_planning.utils.map_visualization import GeographicFeature
-        
-        features = []
-        
-        # Get terrain percentages
-        forest_pct = terrain_dist.get('forest_percentage', 25) / 100.0
-        mountain_pct = terrain_dist.get('mountain_percentage', 15) / 100.0
-        water_pct = terrain_dist.get('water_percentage', 10) / 100.0
-        base_pct = terrain_dist.get('base_terrain_percentage', 50) / 100.0
-        
-        # Calculate map area
-        min_lat, min_lon = map_bounds[0]
-        max_lat, max_lon = map_bounds[1]
-        lat_range = max_lat - min_lat
-        lon_range = max_lon - min_lon
-        map_area = lat_range * lon_range
-        
-        # Calculate number of features based on area and percentages
-        # Ensure forests are large enough relative to settlements
-        min_forest_size = self._calculate_min_forest_size(settlements)
-        forest_count = max(1, int(forest_pct * map_area * 100))  # Scale with area
-        mountain_count = max(1, int(mountain_pct * map_area * 50))
-        water_count = max(1, int(water_pct * map_area * 30))
-        
-        # Generate forests (ensure they're larger than towns)
-        for i in range(forest_count):
-            center = self._random_coordinates_in_bounds(map_bounds)
-            size = max(min_forest_size, random.uniform(0.01, 0.05))  # 0.01 to 0.05 degrees
-            coords = self._generate_forest_coordinates(center, size)
-            
-            features.append(GeographicFeature(
-                name=f"Forest {i+1}",
-                coordinates=coords,
-                feature_type="forest",
-                properties={
-                    "size_km2": size * 111 * 111,  # Rough conversion to km²
-                    "tree_density": random.uniform(0.6, 1.0),
-                    "timber_value": random.uniform(50, 150)
-                }
-            ))
-        
-        # Generate mountains
-        for i in range(mountain_count):
-            center = self._random_coordinates_in_bounds(map_bounds)
-            size = random.uniform(0.02, 0.08)  # Mountains can be larger
-            coords = self._generate_mountain_coordinates(center, size)
-            
-            features.append(GeographicFeature(
-                name=f"Mountain {i+1}",
-                coordinates=coords,
-                feature_type="mountain",
-                properties={
-                    "elevation_m": random.randint(500, 3000),
-                    "mineral_richness": random.uniform(0.3, 1.0),
-                    "accessibility": random.uniform(0.2, 0.8)
-                }
-            ))
-        
-        # Generate water bodies
-        for i in range(water_count):
-            center = self._random_coordinates_in_bounds(map_bounds)
-            size = random.uniform(0.01, 0.06)  # Water bodies vary in size
-            coords = self._generate_water_coordinates(center, size)
-            
-            features.append(GeographicFeature(
-                name=f"Water Body {i+1}",
-                coordinates=coords,
-                feature_type="water",
-                properties={
-                    "depth_m": random.uniform(2, 50),
-                    "water_quality": random.uniform(0.5, 1.0),
-                    "fishing_potential": random.uniform(0.3, 1.0)
-                }
-            ))
-        
-        return features
+        return []  # Map functionality removed
 
     def _calculate_min_forest_size(self, settlements):
         """Calculate minimum forest size based on settlement sizes."""
-        if not settlements:
-            return 0.01  # Default minimum
-        
-        # Find the largest town (not city) to ensure forests are bigger
-        town_sizes = []
-        for settlement in settlements:
-            if settlement.settlement_type == 'town':
-                # Estimate town area based on population (rough approximation)
-                town_area = settlement.population / 1000  # ~1000 people per km²
-                town_sizes.append(town_area)
-        
-        if town_sizes:
-            max_town_area = max(town_sizes)
-            # Forest should be at least 1.5x the size of the largest town
-            min_forest_area_km2 = max_town_area * 1.5
-            # Convert to degrees (rough approximation: 1 degree ≈ 111 km)
-            return math.sqrt(min_forest_area_km2) / 111
-        else:
-            return 0.01  # Default minimum
+        return 0.01  # Map functionality removed
 
     def _random_coordinates_in_bounds(self, map_bounds):
         """Generate random coordinates within map bounds."""
-        min_lat, min_lon = map_bounds[0]
-        max_lat, max_lon = map_bounds[1]
-        
-        lat = random.uniform(min_lat, max_lat)
-        lon = random.uniform(min_lon, max_lon)
-        return (lat, lon)
+        return (0, 0)  # Map functionality removed
 
     def _generate_forest_coordinates(self, center, size):
         """Generate forest polygon coordinates."""
-        import random
-        import math
-        
-        lat, lon = center
-        # Create a roughly circular forest
-        num_points = random.randint(6, 12)
-        coords = []
-        
-        for i in range(num_points):
-            angle = (2 * math.pi * i) / num_points
-            # Add some randomness to make it more natural
-            radius = size * (0.7 + random.uniform(0, 0.6))
-            offset_lat = radius * math.cos(angle) + random.uniform(-size*0.2, size*0.2)
-            offset_lon = radius * math.sin(angle) + random.uniform(-size*0.2, size*0.2)
-            
-            coords.append((lat + offset_lat, lon + offset_lon))
-        
-        return coords
+        return []  # Map functionality removed
 
     def _generate_mountain_coordinates(self, center, size):
         """Generate mountain polygon coordinates."""
-        import random
-        import math
-        
-        lat, lon = center
-        # Create a more irregular mountain shape
-        num_points = random.randint(8, 15)
-        coords = []
-        
-        for i in range(num_points):
-            angle = (2 * math.pi * i) / num_points
-            radius = size * (0.5 + random.uniform(0, 1.0))
-            offset_lat = radius * math.cos(angle) + random.uniform(-size*0.3, size*0.3)
-            offset_lon = radius * math.sin(angle) + random.uniform(-size*0.3, size*0.3)
-            
-            coords.append((lat + offset_lat, lon + offset_lon))
-        
-        return coords
+        return []  # Map functionality removed
 
     def _generate_water_coordinates(self, center, size):
         """Generate water body polygon coordinates."""
-        import random
-        import math
-        
-        lat, lon = center
-        # Create irregular water body shape
-        num_points = random.randint(5, 10)
-        coords = []
-        
-        for i in range(num_points):
-            angle = (2 * math.pi * i) / num_points
-            radius = size * (0.6 + random.uniform(0, 0.8))
-            offset_lat = radius * math.cos(angle) + random.uniform(-size*0.4, size*0.4)
-            offset_lon = radius * math.sin(angle) + random.uniform(-size*0.4, size*0.4)
-            
-            coords.append((lat + offset_lat, lon + offset_lon))
-        
-        return coords
+        return []  # Map functionality removed
 
     def _generate_simulation_infrastructure(self, settlements):
         """Generate infrastructure based on simulation data."""
-        infrastructure = []
-        
-        if not hasattr(self, 'current_simulation_plan') or not self.current_simulation_plan:
-            return infrastructure
-        
-        # Generate roads between settlements based on economic activity
-        sectors = self.current_simulation_plan.get('sectors', [])
-        production_targets = self.current_simulation_plan.get('production_targets', [])
-        
-        # Create road network
-        for i, settlement1 in enumerate(settlements):
-            for j, settlement2 in enumerate(settlements[i+1:], i+1):
-                # Calculate economic importance of connection
-                economic_importance = self._calculate_connection_importance(settlement1, settlement2, sectors, production_targets)
-                
-                if economic_importance > 0.3:  # Threshold for road construction
-                    road = {
-                        'type': 'road',
-                        'start': settlement1.coordinates,
-                        'end': settlement2.coordinates,
-                        'capacity': int(economic_importance * 1000),
-                        'status': 'operational',
-                        'construction_cost': economic_importance * 1000000,
-                        'maintenance_cost': economic_importance * 10000
-                    }
-                    infrastructure.append(road)
-        
-        # Generate railroads for high-capacity connections
-        for i, settlement1 in enumerate(settlements):
-            for j, settlement2 in enumerate(settlements[i+1:], i+1):
-                economic_importance = self._calculate_connection_importance(settlement1, settlement2, sectors, production_targets)
-                
-                if economic_importance > 0.7:  # Higher threshold for railroads
-                    railroad = {
-                        'type': 'railroad',
-                        'start': settlement1.coordinates,
-                        'end': settlement2.coordinates,
-                        'capacity': int(economic_importance * 2000),
-                        'status': 'operational',
-                        'construction_cost': economic_importance * 5000000,
-                        'maintenance_cost': economic_importance * 50000
-                    }
-                    infrastructure.append(railroad)
-        
-        return infrastructure
+        return []  # Map functionality removed
 
     def _calculate_connection_importance(self, settlement1, settlement2, sectors, production_targets):
         """Calculate the economic importance of a connection between two settlements."""
-        # Base importance on distance and settlement size
-        distance = self._calculate_distance(settlement1, settlement2)
-        size_factor = (settlement1.population + settlement2.population) / 100000
-        
-        # Distance decay
-        distance_factor = max(0.1, 1.0 - (distance / 500))  # Decay over 500km
-        
-        # Economic activity factor
-        economic_factor = 1.0
-        if production_targets:
-            avg_production = sum(production_targets) / len(production_targets)
-            economic_factor = min(2.0, avg_production / 100000)
-        
-        return size_factor * distance_factor * economic_factor
+        return 0.0  # Map functionality removed
 
     def _calculate_distance(self, settlement1, settlement2):
         """Calculate distance between two settlements in km."""
-        lat1, lon1 = settlement1.coordinates
-        lat2, lon2 = settlement2.coordinates
-        
-        # Haversine formula
-        R = 6371  # Earth's radius in km
-        dlat = math.radians(lat2 - lat1)
-        dlon = math.radians(lon2 - lon1)
-        a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
-        c = 2 * math.asin(math.sqrt(a))
-        return R * c
+        return 0.0  # Map functionality removed
 
     def _update_map_with_simulation_data(self):
         """Update the map with current simulation data."""
-        if not hasattr(self, 'realtime_map') or not self.realtime_map:
-            return
-        
-        if not hasattr(self, 'current_simulation_plan') or not self.current_simulation_plan:
-            return
-        
-        try:
-            # Update infrastructure based on simulation progress
-            if hasattr(self, 'map_simulation_data') and self.map_simulation_data:
-                # Update infrastructure status based on simulation time
-                self._update_infrastructure_status()
-                
-                # Add new infrastructure based on economic development
-                self._add_new_infrastructure()
-                
-                # Update settlement populations based on economic growth
-                self._update_settlement_populations()
-                
-                # Regenerate the map with updated data
-                self.realtime_map.create_map()
-                
-                # Save updated map
-                if self.realtime_map_file_path:
-                    self.realtime_map.save_map(self.realtime_map_file_path)
-                
-                # Update display
-                self.update_realtime_map_info()
-                self.display_map_in_gui()
-                
-        except Exception as e:
-            print(f"Error updating map with simulation data: {e}")
+        pass  # Map functionality removed
 
     def _update_infrastructure_status(self):
         """Update infrastructure status based on simulation progress."""
-        if not hasattr(self, 'map_simulation_data') or not self.map_simulation_data:
-            return
-        
-        infrastructure = self.map_simulation_data.get('infrastructure', [])
-        current_time = getattr(self, 'current_simulation_time', 0)
-        
-        for infra in infrastructure:
-            # Simulate construction progress
-            if infra.get('status') == 'under_construction':
-                construction_time = infra.get('construction_time', 30)  # days
-                if current_time >= construction_time:
-                    infra['status'] = 'operational'
-            elif infra.get('status') == 'operational':
-                # Simulate maintenance needs
-                maintenance_interval = infra.get('maintenance_interval', 365)  # days
-                if current_time % maintenance_interval == 0:
-                    infra['maintenance_needed'] = True
+        pass  # Map functionality removed
 
     def _add_new_infrastructure(self):
         """Add new infrastructure based on economic development."""
-        if not hasattr(self, 'current_simulation_plan') or not self.current_simulation_plan:
-            return
-        
-        if not hasattr(self, 'map_simulation_data') or not self.map_simulation_data:
-            return
-        
-        settlements = self.map_simulation_data.get('settlements', [])
-        current_time = getattr(self, 'current_simulation_time', 0)
-        
-        # Add new roads based on economic growth
-        if current_time > 0 and current_time % 30 == 0:  # Every 30 days
-            self._add_economic_roads(settlements)
-        
-        # Add railroads for major economic centers
-        if current_time > 0 and current_time % 90 == 0:  # Every 90 days
-            self._add_economic_railroads(settlements)
+        pass  # Map functionality removed
 
     def _add_economic_roads(self, settlements):
         """Add roads based on economic development."""
-        if not hasattr(self, 'current_simulation_plan') or not self.current_simulation_plan:
-            return
-        
-        production_targets = self.current_simulation_plan.get('production_targets', [])
-        if not production_targets:
-            return
-        
-        # Find settlements with high economic activity
-        high_activity_settlements = []
-        for i, settlement in enumerate(settlements):
-            if i < len(production_targets) and production_targets[i] > sum(production_targets) / len(production_targets):
-                high_activity_settlements.append(settlement)
-        
-        # Add roads between high-activity settlements
-        for i, settlement1 in enumerate(high_activity_settlements):
-            for settlement2 in high_activity_settlements[i+1:]:
-                # Check if road already exists
-                existing_road = self._find_existing_road(settlement1, settlement2)
-                if not existing_road:
-                    road = {
-                        'type': 'road',
-                        'start': settlement1['coordinates'],
-                        'end': settlement2['coordinates'],
-                        'capacity': 500,
-                        'status': 'under_construction',
-                        'construction_time': 30,
-                        'construction_cost': 500000,
-                        'maintenance_cost': 5000
-                    }
-                    self.map_simulation_data['infrastructure'].append(road)
+        pass  # Map functionality removed
 
     def _add_economic_railroads(self, settlements):
         """Add railroads for major economic centers."""
-        if not hasattr(self, 'current_simulation_plan') or not self.current_simulation_plan:
-            return
-        
-        production_targets = self.current_simulation_plan.get('production_targets', [])
-        if not production_targets:
-            return
-        
-        # Find the top economic centers
-        settlement_production = list(zip(settlements, production_targets[:len(settlements)]))
-        settlement_production.sort(key=lambda x: x[1], reverse=True)
-        top_centers = [s[0] for s in settlement_production[:3]]  # Top 3 centers
-        
-        # Add railroads between top centers
-        for i, center1 in enumerate(top_centers):
-            for center2 in top_centers[i+1:]:
-                # Check if railroad already exists
-                existing_railroad = self._find_existing_railroad(center1, center2)
-                if not existing_railroad:
-                    railroad = {
-                        'type': 'railroad',
-                        'start': center1['coordinates'],
-                        'end': center2['coordinates'],
-                        'capacity': 1000,
-                        'status': 'under_construction',
-                        'construction_time': 90,
-                        'construction_cost': 2000000,
-                        'maintenance_cost': 20000
-                    }
-                    self.map_simulation_data['infrastructure'].append(railroad)
+        pass  # Map functionality removed
 
     def _find_existing_road(self, settlement1, settlement2):
         """Find existing road between two settlements."""
-        if not hasattr(self, 'map_simulation_data') or not self.map_simulation_data:
-            return None
-        
-        infrastructure = self.map_simulation_data.get('infrastructure', [])
-        for infra in infrastructure:
-            if infra.get('type') == 'road':
-                start = infra.get('start')
-                end = infra.get('end')
-                if ((start == settlement1['coordinates'] and 
-                     end == settlement2['coordinates']) or
-                    (start == settlement2['coordinates'] and 
-                     end == settlement1['coordinates'])):
-                    return infra
-        return None
+        return None  # Map functionality removed
 
     def _find_existing_railroad(self, settlement1, settlement2):
         """Find existing railroad between two settlements."""
-        if not hasattr(self, 'map_simulation_data') or not self.map_simulation_data:
-            return None
-        
-        infrastructure = self.map_simulation_data.get('infrastructure', [])
-        for infra in infrastructure:
-            if infra.get('type') == 'railroad':
-                start = infra.get('start')
-                end = infra.get('end')
-                if ((start == settlement1['coordinates'] and 
-                     end == settlement2['coordinates']) or
-                    (start == settlement2['coordinates'] and 
-                     end == settlement1['coordinates'])):
-                    return infra
-        return None
+        return None  # Map functionality removed
 
     def _get_rd_sector_indices(self):
         """Get indices of R&D related sectors."""
-        if not hasattr(self, 'current_simulation_plan') or not self.current_simulation_plan:
-            return []
-        
-        sectors = self.current_simulation_plan.get('sectors', [])
-        rd_sector_names = ['Technology and Software', 'Healthcare and Biotechnology', 
-                          'Education and Research', 'Professional Services']
-        
-        rd_indices = []
-        for i, sector in enumerate(sectors):
-            if any(rd_name in sector for rd_name in rd_sector_names):
-                rd_indices.append(i)
-        
-        return rd_indices
+        return []  # Map functionality removed
     
     def _get_sector_mapping(self):
         """Get mapping of sector names to indices."""
-        if not hasattr(self, 'current_simulation_plan') or not self.current_simulation_plan:
-            return {}
-        
-        sectors = self.current_simulation_plan.get('sectors', [])
-        return {sector: i for i, sector in enumerate(sectors)}
+        return {}  # Map functionality removed
 
     def _update_settlement_populations(self):
         """Update settlement populations based on economic growth."""
-        if not hasattr(self, 'current_simulation_plan') or not self.current_simulation_plan:
-            return
-        
-        if not hasattr(self, 'map_simulation_data') or not self.map_simulation_data:
-            return
-        
-        settlements = self.map_simulation_data.get('settlements', [])
-        production_targets = self.current_simulation_plan.get('production_targets', [])
-        
-        if not production_targets:
-            return
-        
-        # Update population based on production growth
-        for i, settlement in enumerate(settlements):
-            if i < len(production_targets):
-                # Base population growth on production level
-                production_factor = production_targets[i] / max(production_targets) if production_targets else 1.0
-                growth_rate = 0.01 + (production_factor * 0.02)  # 1-3% growth
-                
-                # Apply growth
-                current_pop = settlement['population']
-                new_pop = int(current_pop * (1 + growth_rate))
-                settlement['population'] = min(new_pop, 1000000)  # Cap at 1M
+        pass  # Map functionality removed
 
     def _auto_generate_map_for_simulation(self):
         """Automatically generate a map for the simulation."""
-        try:
-            # Use default map settings for auto-generation
-            self.map_center_lat_var.set("45.0")
-            self.map_center_lon_var.set("-75.0")
-            self.geo_features_var.set("25")
-            self.econ_zones_var.set("35")
-            
-            # Generate the map
-            self.generate_realtime_map()
-            
-            # Switch to map tab to show the generated map
-            self.notebook.select(self.realtime_map_frame)
-            
-            print("✓ Map automatically generated for simulation")
-            
-        except Exception as e:
-            print(f"Warning: Failed to auto-generate map: {e}")
+        pass  # Map functionality removed
 
     def _generate_final_simulation_map(self):
         """Generate a final map showing all simulation results."""
-        if not hasattr(self, 'realtime_map') or not self.realtime_map:
-            return
-        
-        try:
-            # Update map with final simulation state
-            self._update_map_with_simulation_data()
-            
-            # Add final simulation summary to map
-            self._add_simulation_summary_to_map()
-            
-            # Save final map
-            final_map_path = f"final_simulation_map_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-            self.realtime_map.save_map(final_map_path)
-            
-            # Update status
-            self.realtime_map_status.config(text=f"Final map saved: {final_map_path}", foreground="green")
-            
-            print(f"✓ Final simulation map saved: {final_map_path}")
-            
-        except Exception as e:
-            print(f"Error generating final simulation map: {e}")
+        pass  # Map functionality removed
 
     def _add_simulation_summary_to_map(self):
         """Add simulation summary information to the map."""
-        if not hasattr(self, 'simulation_results') or not self.simulation_results:
-            return
-        
-        # Calculate simulation summary
-        total_months = len(self.simulation_results)
-        final_production = self.simulation_results[-1]['production'] if self.simulation_results else {}
-        
-        # Add summary as a map feature
-        summary_info = {
-            'type': 'simulation_summary',
-            'total_months': total_months,
-            'final_production': final_production,
-            'infrastructure_count': len(self.map_simulation_data.get('infrastructure', [])) if hasattr(self, 'map_simulation_data') else 0,
-            'settlements_count': len(self.map_simulation_data.get('settlements', [])) if hasattr(self, 'map_simulation_data') else 0
-        }
-        
-        # Store summary for map display
-        if not hasattr(self, 'map_simulation_data'):
-            self.map_simulation_data = {}
-        self.map_simulation_data['simulation_summary'] = summary_info
+        pass  # Map functionality removed
 
     def update_realtime_map_info(self):
         """Update the real - time map information display."""
-        if not self.realtime_map:
-            self.realtime_map_info_text.delete("1.0", tk.END)
-            self.realtime_map_info_text.insert("1.0", "No map generated. Click 'Generate Map' to create a simulation environment.")
-            return
-
-        # Get environment data
-        env_data = self.realtime_map.get_environment_data()
-
-        # Create info text
-        info_text = f"=== Real - time Simulation Map ===\n\n"
-        info_text += f"Simulation Time: {self.current_simulation_time:.2f} months\n"
-        info_text += f"Update Speed: {self.map_speed_var.get()}\n"
-        info_text += f"Map Status: {'Active' if self.map_update_active else 'Inactive'}\n\n"
-
-        info_text += f"=== Environment Statistics ===\n"
-        info_text += f"Geographic Features: {len(env_data['geographic_features'])}\n"
-        info_text += f"Settlements: {len(env_data['settlements'])}\n"
-        info_text += f"Economic Zones: {len(env_data['economic_zones'])}\n"
-        info_text += f"Infrastructure: {len(env_data['infrastructure'])}\n\n"
-
-        # Settlement breakdown
-        settlements = env_data['settlements']
-        cities = [s for s in settlements if s['settlement_type'] == 'city']
-        towns = [s for s in settlements if s['settlement_type'] == 'town']
-        rural = [s for s in settlements if s['settlement_type'] == 'rural']
-
-        info_text += f"=== Settlement Breakdown ===\n"
-        info_text += f"Cities: {len(cities)}\n"
-        info_text += f"Towns: {len(towns)}\n"
-        info_text += f"Rural Areas: {len(rural)}\n"
-        info_text += f"Total Population: {sum(s['population'] for s in settlements):,}\n\n"
-
-        # Economic zones breakdown
-        zones = env_data['economic_zones']
-        zone_types = {}
-        for zone in zones:
-            zone_type = zone['zone_type']
-            zone_types[zone_type] = zone_types.get(zone_type, 0) + 1
-
-        info_text += f"=== Economic Zones ===\n"
-        
-        # Infrastructure breakdown
-        infrastructure = env_data.get('infrastructure', [])
-        roads = [i for i in infrastructure if i.get('type') == 'road']
-        railroads = [i for i in infrastructure if i.get('type') == 'railroad']
-        
-        info_text += f"\n=== Infrastructure Network ===\n"
-        info_text += f"Roads: {len(roads)}\n"
-        info_text += f"Railroads: {len(railroads)}\n"
-        info_text += f"Total Infrastructure: {len(infrastructure)}\n"
-        
-        # Infrastructure status
-        operational = [i for i in infrastructure if i.get('status') == 'operational']
-        under_construction = [i for i in infrastructure if i.get('status') == 'under_construction']
-        
-        info_text += f"Operational: {len(operational)}\n"
-        info_text += f"Under Construction: {len(under_construction)}\n"
-        
-        # Simulation integration info
-        if hasattr(self, 'map_simulation_data') and self.map_simulation_data:
-            summary = self.map_simulation_data.get('simulation_summary', {})
-            if summary:
-                info_text += f"\n=== Simulation Summary ===\n"
-                info_text += f"Simulation Duration: {summary.get('total_months', 0)} months\n"
-                info_text += f"Final Infrastructure: {summary.get('infrastructure_count', 0)}\n"
-                info_text += f"Final Settlements: {summary.get('settlements_count', 0)}\n"
-        for zone_type, count in zone_types.items():
-            info_text += f"{zone_type.title()}: {count}\n"
-
-        info_text += f"\n=== Infrastructure ===\n"
-        infra = env_data['infrastructure']
-        road_count = len([i for i in infra if i['infrastructure_type'] == 'road'])
-        rail_count = len([i for i in infra if i['infrastructure_type'] == 'railway'])
-        info_text += f"Roads: {road_count}\n"
-        info_text += f"Railways: {rail_count}\n"
-
-        # Update the display
-        self.realtime_map_info_text.delete("1.0", tk.END)
-        self.realtime_map_info_text.insert("1.0", info_text)
+        pass  # Map functionality removed
 
     def display_map_in_gui(self):
         """Display the interactive map in the GUI."""
-        if not self.realtime_map or not self.realtime_map_file_path:
-            self.map_browser_widget.preview_text.delete("1.0", tk.END)
-            self.map_browser_widget.preview_text.insert("1.0", "No map available. Click 'Generate Map' to create a simulation environment.")
-            self.map_browser_widget.status_label.config(text="No map loaded")
-            return
-
-        try:
-            # Load the HTML file into the web browser widget
-            success = self.map_browser_widget.load_html_file(self.realtime_map_file_path)
-            if success:
-                self.realtime_map_status.config(text="Map displayed in GUI", foreground="green")
-            else:
-                self.realtime_map_status.config(text="Map display failed", foreground="red")
-
-            # Also try to load the image if available
-            if hasattr(self, 'realtime_map_image_path') and self.realtime_map_image_path and os.path.exists(self.realtime_map_image_path):
-                self.map_browser_widget.load_image(self.realtime_map_image_path)
-
-        except Exception as e:
-            self.map_browser_widget.preview_text.delete("1.0", tk.END)
-            self.map_browser_widget.preview_text.insert("1.0", f"Error loading map: {str(e)}")
-            self.map_browser_widget.status_label.config(text="Error loading map")
+        pass  # Map functionality removed
 
     def refresh_map_display(self):
         """Refresh the map display with updated data."""
-        if not self.realtime_map:
-            return
-
-        try:
-            # Regenerate the map with updated data
-            self.realtime_map.create_map()
-            self.realtime_map.save_map(self.realtime_map_file_path)
-
-            # Refresh the web browser widget
-            self.map_browser_widget.refresh()
-
-        except Exception as e:
-            print(f"Error refreshing map display: {e}")
+        pass  # Map functionality removed
 
     def open_realtime_map_in_browser(self):
         """Open the real - time map in the default web browser."""
-        if not self.realtime_map or not self.realtime_map_file_path:
-            messagebox.showwarning("Warning", "No map generated. Please generate a map first.")
-            return
-
-        try:
-            if os.path.exists(self.realtime_map_file_path):
-                webbrowser.open(f'file://{os.path.abspath(self.realtime_map_file_path)}')
-                self.realtime_map_status.config(text="Map opened in browser", foreground="green")
-            else:
-                messagebox.showerror("Error", "Map file not found. Please regenerate the map.")
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to open map in browser: {str(e)}")
+        messagebox.showinfo("Info", "Map functionality has been removed. Use the simulation tab for running simulations.")
 
     def start_map_updates(self):
         """Start real - time map updates."""
-        if not self.realtime_map:
-            messagebox.showwarning("Warning", "No map generated. Please generate a map first.")
-            return
-
-        if self.map_update_active:
-            messagebox.showinfo("Info", "Map updates are already running.")
-            return
-
-        # Calculate update interval based on speed setting
-        speed_setting = self.map_speed_var.get()
-        if speed_setting == "1 hour / sec":
-            self.map_update_interval = 1.0  # 1 second = 1 hour
-        elif speed_setting == "1 day / sec":
-            self.map_update_interval = 1.0  # 1 second = 1 day
-        elif speed_setting == "1 month / sec":
-            self.map_update_interval = 1.0  # 1 second = 1 month
-        elif speed_setting == "1 year / sec":
-            self.map_update_interval = 1.0  # 1 second = 1 year
-
-        self.map_update_active = True
-        self.realtime_map_status.config(text="Updates active", foreground="green")
-
-        # Start the update timer
-        self.schedule_map_update()
+        messagebox.showinfo("Info", "Map functionality has been removed. Use the simulation tab for running simulations.")
 
     def pause_map_updates(self):
         """Pause real - time map updates."""
-        if not self.map_update_active:
-            messagebox.showinfo("Info", "Map updates are not running.")
-            return
-
-        self.map_update_active = False
-        if self.map_update_timer:
-            self.root.after_cancel(self.map_update_timer)
-            self.map_update_timer = None
-
-        self.realtime_map_status.config(text="Updates paused", foreground="orange")
+        messagebox.showinfo("Info", "Map functionality has been removed. Use the simulation tab for running simulations.")
 
     def stop_map_updates(self):
         """Stop real - time map updates."""
-        self.map_update_active = False
-        if self.map_update_timer:
-            self.root.after_cancel(self.map_update_timer)
-            self.map_update_timer = None
-
-        self.realtime_map_status.config(text="Updates stopped", foreground="red")
-        self.current_simulation_time = 0
+        messagebox.showinfo("Info", "Map functionality has been removed. Use the simulation tab for running simulations.")
 
     def schedule_map_update(self):
         """Schedule the next map update."""
-        if not self.map_update_active:
-            return
-
-        # Update simulation time
-        speed_setting = self.map_speed_var.get()
-        if speed_setting == "1 hour / sec":
-            self.current_simulation_time += 1 / 24  # 1 hour in months
-        elif speed_setting == "1 day / sec":
-            self.current_simulation_time += 1 / 30  # 1 day in months
-        elif speed_setting == "1 month / sec":
-            self.current_simulation_time += 1  # 1 month
-        elif speed_setting == "1 year / sec":
-            self.current_simulation_time += 12  # 1 year in months
-
-        # Update the map with new data
-        self.update_realtime_map_data()
-
-        # Update the display
-        self.update_realtime_map_info()
-
-        # Refresh the map display
-        self.refresh_map_display()
-
-        # Schedule next update
-        self.map_update_timer = self.root.after(int(self.map_update_interval * 1000), self.schedule_map_update)
+        pass  # Map functionality removed
 
     def update_realtime_map_data(self):
         """Update the map data based on simulation progress."""
-        if not self.realtime_map:
-            return
-
-        # Simulate changes over time
-        # This is where you would integrate with actual simulation data
-        # For now, we'll simulate some basic changes
-
-        # Update settlement populations (simulate growth)
-        for settlement in self.realtime_map.settlements:
-            # Simulate population growth
-            growth_rate = 0.001  # 0.1% per month
-            settlement.population = int(settlement.population * (1 + growth_rate))
-
-        # Update economic zone production capacity
-        for zone in self.realtime_map.economic_zones:
-            # Simulate production changes
-            change_rate = random.uniform(-0.01, 0.02)  # -1% to + 2% per month
-            zone.production_capacity *= (1 + change_rate)
-
-        # Simulate infrastructure changes
-        for infra in self.realtime_map.infrastructure:
-            # Simulate capacity changes
-            change_rate = random.uniform(-0.005, 0.01)  # -0.5% to + 1% per month
-            infra.capacity *= (1 + change_rate)
+        pass  # Map functionality removed
 
     def update_map_info_display(self):
         """Update the map information display."""
-        if not self.current_map:
-            self.map_info_text.delete("1.0", tk.END)
-            self.map_info_text.insert("1.0", "No map generated. Click 'Generate Map' to create a simulation environment.")
-            return
-
-        # Get environment data
-        env_data = self.current_map.get_environment_data()
-
-        # Create info text
-        info_text = f"""Simulation Environment Map
-============================
-
-Geographic Features: {len(env_data['geographic_features'])}
-- Water Bodies: {len([f for f in env_data['geographic_features'] if f['feature_type'] == 'water'])}
-- Mountain Ranges: {len([f for f in env_data['geographic_features'] if f['feature_type'] == 'mountain'])}
-- Forest Areas: {len([f for f in env_data['geographic_features'] if f['feature_type'] == 'forest'])}
-
-Settlements: {len(env_data['settlements'])}
-- Cities: {len([s for s in env_data['settlements'] if s['settlement_type'] == 'city'])}
-- Towns: {len([s for s in env_data['settlements'] if s['settlement_type'] == 'town'])}
-- Rural Areas: {len([s for s in env_data['settlements'] if s['settlement_type'] == 'rural'])}
-
-Economic Zones: {len(env_data['economic_zones'])}
-- Industrial: {len([z for z in env_data['economic_zones'] if z['zone_type'] == 'industrial'])}
-- Agricultural: {len([z for z in env_data['economic_zones'] if z['zone_type'] == 'agricultural'])}
-- Mixed: {len([z for z in env_data['economic_zones'] if z['zone_type'] == 'mixed'])}
-
-Infrastructure: {len(env_data['infrastructure'])}
-- Roads: {len([i for i in env_data['infrastructure'] if i['infrastructure_type'] == 'road'])}
-- Railways: {len([i for i in env_data['infrastructure'] if i['infrastructure_type'] == 'railway'])}
-
-Map File: {self.map_file_path or 'Not saved'}
-
-Click 'Open in Browser' to view the interactive map with all features, settlements, and infrastructure networks.
-"""
-
-        self.map_info_text.delete("1.0", tk.END)
-        self.map_info_text.insert("1.0", info_text)
+        pass  # Map functionality removed
 
     def _on_tech_level_change(self, value):
         """Handle technology level slider change."""
@@ -6572,7 +6073,7 @@ Click 'Open in Browser' to view the interactive map with all features, settlemen
             self._refresh_technology_tree()
         except Exception as e:
             self.tech_tree_status.config(text=f"Error updating technology level: {str(e)}")
-    
+
     def _update_tech_meter(self, tech_level):
         """Update the technology meter visualization."""
         try:
@@ -6782,6 +6283,180 @@ Click 'Open in Browser' to view the interactive map with all features, settlemen
             error_msg = f"Error syncing technology level: {str(e)}"
             self.tech_tree_status.config(text=error_msg)
             messagebox.showerror("Sync Error", error_msg)
+
+    def clear_convergence_graph(self):
+        """Clear the convergence graph data."""
+        if not self.convergence_graph_available:
+            return
+        
+        self.convergence_data = {
+            'iterations': [],
+            'plan_changes': [],
+            'relative_changes': [],
+            'total_outputs': []
+        }
+        
+        # Clear the plots
+        self.convergence_line1.set_data([], [])
+        self.convergence_line2.set_data([], [])
+        
+        # Reset axes
+        self.convergence_ax1.relim()
+        self.convergence_ax1.autoscale_view()
+        self.convergence_ax2.relim()
+        self.convergence_ax2.autoscale_view()
+        
+        # Update canvas
+        self.convergence_canvas.draw()
+        
+        # Update status
+        self.convergence_status_label.config(text="Graph cleared - ready to monitor convergence...")
+
+    def export_convergence_graph(self):
+        """Export the convergence graph as an image."""
+        if not self.convergence_graph_available:
+            messagebox.showwarning("Warning", "Convergence graph not available.")
+            return
+        
+        try:
+            from tkinter import filedialog
+            file_path = filedialog.asksaveasfilename(
+                title="Export Convergence Graph",
+                defaultextension=".png",
+                filetypes=[("PNG files", "*.png"), ("PDF files", "*.pdf"), ("SVG files", "*.svg"), ("All files", "*.*")]
+            )
+            
+            if not file_path:
+                return
+            
+            # Save the figure
+            self.convergence_fig.savefig(file_path, dpi=300, bbox_inches='tight')
+            messagebox.showinfo("Success", f"Convergence graph exported to:\n{file_path}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export convergence graph: {str(e)}")
+
+    def update_convergence_graph(self, iteration, plan_change, relative_change, total_output):
+        """Update the convergence graph with new data."""
+        if not self.convergence_graph_available:
+            return
+        
+        # Add new data
+        self.convergence_data['iterations'].append(iteration)
+        self.convergence_data['plan_changes'].append(plan_change)
+        self.convergence_data['relative_changes'].append(relative_change)
+        self.convergence_data['total_outputs'].append(total_output)
+        
+        # Update plot lines
+        self.convergence_line1.set_data(self.convergence_data['iterations'], self.convergence_data['plan_changes'])
+        self.convergence_line2.set_data(self.convergence_data['iterations'], self.convergence_data['relative_changes'])
+        
+        # Update axes limits
+        if self.convergence_data['iterations']:
+            self.convergence_ax1.set_xlim(0, max(self.convergence_data['iterations']) + 1)
+            self.convergence_ax2.set_xlim(0, max(self.convergence_data['iterations']) + 1)
+            
+            # Set y-axis limits with some padding
+            if self.convergence_data['plan_changes']:
+                min_change = min(self.convergence_data['plan_changes'])
+                max_change = max(self.convergence_data['plan_changes'])
+                self.convergence_ax1.set_ylim(min_change * 0.1, max_change * 10)
+            
+            if self.convergence_data['relative_changes']:
+                min_rel = min(self.convergence_data['relative_changes'])
+                max_rel = max(self.convergence_data['relative_changes'])
+                self.convergence_ax2.set_ylim(min_rel * 0.1, max_rel * 10)
+        
+        # Update canvas
+        self.convergence_canvas.draw()
+        
+        # Update status
+        status_text = f"Iteration {iteration}: Change={plan_change:.2e}, RelChange={relative_change:.2e}"
+        self.convergence_status_label.config(text=status_text)
+
+    def start_convergence_monitoring(self):
+        """Start monitoring convergence during plan creation."""
+        if not self.convergence_graph_available:
+            return
+        
+        # Clear previous data
+        self.clear_convergence_graph()
+        
+        # Update status
+        self.convergence_status_label.config(text="Monitoring convergence...")
+        
+        # Enable real-time updates
+        self.convergence_monitoring_active = True
+
+    def stop_convergence_monitoring(self):
+        """Stop monitoring convergence."""
+        if not self.convergence_graph_available:
+            return
+        
+        self.convergence_monitoring_active = False
+        
+        # Update status
+        if self.convergence_data['iterations']:
+            final_iteration = self.convergence_data['iterations'][-1]
+            final_change = self.convergence_data['plan_changes'][-1]
+            self.convergence_status_label.config(text=f"Convergence monitoring complete - {final_iteration} iterations, final change: {final_change:.2e}")
+        else:
+            self.convergence_status_label.config(text="Convergence monitoring stopped")
+
+    def _create_plan_with_monitoring(self, policy_goals, use_optimization, max_iterations, production_multipliers, apply_reproduction):
+        """Create a plan with real-time convergence monitoring."""
+        try:
+            # Get the manager agent to access convergence data
+            manager_agent = self.planning_system.manager_agent
+            
+            # Create the plan using the standard method
+            plan = self.planning_system.create_plan(
+                policy_goals=policy_goals,
+                use_optimization=use_optimization,
+                max_iterations=max_iterations,
+                production_multipliers=production_multipliers,
+                apply_reproduction=apply_reproduction
+            )
+            
+            # Extract convergence data from the plan if available
+            if isinstance(plan, dict) and 'convergence_history' in plan:
+                convergence_history = plan['convergence_history']
+                
+                # Update the convergence graph with historical data
+                for i, conv_data in enumerate(convergence_history):
+                    iteration = conv_data.get('iteration', i)
+                    plan_change = conv_data.get('plan_change', 0.0)
+                    relative_change = conv_data.get('relative_change', 0.0)
+                    total_output = conv_data.get('total_output', 0.0)
+                    
+                    # Update graph in main thread
+                    self.root.after(0, lambda i=iteration, pc=plan_change, rc=relative_change, to=total_output: 
+                                  self.update_convergence_graph(i, pc, rc, to))
+            
+            # Also check if there's convergence data in the manager agent
+            if hasattr(manager_agent, 'convergence_history') and manager_agent.convergence_history:
+                for i, conv_data in enumerate(manager_agent.convergence_history):
+                    iteration = conv_data.get('iteration', i)
+                    plan_change = conv_data.get('plan_change', 0.0)
+                    relative_change = conv_data.get('relative_change', 0.0)
+                    total_output = conv_data.get('total_output', 0.0)
+                    
+                    # Update graph in main thread
+                    self.root.after(0, lambda i=iteration, pc=plan_change, rc=relative_change, to=total_output: 
+                                  self.update_convergence_graph(i, pc, rc, to))
+            
+            return plan
+            
+        except Exception as e:
+            print(f"Error in plan monitoring: {e}")
+            # Fallback to regular plan creation
+            return self.planning_system.create_plan(
+                policy_goals=policy_goals,
+                use_optimization=use_optimization,
+                max_iterations=max_iterations,
+                production_multipliers=production_multipliers,
+                apply_reproduction=apply_reproduction
+            )
 
 def main():
     """Main function to run the GUI."""

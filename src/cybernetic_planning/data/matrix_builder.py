@@ -312,6 +312,9 @@ class MatrixBuilder:
         # Calculate plan quality score (based on economic efficiency)
         plan_quality_score = self._calculate_plan_quality_score(tech_matrix, final_demand, labor_input)
         
+        # Create meaningful resource names
+        resource_names = self._generate_meaningful_resource_names(resource_count)
+        
         # Create resource allocation data structure for simulation
         resource_allocations = {
             "technology_matrix": tech_matrix.tolist(),
@@ -320,7 +323,7 @@ class MatrixBuilder:
             "plan_quality_score": float(plan_quality_score),
             "resource_matrix": resource_matrix.tolist(),
             "max_resources": max_resources.tolist(),
-            "resource_names": [f"Resource_{i}" for i in range(resource_count)]
+            "resource_names": resource_names
         }
 
         # Create comprehensive data dictionary
@@ -331,7 +334,7 @@ class MatrixBuilder:
             "resource_matrix": resource_matrix,
             "max_resources": max_resources,
             "sectors": sector_names,
-            "resources": [f"Resource_{i}" for i in range(resource_count)],
+            "resources": resource_names,  # Use meaningful resource names
             "sector_definitions": self.sector_mapper.sectors if hasattr(self.sector_mapper, 'sectors') else {},
             "resource_allocations": resource_allocations
         }
@@ -554,8 +557,30 @@ class MatrixBuilder:
         return None
 
     def _generate_synthetic_resource_matrix(self, n_resources: int, n_sectors: int) -> np.ndarray:
-        """Generate synthetic resource matrix."""
-        return np.random.uniform(0, 5, (n_resources, n_sectors))
+        """Generate synthetic resource matrix ensuring every sector has at least one resource."""
+        # Generate meaningful resource names
+        resource_names = self._generate_meaningful_resource_names(n_resources)
+        
+        # Generate sector names (simplified for now)
+        sector_names = [f"Sector_{i+1}" for i in range(n_sectors)]
+        
+        # Try to use intelligent assignment if possible
+        try:
+            from .sector_resource_assigner import SectorResourceAssigner
+            assigner = SectorResourceAssigner()
+            matrix = assigner.generate_realistic_resource_matrix(sector_names, resource_names)
+            return matrix
+        except ImportError:
+            # Fallback to random assignment if sector_resource_assigner is not available
+            matrix = np.random.uniform(0, 5, (n_resources, n_sectors))
+            
+            # Ensure every sector has at least one resource
+            for sector_idx in range(n_sectors):
+                if np.all(matrix[:, sector_idx] == 0):
+                    resource_idx = np.random.randint(0, n_resources)
+                    matrix[resource_idx, sector_idx] = np.random.uniform(0.1, 2.0)
+            
+            return matrix
 
     def _generate_synthetic_max_resources(self, n_resources: int) -> np.ndarray:
         """Generate synthetic maximum resources vector."""
@@ -642,7 +667,7 @@ class MatrixBuilder:
             sectors = matrix_info.get("sectors", [f"Sector_{i}" for i in range(matrix_data.shape[0])])
             df = pd.DataFrame(matrix_data, index = sectors, columns = sectors)
         elif matrix_info["type"] == "resource":
-            resources = matrix_info.get("resources", [f"Resource_{i}" for i in range(matrix_data.shape[0])])
+            resources = matrix_info.get("resources", self._generate_meaningful_resource_names(matrix_data.shape[0]))
             sectors = matrix_info.get("sectors", [f"Sector_{i}" for i in range(matrix_data.shape[1])])
             df = pd.DataFrame(matrix_data, index = resources, columns = sectors)
         else:
@@ -675,7 +700,7 @@ class MatrixBuilder:
             sectors = vector_info.get("sectors", [f"Sector_{i}" for i in range(len(vector_data))])
             series = pd.Series(vector_data, index = sectors)
         elif vector_info["type"] == "max_resources":
-            resources = vector_info.get("resources", [f"Resource_{i}" for i in range(len(vector_data))])
+            resources = vector_info.get("resources", self._generate_meaningful_resource_names(len(vector_data)))
             series = pd.Series(vector_data, index = resources)
         else:
             series = pd.Series(vector_data)
@@ -761,3 +786,58 @@ class MatrixBuilder:
                 labor_input[i] = base_labor
 
         return labor_input
+    
+    def _generate_meaningful_resource_names(self, resource_count: int) -> List[str]:
+        """Generate meaningful resource names instead of generic Resource_0, Resource_1, etc."""
+        # Define categories of resources with meaningful names
+        resource_categories = {
+            "raw_materials": [
+                "Iron Ore", "Coal", "Crude Oil", "Natural Gas", "Copper Ore", 
+                "Bauxite", "Limestone", "Sand", "Gravel", "Timber", "Water"
+            ],
+            "processed_materials": [
+                "Steel", "Aluminum", "Concrete", "Glass", "Plastic", "Paper",
+                "Textiles", "Chemicals", "Fertilizers", "Petroleum Products"
+            ],
+            "energy": [
+                "Electricity", "Gasoline", "Diesel", "Heating Oil", "Propane",
+                "Solar Power", "Wind Power", "Hydroelectric", "Nuclear Power"
+            ],
+            "manufactured_goods": [
+                "Machinery", "Vehicles", "Electronics", "Appliances", "Tools",
+                "Equipment", "Components", "Parts", "Devices", "Instruments"
+            ],
+            "agricultural": [
+                "Wheat", "Corn", "Rice", "Soybeans", "Cotton", "Livestock",
+                "Dairy Products", "Fruits", "Vegetables", "Seeds"
+            ],
+            "services": [
+                "Labor Hours", "Transportation", "Healthcare", "Education",
+                "Financial Services", "Communication", "Utilities", "Maintenance"
+            ],
+            "technology": [
+                "Software", "Data Storage", "Computing Power", "Bandwidth",
+                "Processing Units", "Memory", "Storage", "Network Capacity"
+            ],
+            "construction": [
+                "Cement", "Steel Beams", "Lumber", "Insulation", "Roofing",
+                "Flooring", "Windows", "Doors", "Pipes", "Wiring"
+            ]
+        }
+        
+        # Flatten all resource names
+        all_resources = []
+        for category_resources in resource_categories.values():
+            all_resources.extend(category_resources)
+        
+        # If we need more resources than we have names, create variations
+        if resource_count > len(all_resources):
+            # Add numbered variations for additional resources
+            base_resources = all_resources.copy()
+            for i in range(len(all_resources), resource_count):
+                base_name = base_resources[i % len(base_resources)]
+                variation_num = (i // len(base_resources)) + 1
+                all_resources.append(f"{base_name} (Type {variation_num})")
+        
+        # Return the requested number of resources
+        return all_resources[:resource_count]

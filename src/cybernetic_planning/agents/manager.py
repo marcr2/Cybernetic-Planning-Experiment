@@ -140,6 +140,27 @@ class ManagerAgent(BaseAgent):
 
             # Add accumulation requirements
             accumulation_demand = reproduction_system.calculate_accumulation_requirements(cybernetic_output)
+            
+            # Debug: Check types before addition
+            print(f"DEBUG MANAGER: cybernetic_demand type: {type(cybernetic_demand)}")
+            print(f"DEBUG MANAGER: accumulation_demand type: {type(accumulation_demand)}")
+            print(f"DEBUG MANAGER: cybernetic_demand shape: {cybernetic_demand.shape if hasattr(cybernetic_demand, 'shape') else 'No shape'}")
+            print(f"DEBUG MANAGER: accumulation_demand shape: {accumulation_demand.shape if hasattr(accumulation_demand, 'shape') else 'No shape'}")
+            
+            # Ensure both are numpy arrays before addition
+            if not isinstance(cybernetic_demand, np.ndarray):
+                cybernetic_demand = np.asarray(cybernetic_demand)
+            if not isinstance(accumulation_demand, np.ndarray):
+                accumulation_demand = np.asarray(accumulation_demand)
+            
+            # Ensure compatible shapes
+            if cybernetic_demand.shape != accumulation_demand.shape:
+                print(f"DEBUG MANAGER: Shape mismatch - cybernetic_demand: {cybernetic_demand.shape}, accumulation_demand: {accumulation_demand.shape}")
+                # Pad or truncate to match shapes
+                min_len = min(len(cybernetic_demand), len(accumulation_demand))
+                cybernetic_demand = cybernetic_demand[:min_len]
+                accumulation_demand = accumulation_demand[:min_len]
+            
             cybernetic_demand += accumulation_demand
 
             # Debug: Check final cybernetic_demand after accumulation

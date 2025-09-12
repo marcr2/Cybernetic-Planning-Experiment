@@ -20,7 +20,7 @@ try:
     from .cargo_distribution import SupplyChainOptimizer, SupplyNode, SupplyDemand, CargoCategory
     from .regional_stockpiles import StockpileManager, StockpileFacility, StockpileType, StorageZone
     from .infrastructure_network import InfrastructureBuilder, TerrainAnalyzer, NetworkNode, InfrastructureType
-    from .map_visualization import MapGenerator, InteractiveMap
+    # Map visualization removed
 except ImportError as e:
     print(f"Warning: Could not use relative imports: {e}")
     # Try absolute imports
@@ -29,7 +29,7 @@ except ImportError as e:
         from src.cybernetic_planning.utils.cargo_distribution import SupplyChainOptimizer, SupplyNode, SupplyDemand, CargoCategory
         from src.cybernetic_planning.utils.regional_stockpiles import StockpileManager, StockpileFacility, StockpileType, StorageZone
         from src.cybernetic_planning.utils.infrastructure_network import InfrastructureBuilder, TerrainAnalyzer, NetworkNode, InfrastructureType
-        from src.cybernetic_planning.utils.map_visualization import MapGenerator, InteractiveMap
+        # Map visualization removed
     except ImportError as e2:
         print(f"Warning: Could not import simulation components: {e2}")
         # Create placeholder classes to prevent crashes
@@ -49,8 +49,7 @@ except ImportError as e:
         class TerrainAnalyzer: pass
         class NetworkNode: pass
         class InfrastructureType: pass
-        class MapGenerator: pass
-        class InteractiveMap: pass
+        # Map visualization classes removed
 
 @dataclass
 class SimulationConfig:
@@ -320,7 +319,7 @@ class EconomicSimulation:
                 # Default bounds
                 map_bounds = ((40.0, -80.0), (50.0, -70.0))
 
-            self.map_generator = MapGenerator(map_bounds)
+            # Map generator removed - map functionality removed
 
         except ImportError:
             print("Warning: Visualization system not available")
