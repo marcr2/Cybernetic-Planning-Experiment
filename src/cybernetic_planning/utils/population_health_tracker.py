@@ -65,13 +65,16 @@ class PopulationHealthTracker:
     - Trend analysis and reporting
     """
     
-    def __init__(self, initial_population: float = 1000000, initial_technology_level: float = 0.0):
+    def __init__(self, initial_population: float = 340000000, initial_technology_level: float = 0.0, 
+                 employment_rate: float = 0.95, dependency_ratio: float = 0.4):
         """
         Initialize the population health tracker.
         
         Args:
             initial_population: Starting population
             initial_technology_level: Starting technology level (0.0 to 1.0)
+            employment_rate: Employment rate (0.0 to 1.0)
+            dependency_ratio: Dependency ratio (0.0 to 1.0)
         """
         self.initial_population = initial_population
         self.initial_technology_level = initial_technology_level
@@ -92,9 +95,13 @@ class PopulationHealthTracker:
             'birth_rate': 0.012,      # per year
             'death_rate': 0.008,      # per year
             'net_migration': 0.002,   # per year
-            'employment_rate': 0.95,  # 95%
+            'employment_rate': employment_rate,  # Use provided employment rate
             'income_per_capita': 50000,  # dollars
         }
+        
+        # Store demographic parameters
+        self.employment_rate = employment_rate
+        self.dependency_ratio = dependency_ratio
         
         # Living standards components
         self.living_standards_weights = {

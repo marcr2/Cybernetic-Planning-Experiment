@@ -262,6 +262,9 @@ class DynamicPlanner:
         A_t = self.technology_matrices[year]
         l_t = self.labor_vectors[year]
         d_t = consumption_demand + investment_demand
+        
+        # Initialize convergence data
+        convergence_data = []
 
         if use_optimization:
             # Try Cockshott & Cottrell iterative planner first for large problems
@@ -278,6 +281,8 @@ class DynamicPlanner:
                     if result["converged"]:
                         total_output = result["production_plan"]
                         total_labor_cost = result["total_labor_cost"]
+                        # Store convergence data for GUI
+                        convergence_data = result.get("convergence_history", [])
                     else:
                         warnings.warn(f"Cockshott & Cottrell planner did not converge for year {year}, trying optimization")
                         raise ValueError("Iterative planner did not converge")
@@ -439,6 +444,7 @@ class DynamicPlanner:
             "labor_vector": l_t,
             "labor_values": labor_values,
             "capital_stock": self.capital_stocks.get(year, np.zeros(self.n_sectors)),
+            "convergence_history": convergence_data,  # Include convergence data for GUI
         }
 
         return self.plans[year]

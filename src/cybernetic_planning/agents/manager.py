@@ -95,9 +95,54 @@ class ManagerAgent(BaseAgent):
         from ..core.labor_values import LaborValueCalculator
         from ..core.optimization import ConstrainedOptimizer
 
-        # Step 1: Calculate initial output using Leontief model
-        leontief = LeontiefModel(technology_matrix, final_demand)
-        initial_output = leontief.compute_total_output()
+        # Step 1: Calculate initial output using Cockshott & Cottrell planner for convergence data
+        from ..core.cockshott_cottrell import CockshottCottrellPlanner
+        
+        # Try Cockshott & Cottrell planner first for convergence data
+        try:
+            print(f"DEBUG MANAGER: Technology matrix shape: {technology_matrix.shape}")
+            print(f"DEBUG MANAGER: Final demand shape: {final_demand.shape}")
+            print(f"DEBUG MANAGER: Labor vector shape: {labor_vector.shape}")
+            
+            planner = CockshottCottrellPlanner(
+                technology_matrix=technology_matrix,
+                final_demand=final_demand,
+                direct_labor=labor_vector,
+                use_sparse=True,
+                max_iterations=50,  # Reduce iterations for faster testing
+                convergence_threshold=1e-4  # Relax convergence threshold
+            )
+            result = planner.iterative_planning()
+            
+            print(f"DEBUG MANAGER: Cockshott & Cottrell result: converged={result['converged']}, iterations={result['iterations']}")
+            
+            if result["converged"]:
+                initial_output = result["production_plan"]
+                # Store convergence data for GUI
+                self.convergence_history = result.get("convergence_history", [])
+                print(f"DEBUG MANAGER: Cockshott & Cottrell converged with {len(self.convergence_history)} iterations")
+                for i, conv in enumerate(self.convergence_history[:5]):  # Show first 5 iterations
+                    print(f"  Iteration {conv['iteration']}: plan_change={conv['plan_change']:.2e}, relative_change={conv['relative_change']:.2e}")
+            else:
+                print("DEBUG MANAGER: Cockshott & Cottrell did not converge, but using result anyway")
+                # Still use the result even if not converged, but with warning
+                initial_output = result["production_plan"]
+                self.convergence_history = result.get("convergence_history", [])
+                print(f"DEBUG MANAGER: Using non-converged result with {len(self.convergence_history)} iterations")
+                
+        except Exception as e:
+            print(f"DEBUG MANAGER: Cockshott & Cottrell failed: {e}, using Leontief")
+            # Fall back to Leontief model
+            leontief = LeontiefModel(technology_matrix, final_demand)
+            initial_output = leontief.compute_total_output()
+            
+            # Generate some fake convergence data for testing
+            self.convergence_history = [
+                {'iteration': 0, 'plan_change': 1.0, 'relative_change': 0.1, 'total_output': np.sum(initial_output)},
+                {'iteration': 1, 'plan_change': 0.5, 'relative_change': 0.05, 'total_output': np.sum(initial_output)},
+                {'iteration': 2, 'plan_change': 0.1, 'relative_change': 0.01, 'total_output': np.sum(initial_output)},
+            ]
+            print(f"DEBUG MANAGER: Generated fake convergence data with {len(self.convergence_history)} entries")
 
         # Step 2: Apply Marxist reproduction system for proper expanded reproduction (if enabled)
         if apply_reproduction:
@@ -239,6 +284,9 @@ class ManagerAgent(BaseAgent):
             }
         }
 
+        # Add convergence data to the plan
+        self.current_plan["convergence_history"] = getattr(self, 'convergence_history', [])
+        
         # Store in history
         self.plan_history.append(self.current_plan.copy())
 

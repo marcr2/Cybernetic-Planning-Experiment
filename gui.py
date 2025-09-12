@@ -816,36 +816,32 @@ class CyberneticPlanningGUI:
             from matplotlib.figure import Figure
             import matplotlib.animation as animation
             
-            # Create figure and subplots
+            # Create figure with single subplot
             self.convergence_fig = Figure(figsize=(10, 6), dpi=100)
-            self.convergence_ax1 = self.convergence_fig.add_subplot(211)
-            self.convergence_ax2 = self.convergence_fig.add_subplot(212)
+            self.convergence_ax = self.convergence_fig.add_subplot(111)
             
-            # Configure subplots
-            self.convergence_ax1.set_title('Plan Change Convergence')
-            self.convergence_ax1.set_xlabel('Iteration')
-            self.convergence_ax1.set_ylabel('Plan Change (Absolute)')
-            self.convergence_ax1.set_yscale('log')
-            self.convergence_ax1.grid(True, alpha=0.3)
-            
-            self.convergence_ax2.set_title('Relative Change Convergence')
-            self.convergence_ax2.set_xlabel('Iteration')
-            self.convergence_ax2.set_ylabel('Relative Change')
-            self.convergence_ax2.set_yscale('log')
-            self.convergence_ax2.grid(True, alpha=0.3)
+            # Configure the single subplot
+            self.convergence_ax.set_title('Plan Convergence Monitor', fontsize=14, fontweight='bold')
+            self.convergence_ax.set_xlabel('Iteration', fontsize=12)
+            self.convergence_ax.set_ylabel('Plan Change (Absolute)', fontsize=12)
+            self.convergence_ax.set_yscale('log')
+            self.convergence_ax.grid(True, alpha=0.3)
+            self.convergence_ax.set_facecolor('white')
             
             # Create canvas and pack it
             self.convergence_canvas = FigureCanvasTkAgg(self.convergence_fig, convergence_frame)
             self.convergence_canvas.draw()
             self.convergence_canvas.get_tk_widget().pack(fill="both", expand=True)
             
-            # Initialize plot lines
-            self.convergence_line1, = self.convergence_ax1.plot([], [], 'b-', linewidth=2, label='Plan Change')
-            self.convergence_line2, = self.convergence_ax2.plot([], [], 'r-', linewidth=2, label='Relative Change')
+            # Initialize plot line
+            self.convergence_line, = self.convergence_ax.plot([], [], 'b-', linewidth=2, label='Plan Change', marker='o', markersize=4)
             
-            # Add legends
-            self.convergence_ax1.legend()
-            self.convergence_ax2.legend()
+            # Add legend
+            self.convergence_ax.legend(fontsize=10)
+            
+            # Set initial axis limits for better visualization
+            self.convergence_ax.set_xlim(0, 10)
+            self.convergence_ax.set_ylim(1e-6, 1e6)
             
             # Status label
             self.convergence_status_label = ttk.Label(convergence_frame, text="Ready to monitor convergence...")
@@ -857,6 +853,7 @@ class CyberneticPlanningGUI:
             
             ttk.Button(convergence_controls, text="Clear Graph", command=self.clear_convergence_graph).pack(side="left", padx=5)
             ttk.Button(convergence_controls, text="Export Graph", command=self.export_convergence_graph).pack(side="left", padx=5)
+            ttk.Button(convergence_controls, text="Test Data", command=self.add_test_convergence_data).pack(side="left", padx=5)
             
             self.convergence_graph_available = True
             
@@ -1154,7 +1151,7 @@ To get started:
         freq_frame.pack(fill="x", pady = self._scale_padding(5))
 
         ttk.Label(freq_frame, text="Event Frequency (per year):").pack(side="left", padx = self._scale_padding(5))
-        self.event_frequency_var = tk.StringVar(value="2.0")
+        self.event_frequency_var = tk.StringVar(value="0.5")
         ttk.Spinbox(freq_frame, from_ = 0.0, to = 10.0, increment = 0.5, textvariable = self.event_frequency_var, width = 10).pack(side="left", padx = self._scale_padding(5))
 
         # Simulation Control Section
@@ -1770,13 +1767,19 @@ DISPLAY INFORMATION:
             rural_percentage = float(self.rural_percentage_var.get()) / 100.0
             urban_concentration = float(self.urban_concentration_var.get())
 
-            # Update the planning system's technology level
+            # Update the planning system's technology level and population
             if hasattr(self.planning_system, 'matrix_builder') and hasattr(self.planning_system.matrix_builder, 'sector_mapper'):
                 sector_mapper = self.planning_system.matrix_builder.sector_mapper
                 if hasattr(sector_mapper, 'technological_level'):
                     sector_mapper.technological_level = starting_tech_level
                 elif hasattr(sector_mapper, 'sector_generator'):
                     sector_mapper.sector_generator.technological_level = starting_tech_level
+                
+                # Update population in the sector mapper
+                if hasattr(sector_mapper, 'update_population'):
+                    sector_mapper.update_population(total_population)
+                elif hasattr(sector_mapper, 'sector_generator') and hasattr(sector_mapper.sector_generator, 'update_population'):
+                    sector_mapper.sector_generator.update_population(total_population)
 
             # Generate synthetic data and store it
             synthetic_data = self.planning_system.create_synthetic_data(
@@ -3633,6 +3636,22 @@ Minimum Speedup: {summary.get('min_speedup', 0):.2f}x
                 'current_year': 0
             }
 
+            # Load population and technology level from configuration
+            if hasattr(self, 'current_simulation_plan') and 'population_demographics' in self.current_simulation_plan:
+                population = float(self.current_simulation_plan['population_demographics'].get('total_population', 1000000))
+                self.current_technology_level = float(self.current_simulation_plan['population_demographics'].get('tech_level', 0.0))
+            else:
+                population = float(self.total_population_var.get())
+                self.current_technology_level = float(self.tech_level_var.get())
+            
+            # Update the planning system's sector mapper with the correct population
+            if hasattr(self.planning_system, 'matrix_builder') and hasattr(self.planning_system.matrix_builder, 'sector_mapper'):
+                sector_mapper = self.planning_system.matrix_builder.sector_mapper
+                if hasattr(sector_mapper, 'update_population'):
+                    sector_mapper.update_population(population)
+                elif hasattr(sector_mapper, 'sector_generator') and hasattr(sector_mapper.sector_generator, 'update_population'):
+                    sector_mapper.sector_generator.update_population(population)
+
             # Initialize stochastic events
             self.stochastic_events = {
                 'natural_disasters': self.natural_disasters_var.get(),
@@ -3672,6 +3691,16 @@ Ready to start simulation.
         except Exception as e:
             messagebox.showerror("Error", f"Failed to initialize simulation: {str(e)}")
             self.simulation_status.config(text="Initialization failed", foreground="red")
+
+    def validate_configuration(self):
+        """Validate that configuration values are properly loaded."""
+        if hasattr(self, 'current_simulation_plan'):
+            if 'population_demographics' in self.current_simulation_plan:
+                population = self.current_simulation_plan['population_demographics'].get('total_population')
+                if population and float(population) != float(self.total_population_var.get()):
+                    # Update GUI to reflect loaded configuration
+                    self.total_population_var.set(str(population))
+                    print(f"Updated population from configuration: {population}")
 
     def start_simulation(self):
         """Start the simulation."""
@@ -3766,11 +3795,22 @@ Ready to start simulation.
                 # Initialize population health tracker if not exists
                 if not hasattr(self, 'population_health_tracker'):
                     from src.cybernetic_planning.utils.population_health_tracker import PopulationHealthTracker
-                    initial_population = self.current_simulation_plan.get('population', 1000000)
-                    initial_tech_level = getattr(self, 'current_technology_level', 0.0)
+                    # Use the population loaded from configuration
+                    if hasattr(self, 'current_simulation_plan') and 'population_demographics' in self.current_simulation_plan:
+                        initial_population = self.current_simulation_plan['population_demographics']['total_population']
+                        initial_tech_level = self.current_simulation_plan['population_demographics']['tech_level']
+                        employment_rate = self.current_simulation_plan['population_demographics']['employment_rate']
+                        dependency_ratio = self.current_simulation_plan['population_demographics']['dependency_ratio']
+                    else:
+                        initial_population = 1000000
+                        initial_tech_level = 0.0
+                        employment_rate = 0.95
+                        dependency_ratio = 0.4
                     self.population_health_tracker = PopulationHealthTracker(
                         initial_population=initial_population,
-                        initial_technology_level=initial_tech_level
+                        initial_technology_level=initial_tech_level,
+                        employment_rate=employment_rate,
+                        dependency_ratio=dependency_ratio
                     )
                     
                     # Set R&D sectors for technology growth
@@ -3879,7 +3919,15 @@ Ready to start simulation.
             # Base variation for events
             base_variation = 1.0
             if hasattr(self, 'current_events') and self.current_events:
-                base_variation *= 0.8  # Reduce production during events
+                base_variation *= 0.9  # Reduce production during events
+                
+                # Gradual recovery from events
+                for event in self.current_events:
+                    event_age = month - event['month']
+                    if event_age > 0:
+                        # Gradual recovery over 3 months
+                        recovery_factor = min(1.0, 0.5 + (event_age * 0.2))
+                        base_variation *= recovery_factor
 
             # Handle both dictionary and list formats for production_targets
             if isinstance(targets, dict):
@@ -4284,6 +4332,10 @@ Ready to start simulation.
         }
 
         self.current_events.append(event)
+        
+        # Clean up expired events
+        self.current_events = [event for event in self.current_events 
+                              if (month - event['month']) < event['duration']]
 
         # Log event
         event_message = f"Month {month} (Year {event['year']}): {event_type.replace('_', ' ').title()} - Severity: {event['severity']:.2f}, Duration: {event['duration']} months\n"
@@ -4320,7 +4372,10 @@ Production Status:
         if hasattr(self, 'current_events') and self.current_events:
             monitoring_message += f"\nActive Events: {len(self.current_events)}\n"
             for event in self.current_events[-3:]:  # Show last 3 events
-                monitoring_message += f"  - {event['type'].replace('_', ' ').title()} (Severity: {event['severity']:.2f})\n"
+                age = month - event['month']
+                remaining = event['duration'] - age
+                recovery_status = "Recovering" if age > 0 else "Active"
+                monitoring_message += f"  - {event['type'].replace('_', ' ').title()} (Severity: {event['severity']:.2f}, {remaining} months remaining, {recovery_status})\n"
 
         monitoring_message += "\n" + "="*50 + "\n\n"
 
@@ -6296,21 +6351,39 @@ System: Cybernetic Planning Experiment v1.0
             'total_outputs': []
         }
         
-        # Clear the plots
-        self.convergence_line1.set_data([], [])
-        self.convergence_line2.set_data([], [])
+        # Clear the plot
+        self.convergence_line.set_data([], [])
         
         # Reset axes
-        self.convergence_ax1.relim()
-        self.convergence_ax1.autoscale_view()
-        self.convergence_ax2.relim()
-        self.convergence_ax2.autoscale_view()
+        self.convergence_ax.relim()
+        self.convergence_ax.autoscale_view()
         
         # Update canvas
         self.convergence_canvas.draw()
         
         # Update status
         self.convergence_status_label.config(text="Graph cleared - ready to monitor convergence...")
+
+    def add_test_convergence_data(self):
+        """Add test data to the convergence graph for debugging."""
+        if not self.convergence_graph_available:
+            return
+        
+        # Clear existing data
+        self.clear_convergence_graph()
+        
+        # Generate test convergence data
+        import numpy as np
+        test_iterations = list(range(1, 11))
+        test_plan_changes = [1.0 * np.exp(-i * 0.3) + 0.01 * np.random.random() for i in test_iterations]
+        
+        # Add data points one by one with a small delay to simulate real-time updates
+        for i, (iteration, plan_change) in enumerate(zip(test_iterations, test_plan_changes)):
+            self.root.after(i * 100, lambda it=iteration, pc=plan_change: 
+                          self.update_convergence_graph(it, pc, pc * 0.1, 1000.0))
+        
+        # Update status
+        self.convergence_status_label.config(text="Test data added - simulating convergence...")
 
     def export_convergence_graph(self):
         """Export the convergence graph as an image."""
@@ -6347,31 +6420,28 @@ System: Cybernetic Planning Experiment v1.0
         self.convergence_data['relative_changes'].append(relative_change)
         self.convergence_data['total_outputs'].append(total_output)
         
-        # Update plot lines
-        self.convergence_line1.set_data(self.convergence_data['iterations'], self.convergence_data['plan_changes'])
-        self.convergence_line2.set_data(self.convergence_data['iterations'], self.convergence_data['relative_changes'])
+        # Update plot line
+        self.convergence_line.set_data(self.convergence_data['iterations'], self.convergence_data['plan_changes'])
         
         # Update axes limits
         if self.convergence_data['iterations']:
-            self.convergence_ax1.set_xlim(0, max(self.convergence_data['iterations']) + 1)
-            self.convergence_ax2.set_xlim(0, max(self.convergence_data['iterations']) + 1)
+            self.convergence_ax.set_xlim(0, max(self.convergence_data['iterations']) + 1)
             
-            # Set y-axis limits with some padding
+            # Set y-axis limits with some padding for better visualization
             if self.convergence_data['plan_changes']:
                 min_change = min(self.convergence_data['plan_changes'])
                 max_change = max(self.convergence_data['plan_changes'])
-                self.convergence_ax1.set_ylim(min_change * 0.1, max_change * 10)
-            
-            if self.convergence_data['relative_changes']:
-                min_rel = min(self.convergence_data['relative_changes'])
-                max_rel = max(self.convergence_data['relative_changes'])
-                self.convergence_ax2.set_ylim(min_rel * 0.1, max_rel * 10)
+                # Ensure we have a reasonable range for log scale
+                if min_change > 0 and max_change > 0:
+                    self.convergence_ax.set_ylim(min_change * 0.1, max_change * 10)
+                else:
+                    self.convergence_ax.set_ylim(1e-6, 1e6)  # Default range for log scale
         
         # Update canvas
         self.convergence_canvas.draw()
         
         # Update status
-        status_text = f"Iteration {iteration}: Change={plan_change:.2e}, RelChange={relative_change:.2e}"
+        status_text = f"Iteration {iteration}: Plan Change={plan_change:.2e}, Relative Change={relative_change:.2e}"
         self.convergence_status_label.config(text=status_text)
 
     def start_convergence_monitoring(self):
@@ -6419,22 +6489,33 @@ System: Cybernetic Planning Experiment v1.0
             )
             
             # Extract convergence data from the plan if available
-            if isinstance(plan, dict) and 'convergence_history' in plan:
-                convergence_history = plan['convergence_history']
-                
-                # Update the convergence graph with historical data
-                for i, conv_data in enumerate(convergence_history):
-                    iteration = conv_data.get('iteration', i)
-                    plan_change = conv_data.get('plan_change', 0.0)
-                    relative_change = conv_data.get('relative_change', 0.0)
-                    total_output = conv_data.get('total_output', 0.0)
+            print(f"DEBUG GUI: Plan type: {type(plan)}")
+            if isinstance(plan, dict):
+                print(f"DEBUG GUI: Plan keys: {list(plan.keys())}")
+                if 'convergence_history' in plan:
+                    convergence_history = plan['convergence_history']
+                    print(f"DEBUG GUI: Found convergence history with {len(convergence_history)} entries")
                     
-                    # Update graph in main thread
-                    self.root.after(0, lambda i=iteration, pc=plan_change, rc=relative_change, to=total_output: 
-                                  self.update_convergence_graph(i, pc, rc, to))
+                    # Update the convergence graph with historical data
+                    for i, conv_data in enumerate(convergence_history):
+                        iteration = conv_data.get('iteration', i)
+                        plan_change = conv_data.get('plan_change', 0.0)
+                        relative_change = conv_data.get('relative_change', 0.0)
+                        total_output = conv_data.get('total_output', 0.0)
+                        
+                        print(f"DEBUG GUI: Adding iteration {iteration}: plan_change={plan_change:.2e}, relative_change={relative_change:.2e}")
+                        
+                        # Update graph in main thread
+                        self.root.after(0, lambda i=iteration, pc=plan_change, rc=relative_change, to=total_output: 
+                                      self.update_convergence_graph(i, pc, rc, to))
+                else:
+                    print("DEBUG GUI: No convergence_history in plan")
+            else:
+                print("DEBUG GUI: Plan is not a dictionary")
             
             # Also check if there's convergence data in the manager agent
             if hasattr(manager_agent, 'convergence_history') and manager_agent.convergence_history:
+                print(f"Manager agent convergence history has {len(manager_agent.convergence_history)} entries")
                 for i, conv_data in enumerate(manager_agent.convergence_history):
                     iteration = conv_data.get('iteration', i)
                     plan_change = conv_data.get('plan_change', 0.0)
