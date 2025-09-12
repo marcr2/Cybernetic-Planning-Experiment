@@ -3,7 +3,7 @@
     "name": "Cybernetic Planning System",
     "version": "0.1.0",
     "python_version": "3.13",
-    "installation_date": "2025-09-10 12:44:22"
+    "installation_date": "2025-09-11 19:53:04"
   },
   "paths": {
     "data_directory": "data",
@@ -16,5 +16,14 @@
     "default_years": 5,
     "convergence_threshold": 0.005,
     "max_iterations": 15
+  },
+  "gpu_settings": {
+    "enabled": true,
+    "solver": "SCS",
+    "monitoring": {
+      "show_utilization": true,
+      "benchmark_mode": true
+    },
+    "fallback_to_cpu": true
   }
 }

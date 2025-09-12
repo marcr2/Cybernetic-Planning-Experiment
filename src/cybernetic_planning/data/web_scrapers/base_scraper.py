@@ -355,14 +355,18 @@ class BaseScraper(ABC):
                 df.to_csv(output_path, index = False)
 
         elif format_type == "excel":
-            with pd.ExcelWriter(output_path) as writer:
+            # Ensure .xlsx extension
+            if not str(output_path).endswith('.xlsx'):
+                output_path = output_path.with_suffix('.xlsx')
+            
+            with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
                 if isinstance(data, dict) and "data" in data:
                     df = pd.DataFrame(data["data"])
-                    df.to_excel(writer, sheet_name="Data", index = False)
+                    df.to_excel(writer, sheet_name="Data", index=False)
                 else:
                     # Convert dict to DataFrame
                     df = pd.DataFrame([data])
-                    df.to_excel(writer, sheet_name="Data", index = False)
+                    df.to_excel(writer, sheet_name="Data", index=False)
 
         else:
             raise ValueError(f"Unsupported format: {format_type}")

@@ -5,11 +5,25 @@ Implements the core Leontief model for calculating total output requirements
 given final demand and technology matrix.
 """
 
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Union, Any
 import numpy as np
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csr_matrix, csc_matrix
 from scipy.sparse.linalg import spsolve
 import warnings
+from .error_handling import MatrixValidator, ValidationResult, safe_matrix_operation
+
+# Import GPU acceleration module
+try:
+    from .gpu_acceleration import (
+        gpu_detector, create_gpu_optimized_arrays, convert_gpu_to_cpu, settings_manager
+    )
+    GPU_ACCELERATION_AVAILABLE = True
+except ImportError:
+    GPU_ACCELERATION_AVAILABLE = False
+    gpu_detector = None
+    create_gpu_optimized_arrays = None
+    convert_gpu_to_cpu = None
+    settings_manager = None
 
 class LeontiefModel:
     """
@@ -21,24 +35,67 @@ class LeontiefModel:
     - d is the final demand vector
     """
 
-    def __init__(self, technology_matrix: np.ndarray, final_demand: np.ndarray):
+    def __init__(self, technology_matrix: Union[np.ndarray, csr_matrix, csc_matrix], final_demand: np.ndarray, use_sparse: bool = True, use_gpu: Optional[bool] = None):
         """
         Initialize the Leontief model.
 
         Args:
             technology_matrix: A square matrix A of size n×n representing
-                             input coefficients
+                             input coefficients (can be dense or sparse)
             final_demand: A column vector d of size n×1 representing final demand
+            use_sparse: Whether to convert to sparse matrix if not already sparse
+            use_gpu: Whether to use GPU acceleration (None = auto-detect from settings)
         """
-        self.A = np.asarray(technology_matrix)
+        # Convert to sparse if requested and not already sparse
+        if use_sparse and not issparse(technology_matrix):
+            self.A = csr_matrix(technology_matrix)
+        elif use_sparse and issparse(technology_matrix):
+            # Ensure it's in CSR format for efficiency
+            if not isinstance(technology_matrix, csr_matrix):
+                self.A = csr_matrix(technology_matrix)
+            else:
+                self.A = technology_matrix
+        else:
+            self.A = technology_matrix
+            
         self.d = np.asarray(final_demand).flatten()
 
-        # Validate inputs
+        # GPU acceleration setup
+        self.use_gpu = use_gpu
+        self.gpu_arrays = None
+        self._setup_gpu_acceleration()
+
+        # Validate inputs with enhanced error handling
         self._validate_inputs()
 
         # Calculate Leontief inverse
         self._leontief_inverse = None
         self._compute_leontief_inverse()
+
+    def _setup_gpu_acceleration(self) -> None:
+        """Setup GPU acceleration if available and enabled."""
+        if not GPU_ACCELERATION_AVAILABLE:
+            self.use_gpu = False
+            return
+        
+        # Auto-detect GPU usage from settings if not specified
+        if self.use_gpu is None:
+            self.use_gpu = settings_manager.is_gpu_enabled()
+        
+        # Check if GPU is actually available
+        if self.use_gpu and not gpu_detector.is_gpu_available():
+            warnings.warn("GPU acceleration requested but GPU not available, falling back to CPU")
+            self.use_gpu = False
+        
+        # Convert arrays to GPU if enabled
+        if self.use_gpu:
+            try:
+                arrays_to_convert = [self.d]
+                self.gpu_arrays = create_gpu_optimized_arrays(arrays_to_convert, use_gpu=True)
+            except Exception as e:
+                warnings.warn(f"Failed to setup GPU acceleration: {e}, falling back to CPU")
+                self.use_gpu = False
+                self.gpu_arrays = None
 
     def _validate_inputs(self) -> None:
         """Validate input matrices and vectors."""
@@ -52,8 +109,12 @@ class LeontiefModel:
             raise ValueError("Technology matrix and final demand must have compatible dimensions")
 
         # Check for negative values
-        if np.any(self.A < 0):
-            raise ValueError("Technology matrix contains negative values - this is economically impossible")
+        if issparse(self.A):
+            if (self.A < 0).nnz > 0:  # Check if any negative values exist
+                raise ValueError("Technology matrix contains negative values - this is economically impossible")
+        else:
+            if np.any(self.A < 0):
+                raise ValueError("Technology matrix contains negative values - this is economically impossible")
 
         if np.any(self.d < 0):
             raise ValueError("Final demand contains negative values - this is economically impossible")
@@ -64,16 +125,31 @@ class LeontiefModel:
                            "This means the economy cannot sustain itself.")
 
     def _compute_leontief_inverse(self) -> None:
-        """Compute the Leontief inverse matrix (I - A)^(-1)."""
+        """Compute the Leontief inverse matrix (I - A)^(-1) with optimizations."""
         n = self.A.shape[0]
-        I = np.eye(n)
-
+        
         try:
             # Check if matrix is sparse
             if issparse(self.A):
-                self._leontief_inverse = spsolve(I - self.A, I)
+                # Ensure matrix is in CSR format for optimal performance
+                if not isinstance(self.A, csr_matrix):
+                    self.A = csr_matrix(self.A)
+                
+                # Create sparse identity matrix efficiently
+                I_sparse = csr_matrix((np.ones(n), (np.arange(n), np.arange(n))), shape=(n, n))
+                
+                # Compute (I - A) efficiently using sparse operations
+                I_minus_A = I_sparse - self.A
+                
+                # Use spsolve for sparse matrix solving
+                self._leontief_inverse = spsolve(I_minus_A, I_sparse)
+                
+                # Convert result to dense for consistency with other operations
+                if issparse(self._leontief_inverse):
+                    self._leontief_inverse = self._leontief_inverse.toarray()
             else:
                 # Use LU decomposition for numerical stability
+                I = np.eye(n)
                 self._leontief_inverse = np.linalg.solve(I - self.A, I)
 
         except np.linalg.LinAlgError as e:
@@ -82,7 +158,7 @@ class LeontiefModel:
             raise ValueError(
                 f"Cannot compute Leontief inverse: {e}\n"
                 f"Spectral radius: {spectral_radius:.6f}\n"
-                f"Economy is {'productive' if spectral_radius < 1 else 'non - productive'}"
+                f"Economy is {'productive' if spectral_radius < 1 else 'non-productive'}"
             )
 
     def get_leontief_inverse(self) -> np.ndarray:
@@ -91,7 +167,7 @@ class LeontiefModel:
 
     def compute_total_output(self) -> np.ndarray:
         """
-        Compute total output vector using Leontief model.
+        Compute total output vector using Leontief model with optimizations.
 
         Returns:
             Total output vector x = (I - A)^(-1) * d
@@ -99,7 +175,11 @@ class LeontiefModel:
         if self._leontief_inverse is None:
             self._compute_leontief_inverse()
 
-        x = self._leontief_inverse @ self.d
+        # Use efficient matrix-vector multiplication
+        if issparse(self._leontief_inverse):
+            x = self._leontief_inverse.dot(self.d)
+        else:
+            x = self._leontief_inverse @ self.d
 
         # Check for negative outputs
         if np.any(x < 0):
@@ -144,7 +224,10 @@ class LeontiefModel:
         Returns:
             Spectral radius (largest eigenvalue magnitude)
         """
-        eigenvals = np.linalg.eigvals(self.A)
+        if issparse(self.A):
+            eigenvals = np.linalg.eigvals(self.A.toarray())
+        else:
+            eigenvals = np.linalg.eigvals(self.A)
         return np.max(np.abs(eigenvals))
 
     def is_productive(self, tolerance: float = 1e-10) -> bool:
@@ -173,16 +256,23 @@ class LeontiefModel:
         if parameter == "A":
             # Sensitivity of output to technology matrix changes
             # ∂x/∂A_ij = (I - A)^(-1) * (e_i * x_j^T)
+            # Vectorized implementation
             n = self.A.shape[0]
-            sensitivity = np.zeros((n, n, n))
             x = self.compute_total_output()
-
+            
+            # Initialize sensitivity tensor
+            sensitivity = np.zeros((n, n, n))
+            
+            # For each (i, j) pair, compute sensitivity of all outputs
             for i in range(n):
                 for j in range(n):
+                    # Create unit vector e_i
                     e_i = np.zeros(n)
                     e_i[i] = 1
+                    
+                    # Compute sensitivity: (I - A)^(-1) @ (e_i * x_j)
                     sensitivity[:, i, j] = self._leontief_inverse @ (e_i * x[j])
-
+            
             return sensitivity
 
         elif parameter == "d":
@@ -350,3 +440,27 @@ class LeontiefModel:
         environmental_impact = environmental_coefficients * total_output
 
         return environmental_impact
+
+    def get_gpu_status(self) -> Dict[str, Any]:
+        """
+        Get current GPU status and performance information.
+        
+        Returns:
+            Dictionary with GPU status information
+        """
+        if not GPU_ACCELERATION_AVAILABLE:
+            return {
+                "gpu_available": False,
+                "gpu_enabled": False,
+                "error": "GPU acceleration module not available"
+            }
+        
+        gpu_info = gpu_detector.gpu_info.copy()
+        gpu_info.update({
+            "gpu_available": gpu_detector.is_gpu_available(),
+            "gpu_enabled": self.use_gpu,
+            "gpu_arrays_created": self.gpu_arrays is not None,
+            "memory_usage": gpu_detector.get_gpu_memory_usage()
+        })
+        
+        return gpu_info

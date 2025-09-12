@@ -110,6 +110,7 @@ config/
 temp/
 cache/
 data/raw/
+data/
 data/processed/
 exports/
 outputs/

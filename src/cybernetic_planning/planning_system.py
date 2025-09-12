@@ -10,6 +10,7 @@ from pathlib import Path
 import json
 import numpy as np
 import pandas as pd
+from datetime import datetime
 
 from .core import DynamicPlanner
 from .core.validation import EconomicPlanValidator
@@ -19,6 +20,7 @@ from .core.mathematical_validation import MathematicalValidator
 from .core.leontief import LeontiefModel
 from .agents import ManagerAgent, EconomicsAgent, ResourceAgent, PolicyAgent, WriterAgent
 from .data import IOParser, MatrixBuilder, DataValidator, EnhancedDataLoader
+from .integration import TransportationIntegration, TransportationIntegrationConfig
 
 class CyberneticPlanningSystem:
     """
@@ -39,7 +41,7 @@ class CyberneticPlanningSystem:
 
         # Initialize components
         self.parser = IOParser()
-        self.matrix_builder = MatrixBuilder(use_technology_tree = True)
+        self.matrix_builder = MatrixBuilder(max_sectors=1000, use_technology_tree=True)
         self.validator = DataValidator()
         self.enhanced_loader = EnhancedDataLoader()
 
@@ -57,6 +59,14 @@ class CyberneticPlanningSystem:
         self.marxist_calculator = None
         self.cybernetic_feedback = None
         self.mathematical_validator = MathematicalValidator()
+        
+        # Initialize transportation and distribution integration
+        self.transportation_config = TransportationIntegrationConfig(
+            enable_transportation_costs=True,
+            enable_stockpile_management=True,
+            enable_supply_chain_optimization=True
+        )
+        self.transportation_integration = TransportationIntegration(self.transportation_config)
 
         # System state
         self.current_data = {}
@@ -405,6 +415,57 @@ class CyberneticPlanningSystem:
 
         return adjusted_demand
 
+    def calculate_comprehensive_costs(self, 
+                                    sector_outputs: np.ndarray,
+                                    include_transportation: bool = True,
+                                    include_stockpiles: bool = True,
+                                    include_supply_chain: bool = True) -> Dict[str, Any]:
+        """
+        Calculate comprehensive costs including transportation, stockpiles, and supply chain.
+        
+        Args:
+            sector_outputs: Sector output levels
+            include_transportation: Whether to include transportation costs
+            include_stockpiles: Whether to include stockpile management costs
+            include_supply_chain: Whether to include supply chain optimization costs
+            
+        Returns:
+            Comprehensive cost analysis
+        """
+        if not hasattr(self, 'transportation_integration') or not self.transportation_integration.is_initialized:
+            # Initialize transportation integration if not already done
+            if self.current_data:
+                init_result = self.transportation_integration.initialize(
+                    sector_data=self.current_data.get('sectors', {}),
+                    resource_data=self.current_data.get('resources', {}),
+                    location_data=self.current_data.get('locations', {})
+                )
+                if init_result.get('status') != 'success':
+                    return {"error": "Failed to initialize transportation integration", "details": init_result}
+            else:
+                return {"error": "No data loaded. Please load data first."}
+        
+        # Update configuration based on parameters
+        self.transportation_integration.config.enable_transportation_costs = include_transportation
+        self.transportation_integration.config.enable_stockpile_management = include_stockpiles
+        self.transportation_integration.config.enable_supply_chain_optimization = include_supply_chain
+        
+        # Calculate comprehensive costs
+        results = self.transportation_integration.calculate_comprehensive_costs(sector_outputs)
+        
+        # Add basic economic costs if available
+        if 'technology_matrix' in self.current_data and 'final_demand' in self.current_data:
+            # Calculate basic production costs
+            technology_matrix = np.array(self.current_data['technology_matrix'])
+            production_costs = np.dot(technology_matrix, sector_outputs)
+            results['production_costs'] = {
+                'total_production_cost': np.sum(production_costs),
+                'cost_per_sector': production_costs.tolist(),
+                'average_cost_per_unit': np.mean(production_costs) if len(production_costs) > 0 else 0
+            }
+        
+        return results
+
     def create_five_year_plan(
         self,
         policy_goals: Optional[List[str]] = None,
@@ -494,6 +555,104 @@ class CyberneticPlanningSystem:
         self.performance_feedback = dynamic_planner.get_performance_feedback()
 
         return five_year_plan
+
+    def create_multi_year_plan(
+        self,
+        plan_duration_years: int,
+        policy_goals: Optional[List[str]] = None,
+        consumption_growth_rate: float = 0.05,
+        investment_ratio: float = 0.2,
+        production_multipliers: Optional[Dict[str, float]] = None,
+        apply_reproduction: bool = True
+    ) -> Dict[int, Dict[str, Any]]:
+        """
+        Create a comprehensive multi-year economic plan with variable duration.
+
+        Args:
+            plan_duration_years: Number of years for the plan (5-100)
+            policy_goals: List of policy goals in natural language
+            consumption_growth_rate: Annual consumption growth rate
+            investment_ratio: Ratio of investment to total output
+            production_multipliers: Dictionary of production multipliers for different departments
+            apply_reproduction: Whether to apply Marxist reproduction adjustments
+
+        Returns:
+            Dictionary with plans for each year
+        """
+        if not self.current_data:
+            raise ValueError("No economic data loaded. Please load data first.")
+        
+        # Validate plan duration
+        if plan_duration_years < 1 or plan_duration_years > 100:
+            raise ValueError("Plan duration must be between 1 and 100 years")
+        
+        # Validate required data fields
+        required_fields = ["technology_matrix", "final_demand", "labor_input"]
+        missing_fields = [field for field in required_fields if field not in self.current_data]
+        if missing_fields:
+            raise ValueError(f"Missing required data fields: {missing_fields}")
+
+        # Initialize dynamic planner
+        dynamic_planner = DynamicPlanner(
+            initial_technology_matrix=self.current_data["technology_matrix"],
+            initial_labor_vector=self.current_data["labor_input"],
+        )
+
+        # Create consumption and investment demands for each year
+        base_final_demand = self.current_data["final_demand"].copy()
+        consumption_demands = []
+        investment_demands = []
+
+        # Generate demands for each year
+        for year in range(1, plan_duration_years + 1):
+            if year == 1:
+                # Year 1: Use base growth rates
+                population_growth_rate = 0.01  # 1% annual population growth
+                living_standards_growth_rate = consumption_growth_rate - population_growth_rate
+                total_growth_rate = population_growth_rate + living_standards_growth_rate
+                consumption_demand = base_final_demand * ((1 + total_growth_rate) ** (year - 1))
+                investment_growth_rate = total_growth_rate * 1.2
+                investment_demand = base_final_demand * investment_ratio * ((1 + investment_growth_rate) ** (year - 1))
+            else:
+                # Years 2+: Use feedback-driven growth (will be calculated during planning)
+                population_growth_rate = 0.01
+                living_standards_growth_rate = consumption_growth_rate - population_growth_rate
+                total_growth_rate = population_growth_rate + living_standards_growth_rate
+                consumption_demand = base_final_demand * ((1 + total_growth_rate) ** (year - 1))
+                investment_growth_rate = total_growth_rate * 1.2
+                investment_demand = base_final_demand * investment_ratio * ((1 + investment_growth_rate) ** (year - 1))
+
+            consumption_demands.append(consumption_demand)
+            investment_demands.append(investment_demand)
+
+        # Create multi-year plan with feedback growth
+        multi_year_plan = {}
+        for year in range(1, plan_duration_years + 1):
+            plan = dynamic_planner.plan_year(
+                year=year,
+                consumption_demand=consumption_demands[year - 1],
+                investment_demand=investment_demands[year - 1],
+                use_optimization=True,
+                use_feedback_growth=True
+            )
+            multi_year_plan[year] = plan
+
+        # Apply policy goals if provided
+        if policy_goals:
+            for year, plan in multi_year_plan.items():
+                policy_task = {"type": "policy_adjustment", "current_plan": plan, "goals": policy_goals}
+
+                policy_result = self.policy_agent.process_task(policy_task)
+                if policy_result["status"] == "success":
+                    plan.update(policy_result["adjusted_plan"])
+
+        # Store in history
+        self.plan_history.append(multi_year_plan)
+
+        # Store performance feedback
+        self.performance_feedback = dynamic_planner.get_performance_feedback()
+
+        return multi_year_plan
 
     def generate_report(
         self, plan_data: Optional[Dict[str, Any]] = None, report_options: Optional[Dict[str, Any]] = None
@@ -622,9 +781,12 @@ class CyberneticPlanningSystem:
 
     def _save_plan_excel(self, file_path: Path) -> None:
         """Save plan as Excel file."""
-
         try:
-            with pd.ExcelWriter(file_path) as writer:
+            # Ensure the file has .xlsx extension
+            if not str(file_path).endswith('.xlsx'):
+                file_path = file_path.with_suffix('.xlsx')
+            
+            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
                 # Main plan data
                 plan_data = {
                     "sector": range(len(self.current_plan["total_output"])),
@@ -634,15 +796,29 @@ class CyberneticPlanningSystem:
                 }
 
                 df = pd.DataFrame(plan_data)
-                df.to_excel(writer, sheet_name="Plan_Data", index = False)
+                df.to_excel(writer, sheet_name="Plan_Data", index=False)
 
                 # Technology matrix
                 tech_df = pd.DataFrame(
                     self.current_plan["technology_matrix"],
-                    index = range(len(self.current_plan["total_output"])),
-                    columns = range(len(self.current_plan["total_output"])),
+                    index=range(len(self.current_plan["total_output"])),
+                    columns=range(len(self.current_plan["total_output"])),
                 )
                 tech_df.to_excel(writer, sheet_name="Technology_Matrix")
+                
+                # Add metadata sheet
+                metadata = {
+                    "Property": ["Plan Type", "Sectors", "Created", "Description"],
+                    "Value": [
+                        "Cybernetic Economic Plan",
+                        len(self.current_plan["total_output"]),
+                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "Generated by Cybernetic Planning System"
+                    ]
+                }
+                metadata_df = pd.DataFrame(metadata)
+                metadata_df.to_excel(writer, sheet_name="Metadata", index=False)
+                
         except Exception as e:
             raise ValueError(f"Failed to save Excel plan to {file_path}: {e}")
 

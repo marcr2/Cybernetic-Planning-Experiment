@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Any
 import warnings
 import numpy as np
 from .feedback_growth import FeedbackGrowthSystem
+from .cockshott_cottrell import CockshottCottrellPlanner
 
 class DynamicPlanner:
     """
@@ -261,30 +262,83 @@ class DynamicPlanner:
         A_t = self.technology_matrices[year]
         l_t = self.labor_vectors[year]
         d_t = consumption_demand + investment_demand
+        
+        # Initialize convergence data
+        convergence_data = []
 
         if use_optimization:
-            # Use constrained optimization
-            from .optimization import ConstrainedOptimizer
+            # Try Cockshott & Cottrell iterative planner first for large problems
+            if self.n_sectors > 100:  # Use iterative planner for large problems
+                try:
+                    planner = CockshottCottrellPlanner(
+                        technology_matrix=A_t,
+                        final_demand=d_t,
+                        direct_labor=l_t,
+                        use_sparse=True
+                    )
+                    result = planner.iterative_planning()
+                    
+                    if result["converged"]:
+                        total_output = result["production_plan"]
+                        total_labor_cost = result["total_labor_cost"]
+                        # Store convergence data for GUI
+                        convergence_data = result.get("convergence_history", [])
+                    else:
+                        warnings.warn(f"Cockshott & Cottrell planner did not converge for year {year}, trying optimization")
+                        raise ValueError("Iterative planner did not converge")
+                        
+                except Exception as e:
+                    warnings.warn(f"Cockshott & Cottrell planner failed: {e}, trying constrained optimization")
+                    # Fall back to constrained optimization
+                    from .optimization import ConstrainedOptimizer
 
-            optimizer = ConstrainedOptimizer(technology_matrix = A_t, direct_labor = l_t, final_demand = d_t)
+                    optimizer = ConstrainedOptimizer(technology_matrix=A_t, direct_labor=l_t, final_demand=d_t, use_sparse=True)
 
-            result = optimizer.solve()
+                    # Try CVXPY first, then scipy as fallback
+                    result = optimizer.solve(use_cvxpy=True)
+                    
+                    if not result["feasible"]:
+                        # Try scipy optimization as fallback
+                        result = optimizer.solve(use_cvxpy=False)
 
-            if result["feasible"]:
-                total_output = result["solution"]
-                total_labor_cost = result["total_labor_cost"]
+                    if result["feasible"]:
+                        total_output = result["solution"]
+                        total_labor_cost = result["total_labor_cost"]
+                    else:
+                        warnings.warn(f"All optimization methods failed for year {year}, using Leontief solution")
+                        from .leontief import LeontiefModel
+
+                        leontief = LeontiefModel(A_t, d_t, use_sparse=True)
+                        total_output = leontief.compute_total_output()
+                        total_labor_cost = np.dot(l_t, total_output)
             else:
-                warnings.warn(f"Optimization failed for year {year}, using Leontief solution")
-                from .leontief import LeontiefModel
+                # Use constrained optimization for smaller problems
+                from .optimization import ConstrainedOptimizer
 
-                leontief = LeontiefModel(A_t, d_t)
-                total_output = leontief.compute_total_output()
-                total_labor_cost = np.dot(l_t, total_output)
+                optimizer = ConstrainedOptimizer(technology_matrix=A_t, direct_labor=l_t, final_demand=d_t, use_sparse=True)
+
+                # Try CVXPY first, then scipy as fallback
+                result = optimizer.solve(use_cvxpy=True)
+                
+                if not result["feasible"]:
+                    # Try scipy optimization as fallback
+                    result = optimizer.solve(use_cvxpy=False)
+
+                if result["feasible"]:
+                    total_output = result["solution"]
+                    total_labor_cost = result["total_labor_cost"]
+                else:
+                    warnings.warn(f"All optimization methods failed for year {year}, using Leontief solution")
+                    from .leontief import LeontiefModel
+
+                    leontief = LeontiefModel(A_t, d_t, use_sparse=True)
+                    total_output = leontief.compute_total_output()
+                    total_labor_cost = np.dot(l_t, total_output)
         else:
             # Use simple Leontief model
             from .leontief import LeontiefModel
 
-            leontief = LeontiefModel(A_t, d_t)
+            leontief = LeontiefModel(A_t, d_t, use_sparse=True)
             total_output = leontief.compute_total_output()
             total_labor_cost = np.dot(l_t, total_output)
 
@@ -294,7 +348,7 @@ class DynamicPlanner:
 
         # Calculate labor values for this year
         from .labor_values import LaborValueCalculator
-        labor_calc = LaborValueCalculator(A_t, l_t)
+        labor_calc = LaborValueCalculator(A_t, l_t, use_sparse=True)
         labor_values = labor_calc.get_labor_values()
 
         # Apply feedback growth adjustments if enabled
@@ -390,6 +444,7 @@ class DynamicPlanner:
             "labor_vector": l_t,
             "labor_values": labor_values,
             "capital_stock": self.capital_stocks.get(year, np.zeros(self.n_sectors)),
+            "convergence_history": convergence_data,  # Include convergence data for GUI
         }
 
         return self.plans[year]

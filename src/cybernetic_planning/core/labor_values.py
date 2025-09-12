@@ -5,8 +5,9 @@ Implements Cockshott's labor - time accounting model for calculating
 the total direct and indirect labor embodied in commodities.
 """
 
+from typing import Union
 import numpy as np
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csr_matrix, csc_matrix
 from scipy.sparse.linalg import spsolve
 import warnings
 
@@ -17,19 +18,37 @@ class LaborValueCalculator:
     The labor value vector v represents the total direct and indirect
     labor embodied in one unit of each product:
     v = vA + l
+    
+    This is solved as: v = (I - A^T)^(-1) l
+    
     where:
-    - v is the labor value vector - A is the technology matrix - l is the direct labor input vector
+    - v is the labor value vector
+    - A is the technology matrix
+    - l is the direct labor input vector
+    - I is the identity matrix
     """
 
-    def __init__(self, technology_matrix: np.ndarray, direct_labor: np.ndarray):
+    def __init__(self, technology_matrix: Union[np.ndarray, csr_matrix, csc_matrix], direct_labor: np.ndarray, use_sparse: bool = True):
         """
         Initialize the labor value calculator.
 
         Args:
-            technology_matrix: Technology matrix A of size n×n
+            technology_matrix: Technology matrix A of size n×n (can be dense or sparse)
             direct_labor: Direct labor input vector l of size 1×n
+            use_sparse: Whether to convert to sparse matrix if not already sparse
         """
-        self.A = np.asarray(technology_matrix)
+        # Convert to sparse if requested and not already sparse
+        if use_sparse and not issparse(technology_matrix):
+            self.A = csr_matrix(technology_matrix)
+        elif use_sparse and issparse(technology_matrix):
+            # Ensure it's in CSR format for efficiency
+            if not isinstance(technology_matrix, csr_matrix):
+                self.A = csr_matrix(technology_matrix)
+            else:
+                self.A = technology_matrix
+        else:
+            self.A = technology_matrix
+            
         self.l = np.asarray(direct_labor).flatten()
 
         # Validate inputs
@@ -55,7 +74,10 @@ class LaborValueCalculator:
             raise ValueError("Direct labor input contains negative values - this is economically impossible")
 
         # Check if economy is productive (required for labor value calculation)
-        eigenvals = np.linalg.eigvals(self.A)
+        if issparse(self.A):
+            eigenvals = np.linalg.eigvals(self.A.toarray())
+        else:
+            eigenvals = np.linalg.eigvals(self.A)
         spectral_radius = np.max(np.abs(eigenvals))
         if spectral_radius >= 1:
             raise ValueError(f"Economy is not productive (spectral radius = {spectral_radius:.4f} >= 1). "
@@ -73,7 +95,12 @@ class LaborValueCalculator:
         try:
             # Check if matrix is sparse
             if issparse(self.A):
-                self._labor_values = spsolve((I - self.A).T, self.l)
+                # Ensure matrix is in CSR or CSC format for spsolve
+                if not isinstance(self.A, (csr_matrix, csc_matrix)):
+                    self.A = csr_matrix(self.A)
+                # Convert identity matrix to sparse format
+                I_sparse = csr_matrix(I)
+                self._labor_values = spsolve((I_sparse - self.A).T, self.l)
             else:
                 # Use LU decomposition for numerical stability
                 self._labor_values = np.linalg.solve((I - self.A).T, self.l)

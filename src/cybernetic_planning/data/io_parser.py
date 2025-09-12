@@ -339,18 +339,22 @@ class IOParser:
 
     def _export_excel(self, data: Dict[str, Any], output_path: Path) -> None:
         """Export data to Excel format."""
-        with pd.ExcelWriter(output_path) as writer:
+        # Ensure .xlsx extension
+        if not str(output_path).endswith('.xlsx'):
+            output_path = output_path.with_suffix('.xlsx')
+            
+        with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
             # Technology matrix sheet
-            tech_df = pd.DataFrame(data["technology_matrix"], index = data["sectors"], columns = data["sectors"])
+            tech_df = pd.DataFrame(data["technology_matrix"], index=data["sectors"], columns=data["sectors"])
             tech_df.to_excel(writer, sheet_name="Technology_Matrix")
 
             # Additional data sheets
             if "final_demand" in data:
-                final_demand_df = pd.DataFrame(data["final_demand"], index = data["sectors"], columns=["Final_Demand"])
+                final_demand_df = pd.DataFrame(data["final_demand"], index=data["sectors"], columns=["Final_Demand"])
                 final_demand_df.to_excel(writer, sheet_name="Final_Demand")
 
             if "labor_input" in data:
-                labor_df = pd.DataFrame(data["labor_input"], index = data["sectors"], columns=["Labor_Input"])
+                labor_df = pd.DataFrame(data["labor_input"], index=data["sectors"], columns=["Labor_Input"])
                 labor_df.to_excel(writer, sheet_name="Labor_Input")
 
     def _export_json(self, data: Dict[str, Any], output_path: Path) -> None:

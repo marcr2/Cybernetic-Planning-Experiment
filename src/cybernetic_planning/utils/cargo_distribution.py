@@ -14,11 +14,13 @@ import math
 import numpy as np
 
 try:
+    from ..utils.transportation_system import (
         CargoItem, Location, TransportPlan, TransportationSystem,
         TransportMode, VehicleType, calculate_distance
     )
 except ImportError:
     try:
+        from .transportation_system import (
             CargoItem, Location, TransportPlan, TransportationSystem,
             TransportMode, VehicleType, calculate_distance
         )
