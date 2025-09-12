@@ -123,10 +123,18 @@ class WriterAgent(BaseAgent):
         """Generate executive summary section."""
         title = "Executive Summary"
 
-        # Extract key metrics
+        # Extract key metrics with data validation
         total_output = plan_data.get("total_output", np.array([]))
         total_labor_cost = plan_data.get("total_labor_cost", 0)
         final_demand = plan_data.get("final_demand", np.array([]))
+        
+        # Ensure data is numeric
+        if hasattr(total_output, 'dtype') and not np.issubdtype(total_output.dtype, np.number):
+            total_output = np.array([], dtype=float)
+        if hasattr(final_demand, 'dtype') and not np.issubdtype(final_demand.dtype, np.number):
+            final_demand = np.array([], dtype=float)
+        if not isinstance(total_labor_cost, (int, float, np.number)):
+            total_labor_cost = 0
 
         # Validate data and handle negative values
         if len(total_output) > 0 and np.any(total_output < 0):
@@ -151,9 +159,24 @@ class WriterAgent(BaseAgent):
                 "metrics": {"error": "negative_outputs"}
             }
 
-        # Calculate summary statistics
+        # Calculate summary statistics with safe conversion
+        def safe_numeric(value, default=0.0):
+            """Safely convert value to numeric."""
+            if value is None:
+                return default
+            if isinstance(value, str):
+                try:
+                    return float(value)
+                except (ValueError, TypeError):
+                    return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+        
         total_economic_output = np.sum(total_output)
-        labor_efficiency = total_economic_output / (total_labor_cost + 1e-10) if total_labor_cost > 0 else 0
+        total_labor_cost_safe = safe_numeric(total_labor_cost, 0)
+        labor_efficiency = total_economic_output / (total_labor_cost_safe + 1e-10) if total_labor_cost_safe > 0 else 0
 
         # Calculate demand fulfillment correctly using net output
         technology_matrix = plan_data.get("technology_matrix")
@@ -170,8 +193,8 @@ class WriterAgent(BaseAgent):
 ### Key Targets
 - **Total Economic Output**: {total_economic_output:,.2f} units
 - **Final Demand Target**: {np.sum(final_demand):,.2f} units
-- **Total Labor Cost**: {total_labor_cost:,.2f} person - hours
-- **Labor Efficiency**: {labor_efficiency:.2f} units per person - hour
+- **Total Labor Cost**: {total_labor_cost_safe:,.2f} person - hours
+- **Labor Efficiency**: {labor_efficiency:.6f} units per person - hour
 - **Demand Fulfillment Rate**: {demand_fulfillment:.2%}
 
 ### Plan Overview
@@ -191,7 +214,7 @@ labor efficiency while ensuring all final demand targets are met.
             "content": content,
             "metrics": {
                 "total_economic_output": total_economic_output,
-                "total_labor_cost": total_labor_cost,
+                "total_labor_cost": total_labor_cost_safe,
                 "labor_efficiency": labor_efficiency,
                 "demand_fulfillment": demand_fulfillment,
             },
@@ -204,6 +227,14 @@ labor efficiency while ensuring all final demand targets are met.
         total_output = plan_data.get("total_output", np.array([]))
         labor_values = plan_data.get("labor_values", np.array([]))
         final_demand = plan_data.get("final_demand", np.array([]))
+        
+        # Ensure data is numeric
+        if hasattr(total_output, 'dtype') and not np.issubdtype(total_output.dtype, np.number):
+            total_output = np.array([], dtype=float)
+        if hasattr(labor_values, 'dtype') and not np.issubdtype(labor_values.dtype, np.number):
+            labor_values = np.array([], dtype=float)
+        if hasattr(final_demand, 'dtype') and not np.issubdtype(final_demand.dtype, np.number):
+            final_demand = np.array([], dtype=float)
 
         if len(total_output) == 0:
             content = f"## {title}\n\nNo sector data available."
@@ -332,6 +363,16 @@ labor efficiency while ensuring all final demand targets are met.
         labor_values = plan_data.get("labor_values", np.array([]))
         labor_vector = plan_data.get("labor_vector", np.array([]))
         total_labor_cost = plan_data.get("total_labor_cost", 0)
+        
+        # Ensure data is numeric
+        if hasattr(total_output, 'dtype') and not np.issubdtype(total_output.dtype, np.number):
+            total_output = np.array([], dtype=float)
+        if hasattr(labor_values, 'dtype') and not np.issubdtype(labor_values.dtype, np.number):
+            labor_values = np.array([], dtype=float)
+        if hasattr(labor_vector, 'dtype') and not np.issubdtype(labor_vector.dtype, np.number):
+            labor_vector = np.array([], dtype=float)
+        if not isinstance(total_labor_cost, (int, float, np.number)):
+            total_labor_cost = 0
 
         if len(total_output) == 0 or len(labor_values) == 0:
             content = f"## {title}\n\nNo labor data available."
@@ -340,8 +381,22 @@ labor efficiency while ensuring all final demand targets are met.
         # Create labor table
         labor_table = self._create_labor_table(total_output, labor_values, labor_vector)
 
-        # Calculate labor statistics
-        labor_values * total_output
+        # Calculate labor statistics with safe conversion
+        def safe_numeric_labor(value, default=0.0):
+            """Safely convert value to numeric for labor calculations."""
+            if value is None:
+                return default
+            if isinstance(value, str):
+                try:
+                    return float(value)
+                except (ValueError, TypeError):
+                    return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+        
+        total_labor_cost_safe = safe_numeric_labor(total_labor_cost, 0)
         avg_labor_value = np.mean(labor_values)
         total_direct_labor = np.sum(labor_vector * total_output) if len(labor_vector) > 0 else 0
 
@@ -352,13 +407,13 @@ labor efficiency while ensuring all final demand targets are met.
 {labor_table}
 
 ### Labor Cost Analysis
-- **Total Labor Cost**: {total_labor_cost:,.2f} person - hours
+- **Total Labor Cost**: {total_labor_cost_safe:,.2f} person - hours
 - **Direct Labor Cost**: {total_direct_labor:,.2f} person - hours
-- **Indirect Labor Cost**: {total_labor_cost - total_direct_labor:,.2f} person - hours
+- **Indirect Labor Cost**: {total_labor_cost_safe - total_direct_labor:,.2f} person - hours
 - **Average Labor Value**: {avg_labor_value:.4f} person - hours per unit
 
 ### Labor Efficiency Metrics
-- **Labor Productivity**: {np.sum(total_output) / (total_labor_cost + 1e-10):.2f} units per person - hour
+- **Labor Productivity**: {np.sum(total_output) / (total_labor_cost_safe + 1e-10):.2f} units per person - hour
 - **Most Labor - Intensive Sector**: Sector {np.argmax(labor_values)} ({np.max(labor_values):.4f} person - hours / unit)
 - **Least Labor - Intensive Sector**: Sector {np.argmin(labor_values)} ({np.min(labor_values):.4f} person - hours / unit)
 
@@ -372,9 +427,9 @@ This includes:
             "title": title,
             "content": content,
             "labor_data": {
-                "total_labor_cost": total_labor_cost,
+                "total_labor_cost": total_labor_cost_safe,
                 "direct_labor_cost": total_direct_labor,
-                "indirect_labor_cost": total_labor_cost - total_direct_labor,
+                "indirect_labor_cost": total_labor_cost_safe - total_direct_labor,
                 "avg_labor_value": avg_labor_value,
             },
         }
@@ -627,22 +682,39 @@ The system was unable to run automatic analyses. This may be due to:
                 if "aggregate_value_composition" in marxist_data:
                     agg_data = marxist_data["aggregate_value_composition"]
                     content_parts.append("**Aggregate Value Composition**:")
-                    content_parts.append(f"- Constant Capital (C): {agg_data.get('constant_capital', 0):.2f}")
-                    content_parts.append(f"- Variable Capital (V): {agg_data.get('variable_capital', 0):.2f}")
-                    content_parts.append(f"- Surplus Value (S): {agg_data.get('surplus_value', 0):.2f}")
-                    content_parts.append(f"- Total Value: {agg_data.get('total_value', 0):.2f}")
-                    content_parts.append(f"- Organic Composition (C / V): {agg_data.get('organic_composition', 0):.4f}")
-                    content_parts.append(f"- Rate of Surplus Value (S / V): {agg_data.get('rate_of_surplus_value', 0):.4f}")
-                    content_parts.append(f"- Rate of Profit (S/(C + V)): {agg_data.get('rate_of_profit', 0):.4f}")
+                    
+                    # Safe conversion function
+                    def safe_float(value, default=0.0):
+                        """Safely convert value to float."""
+                        if value is None:
+                            return default
+                        if isinstance(value, str):
+                            # Handle string values that might be numeric
+                            try:
+                                return float(value)
+                            except (ValueError, TypeError):
+                                return default
+                        try:
+                            return float(value)
+                        except (ValueError, TypeError):
+                            return default
+                    
+                    content_parts.append(f"- Constant Capital (C): {safe_float(agg_data.get('constant_capital', 0)):.2f}")
+                    content_parts.append(f"- Variable Capital (V): {safe_float(agg_data.get('variable_capital', 0)):.2f}")
+                    content_parts.append(f"- Surplus Value (S): {safe_float(agg_data.get('surplus_value', 0)):.2f}")
+                    content_parts.append(f"- Total Value: {safe_float(agg_data.get('total_value', 0)):.2f}")
+                    content_parts.append(f"- Organic Composition (C / V): {safe_float(agg_data.get('organic_composition', 0)):.4f}")
+                    content_parts.append(f"- Rate of Surplus Value (S / V): {safe_float(agg_data.get('rate_of_surplus_value', 0)):.4f}")
+                    content_parts.append(f"- Rate of Profit (S/(C + V)): {safe_float(agg_data.get('rate_of_profit', 0)):.4f}")
                     content_parts.append("")
 
                 # Economy - wide Averages
                 if "economy_wide_averages" in marxist_data:
                     avg_data = marxist_data["economy_wide_averages"]
                     content_parts.append("**Economy - wide Averages**:")
-                    content_parts.append(f"- Average Organic Composition: {avg_data.get('average_organic_composition', 0):.4f}")
-                    content_parts.append(f"- Average Rate of Surplus Value: {avg_data.get('average_rate_of_surplus_value', 0):.4f}")
-                    content_parts.append(f"- Average Rate of Profit: {avg_data.get('average_rate_of_profit', 0):.4f}")
+                    content_parts.append(f"- Average Organic Composition: {safe_float(avg_data.get('average_organic_composition', 0)):.4f}")
+                    content_parts.append(f"- Average Rate of Surplus Value: {safe_float(avg_data.get('average_rate_of_surplus_value', 0)):.4f}")
+                    content_parts.append(f"- Average Rate of Profit: {safe_float(avg_data.get('average_rate_of_profit', 0)):.4f}")
                     content_parts.append("")
 
                 # Sectoral Indicators Summary
@@ -688,13 +760,23 @@ The system was unable to run automatic analyses. This may be due to:
                 if "labor_values" in marxist_data:
                     labor_values = marxist_data["labor_values"]
                     content_parts.append("**Labor Value Analysis (Legacy)**:")
-                    content_parts.append(f"- Average labor value: {np.mean(labor_values):.4f}")
-                    content_parts.append(f"- Labor value range: {np.min(labor_values):.4f} - {np.max(labor_values):.4f}")
+                    # Ensure labor_values is a numpy array
+                    if not isinstance(labor_values, np.ndarray):
+                        try:
+                            labor_values = np.array(labor_values, dtype=float)
+                        except (ValueError, TypeError):
+                            labor_values = np.array([], dtype=float)
+                    
+                    if len(labor_values) > 0:
+                        content_parts.append(f"- Average labor value: {np.mean(labor_values):.4f}")
+                        content_parts.append(f"- Labor value range: {np.min(labor_values):.4f} - {np.max(labor_values):.4f}")
+                    else:
+                        content_parts.append("- No labor values available")
                     content_parts.append("")
 
                 if "surplus_value" in marxist_data:
                     surplus_value = marxist_data["surplus_value"]
-                    content_parts.append(f"- Total surplus value: {surplus_value:.2f}")
+                    content_parts.append(f"- Total surplus value: {safe_float(surplus_value):.2f}")
                     content_parts.append("")
             else:
                 content_parts.append("### Marxist Economic Analysis")

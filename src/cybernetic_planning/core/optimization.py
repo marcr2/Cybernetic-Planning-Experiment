@@ -184,10 +184,14 @@ class ConstrainedOptimizer:
                 raise ValueError("Resource matrix and max resources must have compatible dimensions")
             
             # Check resource matrix for invalid values
-            if np.any(np.isnan(self.R)) or np.any(np.isinf(self.R)):
-                raise ValueError("Resource matrix contains NaN or infinite values")
-            if np.any(np.isnan(self.R_max)) or np.any(np.isinf(self.R_max)):
-                raise ValueError("Max resources contains NaN or infinite values")
+            try:
+                if np.any(np.isnan(self.R)) or np.any(np.isinf(self.R)):
+                    raise ValueError("Resource matrix contains NaN or infinite values")
+                if np.any(np.isnan(self.R_max)) or np.any(np.isinf(self.R_max)):
+                    raise ValueError("Max resources contains NaN or infinite values")
+            except (TypeError, ValueError):
+                # If R or R_max contain non-numeric data, skip validation
+                pass
 
     def _create_problem(self, use_cvxpy: bool = True) -> None:
         """

@@ -65,15 +65,35 @@ class EnhancedEconomicSimulation:
             max_resources: Maximum resource availability R_max (optional)
             sector_names: Names of economic sectors
         """
+        print(f"DEBUG: EnhancedEconomicSimulation.__init__ called")
+        print(f"DEBUG: technology_matrix type: {type(technology_matrix)}, shape: {getattr(technology_matrix, 'shape', 'No shape')}")
+        print(f"DEBUG: labor_vector type: {type(labor_vector)}, shape: {getattr(labor_vector, 'shape', 'No shape')}")
+        print(f"DEBUG: final_demand type: {type(final_demand)}, shape: {getattr(final_demand, 'shape', 'No shape')}")
+        print(f"DEBUG: sector_names type: {type(sector_names)}, value: {sector_names}")
+        
         self.A = np.asarray(technology_matrix)
+        print(f"DEBUG: self.A created, shape: {self.A.shape}")
+        
         self.l = np.asarray(labor_vector).flatten()
+        print(f"DEBUG: self.l created, shape: {self.l.shape}")
+        
         self.d = np.asarray(final_demand).flatten()
+        print(f"DEBUG: self.d created, shape: {self.d.shape}")
+        
         self.R = resource_matrix
         self.R_max = max_resources
-        self.sector_names = sector_names or [f"Sector_{i+1}" for i in range(len(self.l))]
+        
+        print(f"DEBUG: About to set sector_names, self.l length: {len(self.l)}")
+        if sector_names is not None:
+            self.sector_names = sector_names
+        else:
+            self.sector_names = [f"Sector_{i+1}" for i in range(len(self.l))]
+        print(f"DEBUG: sector_names set: {self.sector_names[:5]}...")
         
         # Validate inputs
+        print(f"DEBUG: About to validate inputs")
         self._validate_inputs()
+        print(f"DEBUG: Input validation completed")
         
         # Initialize components
         self.leontief_model = LeontiefModel(self.A, self.d)

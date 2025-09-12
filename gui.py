@@ -28,12 +28,18 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
 try:
     from cybernetic_planning.planning_system import CyberneticPlanningSystem
+    from cybernetic_planning.core.unified_simulation_system import UnifiedSimulationSystem, UnifiedSimulationConfig
+    from cybernetic_planning.core.unified_simulation_loop import UnifiedSimulationLoop, SimulationLoopConfig
     PLANNING_SYSTEM_AVAILABLE = True
+    UNIFIED_SIMULATION_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Planning system not available: {e}")
     print("Some features may not work properly")
     PLANNING_SYSTEM_AVAILABLE = False
+    UNIFIED_SIMULATION_AVAILABLE = False
     CyberneticPlanningSystem = None
+    UnifiedSimulationSystem = None
+    UnifiedSimulationLoop = None
 
 def log_error_with_traceback(error_msg, exception=None, context=""):
     """Log detailed error information with traceback and line numbers."""
@@ -381,10 +387,17 @@ class CyberneticPlanningGUI:
         self.simulation_state = "stopped"
         self.simulation_thread = None
         self.current_simulation = None
+        
+        # Initialize unified simulation system
+        self.unified_simulation_system = None
+        self.unified_simulation_loop = None
 
         # Create GUI elements
         self.create_widgets()
         self.setup_layout()
+        
+        # Initialize unified simulation metrics
+        self._initialize_unified_metrics()
 
         # Bind cleanup on window close
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -476,7 +489,10 @@ class CyberneticPlanningGUI:
         self.create_technology_tree_tab()
         self.create_planning_tab()
         self.create_results_tab()
-        self.create_simulation_tab()
+        # REMOVED: self.create_simulation_tab() - functionality integrated into unified simulation
+        # REMOVED: self.create_map_visualization_tab() - functionality integrated into unified simulation
+        # Create unified simulation tab (integrates both spatial and economic simulation)
+        self.create_unified_simulation_tab()
         self.create_gpu_settings_tab()
         self.create_export_tab()
         self.create_about_tab()
@@ -797,6 +813,18 @@ class CyberneticPlanningGUI:
         self.investment_ratio_var = tk.StringVar(value="0.15")
         ttk.Entry(self.multi_year_frame, textvariable = self.investment_ratio_var, width = 10).grid(row = 0, column = 3, padx = 5)
 
+        # Control buttons
+        control_frame = ttk.Frame(self.planning_scrollable_frame)
+        control_frame.pack(fill="x", padx = 10, pady = 10)
+
+        self.create_plan_button = ttk.Button(
+            control_frame, text="Create Plan", command = self.create_plan, style="Accent.TButton"
+        )
+        self.create_plan_button.pack(side="left", padx = 5)
+
+        self.progress_bar = ttk.Progressbar(control_frame, mode="indeterminate")
+        self.progress_bar.pack(side="left", padx = 10, fill="x", expand = True)
+
         # Real-time convergence graph
         convergence_frame = ttk.LabelFrame(self.planning_scrollable_frame, text="Plan Convergence Monitor", padding=10)
         convergence_frame.pack(fill="x", padx=10, pady=5)
@@ -861,18 +889,6 @@ class CyberneticPlanningGUI:
             # Fallback if matplotlib is not available
             self.convergence_graph_available = False
             ttk.Label(convergence_frame, text="Matplotlib not available - convergence graph disabled").pack(pady=10)
-
-        # Control buttons
-        control_frame = ttk.Frame(self.planning_scrollable_frame)
-        control_frame.pack(fill="x", padx = 10, pady = 10)
-
-        self.create_plan_button = ttk.Button(
-            control_frame, text="Create Plan", command = self.create_plan, style="Accent.TButton"
-        )
-        self.create_plan_button.pack(side="left", padx = 5)
-
-        self.progress_bar = ttk.Progressbar(control_frame, mode="indeterminate")
-        self.progress_bar.pack(side="left", padx = 10, fill="x", expand = True)
 
         # Status
         self.planning_status = ttk.Label(control_frame, text="Ready to create plan")
@@ -1013,6 +1029,9 @@ class CyberneticPlanningGUI:
         self.tech_tree_status = ttk.Label(main_frame, text="Technology tree ready")
         self.tech_tree_status.pack(side="bottom", pady=self._scale_padding(5))
 
+    # REMOVED: create_simulation_tab() - functionality integrated into unified simulation
+    # This method has been removed as its functionality is now provided by the unified simulation tab
+    # which integrates both spatial and economic simulation into a single, cohesive system.
     def create_simulation_tab(self):
         """Create simulation system tab."""
         self.simulation_frame = ttk.Frame(self.notebook)
@@ -1486,6 +1505,1036 @@ Click 'Generate Preview' to create a visual representation of your simulation en
         self.export_status = ttk.Label(self.export_frame, text="No plan to export")
         self.export_status.pack(pady = 10)
 
+    def create_unified_simulation_tab(self):
+        """Create unified simulation tab that integrates spatial and economic simulation."""
+        # Create the main tab frame
+        self.unified_sim_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.unified_sim_frame, text="🔄 Simulation")
+        
+        # Create a simple unified simulation interface
+        self._create_unified_simulation_interface()
+        
+        print("✅ Unified Simulation tab created successfully")
+    
+    def _create_unified_simulation_interface(self):
+        """Create the unified simulation interface."""
+        # Title
+        title_label = ttk.Label(self.unified_sim_frame, 
+                               text="🔄 Unified Cybernetic-Spatial Simulation", 
+                               font=("Arial", 16, "bold"))
+        title_label.pack(pady=10)
+        
+        # Description
+        desc_label = ttk.Label(self.unified_sim_frame, 
+                              text="This tab integrates both spatial (map-based) and economic (dynamic) simulation\ninto a single, cohesive system with bidirectional feedback loops.",
+                              font=("Arial", 10))
+        desc_label.pack(pady=5)
+        
+        # Create notebook for unified simulation tabs
+        self.unified_notebook = ttk.Notebook(self.unified_sim_frame)
+        self.unified_notebook.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Configuration Tab
+        self._create_unified_config_tab()
+        
+        # Execution Tab  
+        self._create_unified_execution_tab()
+        
+        # Monitoring Tab
+        self._create_unified_monitoring_tab()
+        
+        # Analysis Tab
+        self._create_unified_analysis_tab()
+    
+    def _create_unified_config_tab(self):
+        """Create unified simulation configuration tab."""
+        config_frame = ttk.Frame(self.unified_notebook)
+        self.unified_notebook.add(config_frame, text="📋 Configuration")
+        
+        # Spatial Configuration
+        spatial_frame = ttk.LabelFrame(config_frame, text="🗺️ Spatial Configuration", padding=10)
+        spatial_frame.pack(fill="x", padx=5, pady=5)
+        
+        # Map dimensions
+        dim_frame = ttk.Frame(spatial_frame)
+        dim_frame.pack(fill="x", pady=2)
+        ttk.Label(dim_frame, text="Map Size:").pack(side="left")
+        self.unified_map_width = tk.StringVar(value="200")
+        self.unified_map_height = tk.StringVar(value="200")
+        ttk.Entry(dim_frame, textvariable=self.unified_map_width, width=8).pack(side="left", padx=5)
+        ttk.Label(dim_frame, text="x").pack(side="left")
+        ttk.Entry(dim_frame, textvariable=self.unified_map_height, width=8).pack(side="left", padx=5)
+        
+        # Settlements (read-only from data config)
+        settle_frame = ttk.Frame(spatial_frame)
+        settle_frame.pack(fill="x", pady=2)
+        ttk.Label(settle_frame, text="Cities:").pack(side="left")
+        self.unified_cities_display = ttk.Label(settle_frame, text="5", font=("Arial", 9, "bold"))
+        self.unified_cities_display.pack(side="left", padx=5)
+        ttk.Label(settle_frame, text="Towns:").pack(side="left", padx=(20,0))
+        self.unified_towns_display = ttk.Label(settle_frame, text="15", font=("Arial", 9, "bold"))
+        self.unified_towns_display.pack(side="left", padx=5)
+        
+        # Economic Configuration
+        econ_frame = ttk.LabelFrame(config_frame, text="📊 Economic Configuration", padding=10)
+        econ_frame.pack(fill="x", padx=5, pady=5)
+        
+        # Sectors (read-only from data config)
+        sector_frame = ttk.Frame(econ_frame)
+        sector_frame.pack(fill="x", pady=2)
+        ttk.Label(sector_frame, text="Number of Sectors:").pack(side="left")
+        self.unified_sectors_display = ttk.Label(sector_frame, text="15", font=("Arial", 9, "bold"))
+        self.unified_sectors_display.pack(side="left", padx=5)
+        
+        # Simulation Configuration
+        sim_frame = ttk.LabelFrame(config_frame, text="⚙️ Simulation Configuration", padding=10)
+        sim_frame.pack(fill="x", padx=5, pady=5)
+        
+        # Duration (read-only from planning config)
+        duration_frame = ttk.Frame(sim_frame)
+        duration_frame.pack(fill="x", pady=2)
+        ttk.Label(duration_frame, text="Duration (months):").pack(side="left")
+        self.unified_duration_display = ttk.Label(duration_frame, text="60", font=("Arial", 9, "bold"))
+        self.unified_duration_display.pack(side="left", padx=5)
+        
+        # Integration options
+        integration_frame = ttk.LabelFrame(config_frame, text="🔗 Integration Options", padding=10)
+        integration_frame.pack(fill="x", padx=5, pady=5)
+        
+        self.unified_bidirectional = tk.BooleanVar(value=True)
+        ttk.Checkbutton(integration_frame, text="Enable Bidirectional Feedback", 
+                       variable=self.unified_bidirectional).pack(anchor="w")
+        
+        self.unified_spatial_constraints = tk.BooleanVar(value=True)
+        ttk.Checkbutton(integration_frame, text="Enable Spatial Constraints", 
+                       variable=self.unified_spatial_constraints).pack(anchor="w")
+        
+        self.unified_disaster_impact = tk.BooleanVar(value=True)
+        ttk.Checkbutton(integration_frame, text="Enable Disaster Economic Impact", 
+                       variable=self.unified_disaster_impact).pack(anchor="w")
+        
+        # Auto-sync info
+        sync_frame = ttk.Frame(config_frame)
+        sync_frame.pack(fill="x", padx=5, pady=10)
+        
+        ttk.Label(sync_frame, text="🔄 Configuration automatically synced from Data Management and Planning tabs", 
+                 font=("Arial", 9), foreground="blue").pack(side="left", padx=5)
+        
+        # Auto-sync on tab creation
+        self.root.after(100, self.sync_unified_config_from_data)
+    
+    def _create_unified_execution_tab(self):
+        """Create unified simulation execution tab."""
+        exec_frame = ttk.Frame(self.unified_notebook)
+        self.unified_notebook.add(exec_frame, text="▶️ Execution")
+        
+        # Control buttons
+        control_frame = ttk.Frame(exec_frame)
+        control_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Button(control_frame, text="Create Simulation", 
+                  command=self._create_unified_simulation).pack(side="left", padx=5)
+        ttk.Button(control_frame, text="Run Simulation", 
+                  command=self._run_unified_simulation).pack(side="left", padx=5)
+        ttk.Button(control_frame, text="Stop Simulation", 
+                  command=self._stop_unified_simulation).pack(side="left", padx=5)
+        
+        # Progress bar
+        self.unified_progress = ttk.Progressbar(exec_frame, orient="horizontal", mode="determinate")
+        self.unified_progress.pack(fill="x", padx=10, pady=5)
+        
+        # Status
+        self.unified_status = ttk.Label(exec_frame, text="Status: Ready")
+        self.unified_status.pack(pady=5)
+        
+        # Log output
+        log_frame = ttk.LabelFrame(exec_frame, text="Simulation Log", padding=5)
+        log_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        self.unified_log = tk.Text(log_frame, height=15, wrap=tk.WORD)
+        log_scrollbar = ttk.Scrollbar(log_frame, orient="vertical", command=self.unified_log.yview)
+        self.unified_log.configure(yscrollcommand=log_scrollbar.set)
+        
+        self.unified_log.pack(side="left", fill="both", expand=True)
+        log_scrollbar.pack(side="right", fill="y")
+    
+    def _create_unified_monitoring_tab(self):
+        """Create unified simulation monitoring tab."""
+        monitor_frame = ttk.Frame(self.unified_notebook)
+        self.unified_notebook.add(monitor_frame, text="📊 Monitoring")
+        
+        # Real-time metrics
+        metrics_frame = ttk.LabelFrame(monitor_frame, text="Real-time Metrics", padding=10)
+        metrics_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Create a grid for metrics
+        metrics_grid = ttk.Frame(metrics_frame)
+        metrics_grid.pack(fill="both", expand=True)
+        
+        # Spatial metrics
+        spatial_metrics = ttk.LabelFrame(metrics_grid, text="🗺️ Spatial Metrics", padding=5)
+        spatial_metrics.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
+        
+        self.unified_logistics_friction = ttk.Label(spatial_metrics, text="Logistics Friction: 0.0")
+        self.unified_logistics_friction.pack(anchor="w")
+        
+        self.unified_active_disasters = ttk.Label(spatial_metrics, text="Active Disasters: 0")
+        self.unified_active_disasters.pack(anchor="w")
+        
+        self.unified_settlements_count = ttk.Label(spatial_metrics, text="Settlements: 0")
+        self.unified_settlements_count.pack(anchor="w")
+        
+        # Economic metrics
+        econ_metrics = ttk.LabelFrame(metrics_grid, text="📊 Economic Metrics", padding=5)
+        econ_metrics.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
+        
+        self.unified_economic_output = ttk.Label(econ_metrics, text="Economic Output: 0")
+        self.unified_economic_output.pack(anchor="w")
+        
+        self.unified_capital_stock = ttk.Label(econ_metrics, text="Capital Stock: 0")
+        self.unified_capital_stock.pack(anchor="w")
+        
+        self.unified_active_sectors = ttk.Label(econ_metrics, text="Active Sectors: 0")
+        self.unified_active_sectors.pack(anchor="w")
+        
+        # Integration metrics
+        integration_metrics = ttk.LabelFrame(metrics_grid, text="🔗 Integration Metrics", padding=5)
+        integration_metrics.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+        
+        self.unified_efficiency = ttk.Label(integration_metrics, text="Spatial-Economic Efficiency: 0%")
+        self.unified_efficiency.pack(anchor="w")
+        
+        self.unified_stability = ttk.Label(integration_metrics, text="Integration Stability: 0%")
+        self.unified_stability.pack(anchor="w")
+        
+        metrics_grid.columnconfigure(0, weight=1)
+        metrics_grid.columnconfigure(1, weight=1)
+    
+    def _create_unified_analysis_tab(self):
+        """Create unified simulation analysis tab."""
+        analysis_frame = ttk.Frame(self.unified_notebook)
+        self.unified_notebook.add(analysis_frame, text="📈 Analysis")
+        
+        # Analysis controls
+        control_frame = ttk.Frame(analysis_frame)
+        control_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Button(control_frame, text="Generate Report", 
+                  command=self._generate_unified_report).pack(side="left", padx=5)
+        ttk.Button(control_frame, text="Export Data", 
+                  command=self._export_unified_data).pack(side="left", padx=5)
+        
+        # Analysis results
+        results_frame = ttk.LabelFrame(analysis_frame, text="Analysis Results", padding=10)
+        results_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        self.unified_analysis_text = tk.Text(results_frame, wrap=tk.WORD)
+        analysis_scrollbar = ttk.Scrollbar(results_frame, orient="vertical", command=self.unified_analysis_text.yview)
+        self.unified_analysis_text.configure(yscrollcommand=analysis_scrollbar.set)
+        
+        self.unified_analysis_text.pack(side="left", fill="both", expand=True)
+        analysis_scrollbar.pack(side="right", fill="y")
+        
+        # Initial message
+        self.unified_analysis_text.insert(tk.END, "Unified simulation analysis results will appear here.\n")
+        self.unified_analysis_text.insert(tk.END, "Run a simulation and generate a report to see detailed analysis.\n")
+    
+    def _create_unified_simulation(self):
+        """Create unified simulation using the full UnifiedSimulationSystem."""
+        self._log_unified("Creating unified simulation...")
+        self.unified_status.config(text="Status: Creating Simulation...")
+        
+        try:
+            # Check if unified simulation is available
+            if not UNIFIED_SIMULATION_AVAILABLE:
+                self._log_unified("❌ Unified simulation system not available. Please check dependencies.")
+                self.unified_status.config(text="Status: Error - System Not Available")
+                return
+            
+            # Check if we have an active planning system
+            if not self.planning_system:
+                self._log_unified("❌ No planning system available. Please create economic data first.")
+                self.unified_status.config(text="Status: Error - No Planning System")
+                return
+            
+            # Check if we have current data and plan
+            if not self.current_data:
+                self._log_unified("❌ No economic data available. Please load or create data first.")
+                self._log_unified("💡 Try: Go to Data Management tab → Generate Synthetic Data")
+                self.unified_status.config(text="Status: Error - No Data")
+                return
+            
+            if not self.current_plan:
+                self._log_unified("❌ No economic plan available. Please create a plan first.")
+                self._log_unified("💡 Try: Go to Planning Configuration tab → Create Plan")
+                self.unified_status.config(text="Status: Error - No Plan")
+                return
+            
+            self._log_unified("✅ Found existing economic data and plan")
+            
+            # Get configuration from GUI
+            map_width = int(self.unified_map_width.get())
+            map_height = int(self.unified_map_height.get())
+            num_cities = int(self.num_cities_var.get())
+            num_towns = int(self.num_towns_var.get())
+            total_population = self.current_data.get('total_population', 1000000)
+            rural_population_percent = self.current_data.get('rural_population_percent', 0.3)
+            urban_concentration = self.current_data.get('urban_concentration', 'medium')
+            
+            # Create unified simulation configuration
+            unified_config = UnifiedSimulationConfig(
+                map_width=map_width,
+                map_height=map_height,
+                terrain_distribution={
+                    "flatland": 0.4,
+                    "forest": 0.3,
+                    "mountain": 0.2,
+                    "water": 0.1
+                },
+                num_cities=num_cities,
+                num_towns=num_towns,
+                total_population=total_population,
+                rural_population_percent=rural_population_percent,
+                urban_concentration=urban_concentration,
+                simulation_duration_months=int(self.plan_duration_var.get()) * 12,
+                spatial_update_frequency="daily",
+                economic_update_frequency="monthly",
+                disaster_probability=0.05,
+                enable_bidirectional_feedback=self.unified_bidirectional.get(),
+                enable_spatial_constraints=self.unified_spatial_constraints.get(),
+                enable_disaster_economic_impact=self.unified_disaster_impact.get(),
+                enable_infrastructure_economic_feedback=True
+            )
+            
+            # Create unified simulation system
+            self._log_unified("🔄 Creating unified simulation system...")
+            self.unified_simulation_system = UnifiedSimulationSystem(config=unified_config)
+            
+            # Set the planning system reference
+            self.unified_simulation_system.planning_system = self.planning_system
+            
+            # Create unified simulation with existing data instead of creating new data
+            self._log_unified("🗺️ Creating unified simulation with existing data...")
+            
+            # Create map-based simulation using existing planning system
+            map_result = self.planning_system.create_map_based_simulation(
+                map_width=map_width,
+                map_height=map_height,
+                terrain_distribution=unified_config.terrain_distribution,
+                num_cities=num_cities,
+                num_towns=num_towns,
+                total_population=total_population,
+                rural_population_percent=rural_population_percent,
+                urban_concentration=urban_concentration,
+                log_callback=self._log_unified
+            )
+            
+            if not map_result.get("success"):
+                self._log_unified(f"❌ Failed to create map simulation: {map_result.get('error', 'Unknown error')}")
+                self.unified_status.config(text="Status: Error - Map Creation Failed")
+                return
+            
+            # Set the map simulator in the unified simulation system
+            self.unified_simulation_system.map_simulator = self.planning_system.map_simulator
+            
+            # Create spatial-economic integration using existing data
+            self._log_unified("🔗 Creating spatial-economic integration...")
+            integration_result = self.unified_simulation_system.spatial_economic_integration.map_economic_activity_to_spatial(
+                economic_plan=self.current_plan
+            )
+            
+            if not integration_result.get("success"):
+                self._log_unified(f"❌ Failed to create spatial-economic integration: {integration_result.get('error', 'Unknown error')}")
+                self.unified_status.config(text="Status: Error - Integration Failed")
+                return
+            
+            # Initialize economic simulation components
+            self.unified_simulation_system._initialize_economic_simulation(self.current_plan)
+            
+            # Mark the unified simulation system as initialized
+            self.unified_simulation_system.is_initialized = True
+            
+            # Create success result with existing data
+            creation_result = {
+                "success": True,
+                "spatial_summary": {
+                    "settlements": len(self.planning_system.map_simulator.settlements),
+                    "infrastructure_segments": len(self.planning_system.map_simulator.infrastructure_segments),
+                    "map_width": map_width,
+                    "map_height": map_height
+                },
+                "economic_summary": {
+                    "sectors": self._extract_sectors_count(),
+                    "total_output": self._extract_total_output()
+                },
+                "integration_summary": {
+                    "sector_settlement_mappings": len(integration_result.get('sector_settlement_mappings', [])),
+                    "spatial_efficiency": integration_result.get('spatial_efficiency', 0.0)
+                }
+            }
+            
+            if creation_result.get("success"):
+                self._log_unified("✅ Unified simulation created successfully")
+                
+                # Update monitoring metrics with real data
+                spatial_summary = creation_result.get("spatial_summary", {})
+                economic_summary = creation_result.get("economic_summary", {})
+                integration_summary = creation_result.get("integration_summary", {})
+                
+                settlements_count = spatial_summary.get("settlements", 0)
+                self.unified_settlements_count.config(text=f"Settlements: {settlements_count}")
+                
+                # Initialize metrics with default values (will be updated during simulation)
+                self.unified_logistics_friction.config(text="Logistics Friction: 0.0")
+                self.unified_active_disasters.config(text="Active Disasters: 0")
+                
+                total_output = economic_summary.get("total_output", 0)
+                self.unified_economic_output.config(text=f"Economic Output: {total_output:,.0f}")
+                
+                sectors_count = economic_summary.get("sectors", 0)
+                self.unified_active_sectors.config(text=f"Active Sectors: {sectors_count}")
+                
+                self.unified_efficiency.config(text="Spatial-Economic Efficiency: 0%")
+                self.unified_stability.config(text="Integration Stability: 0%")
+                
+                # Create unified simulation loop
+                loop_config = SimulationLoopConfig(
+                    max_concurrent_threads=4,
+                    checkpoint_interval_steps=30,  # Every 30 steps
+                    max_consecutive_errors=5,
+                    enable_performance_monitoring=True
+                )
+                
+                self.unified_simulation_loop = UnifiedSimulationLoop(
+                    unified_system=self.unified_simulation_system,
+                    loop_config=loop_config
+                )
+                
+                # Add progress callback
+                self.unified_simulation_loop.add_progress_callback(self._unified_simulation_progress_callback)
+                
+                self.unified_status.config(text="Status: Simulation Ready")
+                self._log_unified("✅ Full unified simulation system created successfully!")
+                self._log_unified(f"   📊 Spatial: {settlements_count} settlements, {spatial_summary.get('infrastructure_segments', 0)} infrastructure segments")
+                self._log_unified(f"   📈 Economic: {sectors_count} sectors, {total_output:,.0f} total output")
+                self._log_unified(f"   🔗 Integration: {integration_summary.get('sector_settlement_mappings', 0)} sector-settlement mappings")
+                
+            else:
+                self._log_unified(f"❌ Failed to create unified simulation: {creation_result.get('error', 'Unknown error')}")
+                self.unified_status.config(text="Status: Error - Creation Failed")
+                
+        except Exception as e:
+            self._log_unified(f"❌ Error creating unified simulation: {str(e)}")
+            self.unified_status.config(text="Status: Error")
+            import traceback
+            traceback.print_exc()
+    
+    def _run_unified_simulation(self):
+        """Run unified simulation using the full UnifiedSimulationSystem."""
+        self._log_unified("Running unified simulation...")
+        self.unified_status.config(text="Status: Running Simulation...")
+        
+        try:
+            # Check if unified simulation system is available
+            if not self.unified_simulation_system:
+                self._log_unified("❌ No unified simulation system available. Please create simulation first.")
+                self.unified_status.config(text="Status: Error - No Simulation System")
+                return
+            
+            if not self.unified_simulation_loop:
+                self._log_unified("❌ No unified simulation loop available. Please create simulation first.")
+                self.unified_status.config(text="Status: Error - No Simulation Loop")
+                return
+            
+            # Get simulation duration from configuration
+            duration_months = int(self.plan_duration_var.get()) * 12
+            self._log_unified(f"📅 Running unified simulation for {duration_months} months")
+            
+            # Set up progress bar
+            self.unified_progress.config(maximum=duration_months)
+            self.unified_progress.config(value=0)
+            
+            # Run the unified simulation using the simulation loop
+            self._log_unified("🔄 Starting full unified simulation loop...")
+            
+            # Run simulation in a separate thread to avoid blocking GUI
+            def run_simulation_thread():
+                try:
+                    # Run the unified simulation
+                    simulation_result = self.unified_simulation_loop.run_simulation(
+                        duration_months=duration_months,
+                        spatial_frequency="daily",
+                        economic_frequency="monthly"
+                    )
+                    
+                    if simulation_result.get("success"):
+                        self._log_unified("✅ Unified simulation completed successfully!")
+                        self.unified_status.config(text="Status: Simulation Complete")
+                        
+                        # Generate summary from simulation results
+                        final_results = simulation_result.get("final_results", {})
+                        spatial_metrics = final_results.get("spatial_metrics", {})
+                        economic_metrics = final_results.get("economic_metrics", {})
+                        integration_metrics = final_results.get("integration_metrics", {})
+                        
+                        self._log_unified("📊 Simulation Summary:")
+                        self._log_unified(f"   Duration: {duration_months} months")
+                        self._log_unified(f"   Total Steps: {simulation_result.get('total_steps', 0)}")
+                        
+                        if spatial_metrics:
+                            self._log_unified(f"   Final Logistics Friction: {spatial_metrics.get('average_logistics_friction', 0):.2f}")
+                            self._log_unified(f"   Total Disasters: {spatial_metrics.get('total_disasters', 0)}")
+                        
+                        if economic_metrics:
+                            self._log_unified(f"   Final Economic Output: {economic_metrics.get('final_economic_output', 0):,.0f}")
+                            self._log_unified(f"   Economic Growth Rate: {economic_metrics.get('economic_growth_rate', 0):.2%}")
+                        
+                        if integration_metrics:
+                            self._log_unified(f"   Final Efficiency: {integration_metrics.get('average_spatial_efficiency', 0):.1%}")
+                            self._log_unified(f"   Integration Stability: {integration_metrics.get('integration_stability', 0):.1%}")
+                        
+                        # Update final metrics in GUI
+                        self._update_final_metrics(final_results)
+                        
+                    else:
+                        self._log_unified(f"❌ Simulation failed: {simulation_result.get('error', 'Unknown error')}")
+                        self.unified_status.config(text="Status: Error - Simulation Failed")
+                        
+                except Exception as e:
+                    self._log_unified(f"❌ Error in simulation thread: {str(e)}")
+                    self.unified_status.config(text="Status: Error - Thread Exception")
+                    import traceback
+                    traceback.print_exc()
+            
+            # Start simulation in separate thread
+            simulation_thread = threading.Thread(target=run_simulation_thread, daemon=True)
+            simulation_thread.start()
+            
+            self._log_unified("🚀 Unified simulation started in background thread")
+            
+        except Exception as e:
+            self._log_unified(f"❌ Error starting unified simulation: {str(e)}")
+            self.unified_status.config(text="Status: Error")
+            import traceback
+            traceback.print_exc()
+    
+    def _stop_unified_simulation(self):
+        """Stop unified simulation."""
+        self._log_unified("Stopping unified simulation...")
+        self.unified_status.config(text="Status: Stopping...")
+        
+        try:
+            if self.unified_simulation_loop:
+                # Stop the simulation loop
+                self.unified_simulation_loop.should_stop = True
+                self.unified_simulation_loop.is_running = False
+                self._log_unified("✅ Unified simulation loop stopped")
+            
+            if self.unified_simulation_system:
+                # Stop the simulation system
+                self.unified_simulation_system.is_running = False
+                self._log_unified("✅ Unified simulation system stopped")
+            
+            self.unified_status.config(text="Status: Stopped")
+            self._log_unified("🛑 Unified simulation stopped successfully")
+            
+        except Exception as e:
+            self._log_unified(f"❌ Error stopping unified simulation: {str(e)}")
+            self.unified_status.config(text="Status: Error - Stop Failed")
+    
+    def _generate_unified_report(self):
+        """Generate unified simulation report using existing data."""
+        self._log_unified("Generating unified simulation report...")
+        
+        try:
+            # Clear previous analysis
+            self.unified_analysis_text.delete(1.0, tk.END)
+            
+            # Generate comprehensive report
+            report_lines = []
+            report_lines.append("=" * 60)
+            report_lines.append("UNIFIED SIMULATION REPORT")
+            report_lines.append("=" * 60)
+            report_lines.append("")
+            
+            # Data Configuration Section
+            report_lines.append("📊 DATA CONFIGURATION")
+            report_lines.append("-" * 30)
+            
+            # Safe formatting function
+            def safe_format_number(value, default="N/A", format_str=",.0f"):
+                """Safely format numeric values."""
+                if value is None or value == 'N/A':
+                    return default
+                try:
+                    return f"{float(value):{format_str}}"
+                except (ValueError, TypeError):
+                    return default
+            
+            def safe_format_percentage(value, default="N/A"):
+                """Safely format percentage values."""
+                if value is None or value == 'N/A':
+                    return default
+                try:
+                    return f"{float(value) * 100:.1f}%"
+                except (ValueError, TypeError):
+                    return default
+            
+            # Try to get population data from multiple sources
+            total_population = 0
+            rural_population_percent = 0.3
+            urban_concentration = "medium"
+            num_cities = 5
+            num_towns = 15
+            
+            # First try current_data
+            if self.current_data:
+                total_population = self.current_data.get('total_population', 0)
+                rural_population_percent = self.current_data.get('rural_population_percent', 0.3)
+                urban_concentration = self.current_data.get('urban_concentration', 'medium')
+                num_cities = self.current_data.get('num_cities', 5)
+                num_towns = self.current_data.get('num_towns', 15)
+            
+            # If no population data, try to get from GUI variables
+            if total_population == 0:
+                if hasattr(self, 'population_var'):
+                    total_population = int(self.population_var.get())
+                elif hasattr(self, 'total_population_var'):
+                    total_population = int(self.total_population_var.get())
+            
+            # Get cities and towns from GUI variables if not in data
+            if num_cities == 5:  # Default value
+                if hasattr(self, 'num_cities_var'):
+                    num_cities = int(self.num_cities_var.get())
+            if num_towns == 15:  # Default value
+                if hasattr(self, 'num_towns_var'):
+                    num_towns = int(self.num_towns_var.get())
+            
+            report_lines.append(f"Total Population: {safe_format_number(total_population)}")
+            report_lines.append(f"Rural Population %: {safe_format_percentage(rural_population_percent)}")
+            report_lines.append(f"Urban Concentration: {urban_concentration}")
+            report_lines.append(f"Number of Cities: {num_cities}")
+            report_lines.append(f"Number of Towns: {num_towns}")
+            report_lines.append("")
+            
+            # Economic Plan Section
+            report_lines.append("📈 ECONOMIC PLAN")
+            report_lines.append("-" * 30)
+            if self.current_plan:
+                # Handle multi-year plan structure
+                if isinstance(self.current_plan, dict) and all(isinstance(k, int) for k in self.current_plan.keys()):
+                    # Multi-year plan - use first year's data
+                    first_year = min(self.current_plan.keys())
+                    year_data = self.current_plan[first_year]
+                    total_output = year_data.get('total_output', 0)
+                    # Convert numpy array to scalar if needed
+                    if hasattr(total_output, 'sum'):
+                        total_output = total_output.sum()
+                    report_lines.append(f"Total Economic Output: {safe_format_number(total_output)}")
+                    # Get sectors count from technology matrix or labor vector
+                    if 'technology_matrix' in year_data:
+                        sectors_count = year_data['technology_matrix'].shape[0]
+                    elif 'labor_vector' in year_data:
+                        sectors_count = len(year_data['labor_vector'])
+                    elif 'sectors' in year_data:
+                        sectors_count = len(year_data['sectors'])
+                    else:
+                        sectors_count = 0
+                    report_lines.append(f"Number of Sectors: {sectors_count}")
+                    capital_stock = year_data.get('capital_stock', 0)
+                    # Convert numpy array to scalar if needed
+                    if hasattr(capital_stock, 'sum'):
+                        capital_stock = capital_stock.sum()
+                    report_lines.append(f"Capital Stock: {safe_format_number(capital_stock)}")
+                else:
+                    # Single year plan
+                    total_output = self.current_plan.get('total_economic_output', 0)
+                    # Convert numpy array to scalar if needed
+                    if hasattr(total_output, 'sum'):
+                        total_output = total_output.sum()
+                    report_lines.append(f"Total Economic Output: {safe_format_number(total_output)}")
+                    # Get sectors count from technology matrix or labor vector
+                    if 'technology_matrix' in self.current_plan:
+                        sectors_count = self.current_plan['technology_matrix'].shape[0]
+                    elif 'labor_vector' in self.current_plan:
+                        sectors_count = len(self.current_plan['labor_vector'])
+                    elif 'sectors' in self.current_plan:
+                        sectors_count = len(self.current_plan['sectors'])
+                    else:
+                        sectors_count = 0
+                    report_lines.append(f"Number of Sectors: {sectors_count}")
+                    capital_stock = self.current_plan.get('capital_stock', 0)
+                    # Convert numpy array to scalar if needed
+                    if hasattr(capital_stock, 'sum'):
+                        capital_stock = capital_stock.sum()
+                    report_lines.append(f"Capital Stock: {safe_format_number(capital_stock)}")
+                
+                policy_goals = self.current_plan.get('policy_goals', [])
+                if policy_goals:
+                    report_lines.append("Policy Goals:")
+                    for goal in policy_goals:
+                        report_lines.append(f"  • {goal}")
+                
+                # Sector details
+                sectors = self.current_plan.get('sectors', [])
+                if sectors:
+                    report_lines.append("\nEconomic Sectors:")
+                    for sector in sectors[:5]:  # Show first 5 sectors
+                        report_lines.append(f"  • {sector.get('name', 'Unknown')}")
+                    if len(sectors) > 5:
+                        report_lines.append(f"  ... and {len(sectors) - 5} more sectors")
+            else:
+                report_lines.append("No economic plan available")
+            report_lines.append("")
+            
+            # Spatial Configuration Section
+            report_lines.append("🗺️ SPATIAL CONFIGURATION")
+            report_lines.append("-" * 30)
+            report_lines.append(f"Map Size: {self.unified_map_width.get()} x {self.unified_map_height.get()}")
+            report_lines.append(f"Cities: {self.num_cities_var.get()}")
+            report_lines.append(f"Towns: {self.num_towns_var.get()}")
+            report_lines.append(f"Simulation Duration: {int(self.plan_duration_var.get()) * 12} months")
+            report_lines.append("")
+            
+            # Integration Options Section
+            report_lines.append("🔗 INTEGRATION OPTIONS")
+            report_lines.append("-" * 30)
+            report_lines.append(f"Bidirectional Feedback: {'Enabled' if self.unified_bidirectional.get() else 'Disabled'}")
+            report_lines.append(f"Spatial Constraints: {'Enabled' if self.unified_spatial_constraints.get() else 'Disabled'}")
+            report_lines.append(f"Disaster Economic Impact: {'Enabled' if self.unified_disaster_impact.get() else 'Disabled'}")
+            report_lines.append("")
+            
+            # Current Metrics Section
+            report_lines.append("📊 CURRENT METRICS")
+            report_lines.append("-" * 30)
+            
+            # Helper function to safely extract numeric values from GUI labels
+            def extract_numeric_from_label(label_widget, default_value=0):
+                """Extract numeric value from GUI label text."""
+                try:
+                    text = label_widget.cget("text")
+                    # Extract number after colon and space
+                    if ": " in text:
+                        value_str = text.split(": ")[1]
+                        # Remove commas and convert to float
+                        value_str = value_str.replace(",", "").replace("%", "")
+                        return float(value_str)
+                    return default_value
+                except (ValueError, AttributeError):
+                    return default_value
+            
+            # Extract metrics from GUI labels
+            logistics_friction = extract_numeric_from_label(self.unified_logistics_friction, 0.0)
+            active_disasters = int(extract_numeric_from_label(self.unified_active_disasters, 0))
+            settlements_count = int(extract_numeric_from_label(self.unified_settlements_count, 0))
+            economic_output = extract_numeric_from_label(self.unified_economic_output, 0)
+            capital_stock = extract_numeric_from_label(self.unified_capital_stock, 0)
+            efficiency = extract_numeric_from_label(self.unified_efficiency, 0)
+            stability = extract_numeric_from_label(self.unified_stability, 0)
+            
+            # If settlements count is 0, try to get it from map simulator
+            if settlements_count == 0 and hasattr(self, 'planning_system') and self.planning_system and hasattr(self.planning_system, 'map_simulator') and self.planning_system.map_simulator:
+                settlements_count = len(self.planning_system.map_simulator.settlements)
+            
+            report_lines.append(f"Spatial Metrics:")
+            report_lines.append(f"  Logistics Friction: {logistics_friction:.1f}")
+            report_lines.append(f"  Active Disasters: {active_disasters}")
+            report_lines.append(f"  Settlements: {settlements_count}")
+            report_lines.append("")
+            report_lines.append(f"Economic Metrics:")
+            report_lines.append(f"  Economic Output: {safe_format_number(economic_output)}")
+            report_lines.append(f"  Capital Stock: {safe_format_number(capital_stock)}")
+            report_lines.append("")
+            report_lines.append(f"Integration Metrics:")
+            report_lines.append(f"  Spatial-Economic Efficiency: {efficiency:.1f}%")
+            report_lines.append(f"  Integration Stability: {stability:.1f}%")
+            report_lines.append("")
+            
+            # Recommendations Section
+            report_lines.append("💡 RECOMMENDATIONS")
+            report_lines.append("-" * 30)
+            
+            # Analyze current metrics and provide recommendations
+            if logistics_friction > 50:
+                report_lines.append("• High logistics friction detected - consider infrastructure improvements")
+            if active_disasters > 0:
+                report_lines.append("• Active disasters affecting system - monitor disaster resilience")
+            if efficiency < 70:
+                report_lines.append("• Low spatial-economic efficiency - optimize sector-settlement mapping")
+            if efficiency > 90:
+                report_lines.append("• Excellent spatial-economic efficiency - system well optimized")
+            
+            # Check if simulation has been run
+            if economic_output == 0 and capital_stock == 0:
+                report_lines.append("• Run a simulation to generate specific recommendations")
+            else:
+                report_lines.append("• Consider running longer simulations to observe long-term trends")
+                report_lines.append("• Enable bidirectional feedback for more realistic economic-spatial interactions")
+            
+            report_lines.append("")
+            report_lines.append("=" * 60)
+            report_lines.append(f"Report generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            report_lines.append("=" * 60)
+            
+            # Insert report into analysis text
+            for line in report_lines:
+                self.unified_analysis_text.insert(tk.END, line + "\n")
+            
+            self._log_unified("✅ Unified simulation report generated successfully!")
+            
+        except Exception as e:
+            self._log_unified(f"❌ Error generating report: {str(e)}")
+            self.unified_analysis_text.insert(tk.END, f"Error generating report: {str(e)}\n")
+    
+    def _export_unified_data(self):
+        """Export unified simulation data."""
+        self._log_unified("Exporting unified simulation data...")
+        # TODO: Implement actual data export
+    
+    def _log_unified(self, message):
+        """Log message to unified simulation log."""
+        timestamp = datetime.now().strftime('%H:%M:%S')
+        self.unified_log.insert(tk.END, f"[{timestamp}] {message}\n")
+        self.unified_log.see(tk.END)
+    
+    def _unified_simulation_progress_callback(self, progress_data):
+        """Callback function for unified simulation progress updates."""
+        try:
+            # Update progress bar
+            if 'progress_percent' in progress_data:
+                progress_percent = progress_data['progress_percent']
+                if hasattr(self, 'unified_progress'):
+                    self.unified_progress.config(value=progress_percent)
+            
+            # Update status
+            if 'status' in progress_data:
+                status = progress_data['status']
+                if hasattr(self, 'unified_status'):
+                    self.unified_status.config(text=f"Status: {status}")
+            
+            # Update metrics
+            if 'metrics' in progress_data:
+                metrics = progress_data['metrics']
+                
+                # Update spatial metrics
+                if 'logistics_friction' in metrics:
+                    self.unified_logistics_friction.config(text=f"Logistics Friction: {metrics['logistics_friction']:.2f}")
+                
+                if 'active_disasters' in metrics:
+                    self.unified_active_disasters.config(text=f"Active Disasters: {metrics['active_disasters']}")
+                
+                if 'settlements_count' in metrics:
+                    self.unified_settlements_count.config(text=f"Settlements: {metrics['settlements_count']}")
+                
+                # Update economic metrics
+                if 'economic_output' in metrics:
+                    self.unified_economic_output.config(text=f"Economic Output: {metrics['economic_output']:,.0f}")
+                
+                if 'capital_stock' in metrics:
+                    self.unified_capital_stock.config(text=f"Capital Stock: {metrics['capital_stock']:,.0f}")
+                
+                if 'active_sectors' in metrics:
+                    self.unified_active_sectors.config(text=f"Active Sectors: {metrics['active_sectors']}")
+                
+                # Update integration metrics
+                if 'efficiency' in metrics:
+                    self.unified_efficiency.config(text=f"Spatial-Economic Efficiency: {metrics['efficiency']:.1f}%")
+                
+                if 'stability' in metrics:
+                    self.unified_stability.config(text=f"Integration Stability: {metrics['stability']:.1f}%")
+            
+            # Force GUI update
+            self.root.update_idletasks()
+            
+        except Exception as e:
+            # Silently handle callback errors to avoid breaking simulation
+            pass
+    
+    def _update_final_metrics(self, final_results):
+        """Update GUI metrics with final simulation results."""
+        try:
+            spatial_metrics = final_results.get("spatial_metrics", {})
+            economic_metrics = final_results.get("economic_metrics", {})
+            integration_metrics = final_results.get("integration_metrics", {})
+            
+            # Update spatial metrics
+            if spatial_metrics:
+                logistics_friction = spatial_metrics.get('average_logistics_friction', 0)
+                self.unified_logistics_friction.config(text=f"Logistics Friction: {logistics_friction:.2f}")
+                
+                active_disasters = spatial_metrics.get('average_active_disasters', 0)
+                self.unified_active_disasters.config(text=f"Active Disasters: {active_disasters:.0f}")
+            
+            # Update economic metrics
+            if economic_metrics:
+                final_output = economic_metrics.get('final_economic_output', 0)
+                self.unified_economic_output.config(text=f"Economic Output: {final_output:,.0f}")
+                
+                final_capital = economic_metrics.get('average_capital_stock', 0)
+                self.unified_capital_stock.config(text=f"Capital Stock: {final_capital:,.0f}")
+            
+            # Update integration metrics
+            if integration_metrics:
+                efficiency = integration_metrics.get('average_spatial_efficiency', 0) * 100
+                self.unified_efficiency.config(text=f"Spatial-Economic Efficiency: {efficiency:.1f}%")
+                
+                stability = integration_metrics.get('integration_stability', 0) * 100
+                self.unified_stability.config(text=f"Integration Stability: {stability:.1f}%")
+            
+            # Force GUI update
+            self.root.update_idletasks()
+            
+        except Exception as e:
+            # Silently handle errors
+            pass
+    
+    def _extract_sectors_count(self):
+        """Extract sectors count from current plan."""
+        try:
+            if not self.current_plan:
+                return 0
+            
+            if isinstance(self.current_plan, dict) and all(isinstance(k, int) for k in self.current_plan.keys()):
+                # Multi-year plan - use first year's data
+                first_year = min(self.current_plan.keys())
+                year_data = self.current_plan[first_year]
+                # Check for sectors in the year data, or use technology matrix shape
+                if 'sectors' in year_data:
+                    return len(year_data['sectors'])
+                elif 'technology_matrix' in year_data:
+                    return year_data['technology_matrix'].shape[0]
+                else:
+                    return 0
+            else:
+                # Single year plan
+                if 'sectors' in self.current_plan:
+                    return len(self.current_plan['sectors'])
+                elif 'technology_matrix' in self.current_plan:
+                    return self.current_plan['technology_matrix'].shape[0]
+                else:
+                    return 0
+        except Exception:
+            return 0
+    
+    def _extract_total_output(self):
+        """Extract total economic output from current plan."""
+        try:
+            if not self.current_plan:
+                return 0
+            
+            if isinstance(self.current_plan, dict) and all(isinstance(k, int) for k in self.current_plan.keys()):
+                # Multi-year plan - use first year's data
+                first_year = min(self.current_plan.keys())
+                year_data = self.current_plan[first_year]
+                
+                # Debug: Log available keys to understand the structure
+                self._log_unified(f"DEBUG: Year {first_year} data keys: {list(year_data.keys())}")
+                
+                # Try different possible keys for total output
+                total_output = year_data.get('total_economic_output', 0)
+                if hasattr(total_output, 'sum') and total_output.sum() == 0:
+                    total_output = year_data.get('total_output', 0)
+                elif not hasattr(total_output, 'sum') and total_output == 0:
+                    total_output = year_data.get('total_output', 0)
+                
+                if hasattr(total_output, 'sum') and total_output.sum() == 0:
+                    total_output = year_data.get('final_demand', 0)
+                elif not hasattr(total_output, 'sum') and total_output == 0:
+                    total_output = year_data.get('final_demand', 0)
+                
+                # If we found final_demand, log its type and sum
+                if 'final_demand' in year_data:
+                    final_demand = year_data['final_demand']
+                    self._log_unified(f"DEBUG: final_demand type: {type(final_demand)}")
+                    if hasattr(final_demand, 'sum'):
+                        self._log_unified(f"DEBUG: final_demand sum: {final_demand.sum()}")
+                        total_output = final_demand.sum()
+            else:
+                # Single year plan
+                total_output = self.current_plan.get('total_economic_output', 0)
+                if hasattr(total_output, 'sum') and total_output.sum() == 0:
+                    total_output = self.current_plan.get('total_output', 0)
+                elif not hasattr(total_output, 'sum') and total_output == 0:
+                    total_output = self.current_plan.get('total_output', 0)
+                
+                if hasattr(total_output, 'sum') and total_output.sum() == 0:
+                    total_output = self.current_plan.get('final_demand', 0)
+                elif not hasattr(total_output, 'sum') and total_output == 0:
+                    total_output = self.current_plan.get('final_demand', 0)
+            
+            # Convert numpy array to scalar if needed
+            if hasattr(total_output, 'sum'):
+                total_output = total_output.sum()
+            
+            return float(total_output)
+        except Exception as e:
+            self._log_unified(f"DEBUG: Error extracting total output: {e}")
+            return 0
+    
+    def _initialize_unified_metrics(self):
+        """Initialize unified simulation metrics with default values."""
+        try:
+            # Only initialize if the unified simulation tab exists
+            if hasattr(self, 'unified_logistics_friction'):
+                self.unified_logistics_friction.config(text="Logistics Friction: 0.0")
+            if hasattr(self, 'unified_active_disasters'):
+                self.unified_active_disasters.config(text="Active Disasters: 0")
+            if hasattr(self, 'unified_settlements_count'):
+                self.unified_settlements_count.config(text="Settlements: 0")
+            if hasattr(self, 'unified_economic_output'):
+                self.unified_economic_output.config(text="Economic Output: 0")
+            if hasattr(self, 'unified_capital_stock'):
+                self.unified_capital_stock.config(text="Capital Stock: 0")
+            if hasattr(self, 'unified_efficiency'):
+                self.unified_efficiency.config(text="Spatial-Economic Efficiency: 0%")
+            if hasattr(self, 'unified_stability'):
+                self.unified_stability.config(text="Integration Stability: 0%")
+        except Exception as e:
+            # Silently handle errors during initialization
+            pass
+    
+    def sync_unified_config_from_data(self):
+        """Sync unified simulation configuration from existing data management settings."""
+        try:
+            # Sync cities and towns from data management
+            if hasattr(self, 'unified_cities_display') and hasattr(self, 'num_cities_var'):
+                self.unified_cities_display.config(text=str(self.num_cities_var.get()))
+            
+            if hasattr(self, 'unified_towns_display') and hasattr(self, 'num_towns_var'):
+                self.unified_towns_display.config(text=str(self.num_towns_var.get()))
+            
+            # Sync map dimensions from data management
+            if hasattr(self, 'unified_map_width') and hasattr(self, 'map_width_var'):
+                self.unified_map_width.set(str(self.map_width_var.get()))
+            
+            if hasattr(self, 'unified_map_height') and hasattr(self, 'map_height_var'):
+                self.unified_map_height.set(str(self.map_height_var.get()))
+            
+            # Sync sectors from current data or plan
+            sectors_count = 15  # default
+            if self.current_data and 'sectors' in self.current_data:
+                sectors_count = len(self.current_data['sectors'])
+            elif self.current_plan and 'sectors' in self.current_plan:
+                sectors_count = len(self.current_plan['sectors'])
+            elif hasattr(self, 'sectors_var'):
+                sectors_count = int(self.sectors_var.get())
+            
+            if hasattr(self, 'unified_sectors_display'):
+                self.unified_sectors_display.config(text=str(sectors_count))
+            
+            # Sync duration from planning configuration
+            duration = 60  # default
+            if hasattr(self, 'duration_var'):
+                duration = int(self.duration_var.get())
+            
+            if hasattr(self, 'unified_duration_display'):
+                self.unified_duration_display.config(text=str(duration))
+            
+            self._log_unified("🔄 Configuration synced from existing data")
+            
+        except Exception as e:
+            self._log_unified(f"⚠️ Could not sync configuration: {str(e)}")
+
     def create_gpu_settings_tab(self):
         """Create GPU settings tab."""
         self.gpu_frame = ttk.Frame(self.notebook)
@@ -1655,6 +2704,561 @@ DISPLAY INFORMATION:
                                  font=("Arial", self._scale_font_size(9), "italic"))
         scaling_label.pack(padx = self._scale_padding(20), pady = self._scale_padding(10))
 
+    
+    # REMOVED: create_map_visualization_tab() - functionality integrated into unified simulation
+    # This method has been removed as its functionality is now provided by the unified simulation tab
+    # which integrates both spatial and economic simulation into a single, cohesive system.
+    def create_map_visualization_tab(self):
+        """Create map visualization tab."""
+        # Create the main tab frame
+        self.map_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.map_frame, text="🗺️ Map Visualization")
+        
+        # Check if map visualization is available
+        try:
+            from src.cybernetic_planning.core.map_visualizer import MapVisualizer, MapVisualizationConfig
+            MAP_VISUALIZATION_AVAILABLE = True
+        except ImportError:
+            MAP_VISUALIZATION_AVAILABLE = False
+        
+        if not MAP_VISUALIZATION_AVAILABLE:
+            # Show placeholder if not available
+            placeholder_label = ttk.Label(self.map_frame, 
+                                        text="Map visualization system not available\nPlease ensure all dependencies are installed",
+                                        font=("Arial", 12), foreground="gray")
+            placeholder_label.pack(expand=True)
+            return
+        
+        # Initialize map visualization state
+        self.current_map_file = None
+        self.current_static_file = None
+        self.map_simulator_created = False
+        
+        # Create the interface components (status section first for error handling)
+        self.create_map_status_section()
+        self.create_map_controls_section()
+        self.create_map_display_section()
+
+    def create_map_controls_section(self):
+        """Create the map controls section."""
+        # Controls frame
+        controls_frame = ttk.LabelFrame(self.map_frame, text="Map Controls", padding=10)
+        controls_frame.pack(fill="x", padx=10, pady=5)
+        
+        # Information frame - shows that data comes from Data Management tab
+        info_frame = ttk.Frame(controls_frame)
+        info_frame.pack(fill="x", pady=(0, 10))
+        
+        info_label = ttk.Label(info_frame, 
+                              text="ℹ️ Map parameters are loaded from the Data Management tab configuration",
+                              font=("Arial", 9), foreground="blue")
+        info_label.pack(side="left")
+        
+        ttk.Button(info_frame, text="Refresh from Data Config", 
+                  command=self.refresh_map_config_from_data).pack(side="right", padx=(10, 0))
+        
+        # Top row: Map creation controls
+        creation_frame = ttk.Frame(controls_frame)
+        creation_frame.pack(fill="x", pady=(0, 10))
+        
+        # Map size controls (these are map-specific, not in data management)
+        ttk.Label(creation_frame, text="Map Size:").pack(side="left", padx=(0, 5))
+        
+        self.map_width_var = tk.StringVar(value="50")
+        self.map_height_var = tk.StringVar(value="50")
+        
+        ttk.Label(creation_frame, text="Width:").pack(side="left", padx=(0, 2))
+        ttk.Entry(creation_frame, textvariable=self.map_width_var, width=5).pack(side="left", padx=(0, 10))
+        
+        ttk.Label(creation_frame, text="Height:").pack(side="left", padx=(0, 2))
+        ttk.Entry(creation_frame, textvariable=self.map_height_var, width=5).pack(side="left", padx=(0, 10))
+        
+        ttk.Button(creation_frame, text="Create Map", 
+                  command=self.create_map_simulation).pack(side="left", padx=(10, 0))
+        
+        # Second row: Settlement controls (read-only display from data management)
+        settlement_frame = ttk.Frame(controls_frame)
+        settlement_frame.pack(fill="x", pady=(0, 10))
+        
+        ttk.Label(settlement_frame, text="Cities (from Data Config):").pack(side="left", padx=(0, 5))
+        self.map_cities_display = ttk.Label(settlement_frame, text="5", font=("Arial", 9, "bold"))
+        self.map_cities_display.pack(side="left", padx=(0, 10))
+        
+        ttk.Label(settlement_frame, text="Towns (from Data Config):").pack(side="left", padx=(0, 5))
+        self.map_towns_display = ttk.Label(settlement_frame, text="15", font=("Arial", 9, "bold"))
+        self.map_towns_display.pack(side="left", padx=(0, 10))
+        
+        ttk.Label(settlement_frame, text="Population (from Data Config):").pack(side="left", padx=(0, 5))
+        self.map_population_display = ttk.Label(settlement_frame, text="1,000,000", font=("Arial", 9, "bold"))
+        self.map_population_display.pack(side="left", padx=(0, 10))
+        
+        # Third row: Urban concentration and simulation
+        urban_frame = ttk.Frame(controls_frame)
+        urban_frame.pack(fill="x", pady=(0, 10))
+        
+        ttk.Label(urban_frame, text="Urban Concentration (from Data Config):").pack(side="left", padx=(0, 5))
+        self.map_urban_display = ttk.Label(urban_frame, text="0.7", font=("Arial", 9, "bold"))
+        self.map_urban_display.pack(side="left", padx=(0, 10))
+        
+        ttk.Button(urban_frame, text="Run Simulation", 
+                  command=self.run_map_simulation).pack(side="left", padx=(10, 0))
+        
+        # Fourth row: Terrain distribution (read-only display from data management)
+        terrain_frame = ttk.Frame(controls_frame)
+        terrain_frame.pack(fill="x", pady=(0, 10))
+        
+        ttk.Label(terrain_frame, text="Terrain Distribution (from Data Config):").pack(side="left", padx=(0, 5))
+        self.map_terrain_display = ttk.Label(terrain_frame, 
+                                           text="Forest: 25%, Mountain: 15%, Water: 10%, Flatland: 50%", 
+                                           font=("Arial", 9, "bold"))
+        self.map_terrain_display.pack(side="left", padx=(0, 10))
+        
+        # Initialize display values from data management
+        self.refresh_map_config_from_data()
+
+    def refresh_map_config_from_data(self):
+        """Refresh map configuration from data management tab."""
+        try:
+            # Update display labels with current data management values
+            if hasattr(self, 'num_cities_var'):
+                self.map_cities_display.config(text=self.num_cities_var.get())
+            if hasattr(self, 'num_towns_var'):
+                self.map_towns_display.config(text=self.num_towns_var.get())
+            if hasattr(self, 'total_population_var'):
+                population = int(self.total_population_var.get())
+                self.map_population_display.config(text=f"{population:,}")
+            if hasattr(self, 'urban_concentration_var'):
+                self.map_urban_display.config(text=self.urban_concentration_var.get())
+            
+            # Update terrain distribution display
+            if (hasattr(self, 'forest_percentage_var') and hasattr(self, 'mountain_percentage_var') and 
+                hasattr(self, 'water_percentage_var') and hasattr(self, 'base_terrain_percentage_var')):
+                forest = self.forest_percentage_var.get()
+                mountain = self.mountain_percentage_var.get()
+                water = self.water_percentage_var.get()
+                flatland = self.base_terrain_percentage_var.get()
+                terrain_text = f"Forest: {forest}%, Mountain: {mountain}%, Water: {water}%, Flatland: {flatland}%"
+                self.map_terrain_display.config(text=terrain_text)
+            
+            if hasattr(self, 'status_label'):
+                self.status_label.config(text="Map configuration refreshed from Data Management tab")
+        except Exception as e:
+            if hasattr(self, 'status_label'):
+                self.status_label.config(text=f"Error refreshing config: {str(e)}")
+
+    def create_map_display_section(self):
+        """Create the map display section."""
+        # Display frame
+        display_frame = ttk.LabelFrame(self.map_frame, text="Map Display", padding=10)
+        display_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        # Create notebook for different visualization types
+        self.viz_notebook = ttk.Notebook(display_frame)
+        self.viz_notebook.pack(fill="both", expand=True)
+        
+        # Create tabs
+        self.create_interactive_map_tab()
+        self.create_static_image_tab()
+        self.create_map_data_tab()
+
+    def create_interactive_map_tab(self):
+        """Create the interactive map tab."""
+        self.interactive_frame = ttk.Frame(self.viz_notebook)
+        self.viz_notebook.add(self.interactive_frame, text="Interactive Map")
+        
+        # Controls for interactive map
+        interactive_controls = ttk.Frame(self.interactive_frame)
+        interactive_controls.pack(fill="x", padx=5, pady=5)
+        
+        ttk.Button(interactive_controls, text="Generate Interactive Map", 
+                  command=self.generate_interactive_map).pack(side="left", padx=(0, 10))
+        
+        ttk.Button(interactive_controls, text="Open in Browser", 
+                  command=self.open_in_browser).pack(side="left", padx=(0, 10))
+        
+        ttk.Button(interactive_controls, text="Refresh Map", 
+                  command=self.refresh_interactive_map).pack(side="left", padx=(0, 10))
+        
+        # Map preview area
+        self.map_preview_frame = ttk.Frame(self.interactive_frame)
+        self.map_preview_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Placeholder for map preview
+        self.map_preview_label = ttk.Label(self.map_preview_frame, 
+                                         text="Interactive map will appear here\nClick 'Generate Interactive Map' to create",
+                                         font=("Arial", 12), foreground="gray")
+        self.map_preview_label.pack(expand=True)
+
+    def create_static_image_tab(self):
+        """Create the static image tab."""
+        self.static_frame = ttk.Frame(self.viz_notebook)
+        self.viz_notebook.add(self.static_frame, text="Static Image")
+        
+        # Controls for static image
+        static_controls = ttk.Frame(self.static_frame)
+        static_controls.pack(fill="x", padx=5, pady=5)
+        
+        ttk.Button(static_controls, text="Generate Static Image", 
+                  command=self.generate_static_image).pack(side="left", padx=(0, 10))
+        
+        ttk.Button(static_controls, text="Save Image As...", 
+                  command=self.save_static_image).pack(side="left", padx=(0, 10))
+        
+        # Image display area
+        self.image_frame = ttk.Frame(self.static_frame)
+        self.image_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Canvas for image display
+        self.image_canvas = tk.Canvas(self.image_frame, bg="white", width=600, height=400)
+        self.image_canvas.pack(fill="both", expand=True)
+        
+        # Placeholder text
+        self.image_canvas.create_text(300, 200, text="Static map image will appear here\nClick 'Generate Static Image' to create",
+                                    font=("Arial", 12), fill="gray")
+
+    def create_map_data_tab(self):
+        """Create the map data tab."""
+        self.map_data_frame = ttk.Frame(self.viz_notebook)
+        self.viz_notebook.add(self.map_data_frame, text="Map Data")
+        
+        # Data controls
+        data_controls = ttk.Frame(self.map_data_frame)
+        data_controls.pack(fill="x", padx=5, pady=5)
+        
+        ttk.Button(data_controls, text="Export Map Data", 
+                  command=self.export_map_data).pack(side="left", padx=(0, 10))
+        
+        ttk.Button(data_controls, text="Load Map Data", 
+                  command=self.load_map_data).pack(side="left", padx=(0, 10))
+        
+        # Data display area
+        self.map_data_text = tk.Text(self.map_data_frame, height=20, width=80, wrap=tk.WORD)
+        self.map_data_text.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Scrollbar for data text
+        data_scrollbar = ttk.Scrollbar(self.map_data_frame, orient="vertical", command=self.map_data_text.yview)
+        data_scrollbar.pack(side="right", fill="y")
+        self.map_data_text.configure(yscrollcommand=data_scrollbar.set)
+
+    def create_map_status_section(self):
+        """Create the status section."""
+        # Status frame
+        status_frame = ttk.LabelFrame(self.map_frame, text="Status", padding=5)
+        status_frame.pack(fill="x", padx=10, pady=5)
+        
+        # Status label
+        self.status_label = ttk.Label(status_frame, text="Ready to create map simulation")
+        self.status_label.pack(side="left")
+        
+        # Progress bar
+        self.progress_bar = ttk.Progressbar(status_frame, mode='indeterminate')
+        self.progress_bar.pack(side="right", padx=(10, 0))
+
+    def create_map_simulation(self):
+        """Create a new map-based simulation."""
+        try:
+            self.status_label.config(text="Creating map simulation...")
+            self.progress_bar.start()
+            
+            # Get map-specific parameters
+            map_width = int(self.map_width_var.get())
+            map_height = int(self.map_height_var.get())
+            
+            # Get parameters from data management tab
+            num_cities = int(self.num_cities_var.get())
+            num_towns = int(self.num_towns_var.get())
+            total_population = int(self.total_population_var.get())
+            urban_concentration_value = float(self.urban_concentration_var.get())
+            
+            # Convert urban concentration value to string format expected by map simulator
+            if urban_concentration_value <= 0.3:
+                urban_concentration = "low"
+            elif urban_concentration_value <= 0.7:
+                urban_concentration = "medium"
+            else:
+                urban_concentration = "high"
+            
+            # Validate parameters
+            if map_width < 10 or map_height < 10:
+                raise ValueError("Map dimensions must be at least 10x10")
+            if num_cities < 1 or num_towns < 1:
+                raise ValueError("Must have at least 1 city and 1 town")
+            if total_population < 1000:
+                raise ValueError("Population must be at least 1,000")
+            
+            # Get terrain distribution from data management tab
+            terrain_distribution = {
+                "flatland": float(self.base_terrain_percentage_var.get()) / 100.0,
+                "forest": float(self.forest_percentage_var.get()) / 100.0,
+                "mountain": float(self.mountain_percentage_var.get()) / 100.0,
+                "water": float(self.water_percentage_var.get()) / 100.0
+            }
+            
+            # Create map simulation using data management configuration
+            result = self.planning_system.create_map_based_simulation(
+                map_width=map_width,
+                map_height=map_height,
+                num_cities=num_cities,
+                num_towns=num_towns,
+                total_population=total_population,
+                urban_concentration=urban_concentration,
+                terrain_distribution=terrain_distribution
+            )
+            
+            if result["success"]:
+                self.map_simulator_created = True
+                self.status_label.config(text=f"Map simulation created: {map_width}x{map_height}, {num_cities} cities, {num_towns} towns (from Data Config)")
+                messagebox.showinfo("Success", "Map simulation created successfully using Data Management configuration!")
+            else:
+                raise Exception(result["error"])
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to create map simulation: {str(e)}")
+            self.status_label.config(text="Failed to create map simulation")
+        finally:
+            self.progress_bar.stop()
+
+    def run_map_simulation(self):
+        """Run the map simulation."""
+        if not self.map_simulator_created:
+            messagebox.showwarning("Warning", "Please create a map simulation first")
+            return
+        
+        try:
+            self.status_label.config(text="Running map simulation...")
+            self.progress_bar.start()
+            
+            # Run simulation
+            result = self.planning_system.run_map_simulation(time_steps=5)
+            
+            if result["success"]:
+                self.status_label.config(text=f"Simulation completed: {result['time_steps_completed']} time steps")
+                messagebox.showinfo("Success", "Map simulation completed successfully!")
+            else:
+                raise Exception(result["error"])
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to run simulation: {str(e)}")
+            self.status_label.config(text="Failed to run simulation")
+        finally:
+            self.progress_bar.stop()
+
+    def generate_interactive_map(self):
+        """Generate an interactive map."""
+        if not self.map_simulator_created:
+            messagebox.showwarning("Warning", "Please create a map simulation first")
+            return
+        
+        try:
+            self.status_label.config(text="Generating interactive map...")
+            self.progress_bar.start()
+            
+            # Generate interactive map
+            result = self.planning_system.generate_map_visualization(
+                output_path="outputs/gui_interactive_map",
+                visualization_type="interactive",
+                config={
+                    "tile_size": 8,
+                    "color_scheme": "default",
+                    "show_terrain": True,
+                    "show_settlements": True,
+                    "show_infrastructure": True,
+                    "show_disasters": True
+                }
+            )
+            
+            if result["success"]:
+                self.current_map_file = result["files"]["interactive"]
+                self.status_label.config(text="Interactive map generated successfully")
+                
+                # Update preview
+                self.map_preview_label.config(text=f"Interactive map ready:\n{self.current_map_file}\n\nClick 'Open in Browser' to view")
+                
+                messagebox.showinfo("Success", "Interactive map generated successfully!")
+            else:
+                raise Exception(result["error"])
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate interactive map: {str(e)}")
+            self.status_label.config(text="Failed to generate interactive map")
+        finally:
+            self.progress_bar.stop()
+
+    def generate_static_image(self):
+        """Generate a static map image."""
+        if not self.map_simulator_created:
+            messagebox.showwarning("Warning", "Please create a map simulation first")
+            return
+        
+        try:
+            self.status_label.config(text="Generating static image...")
+            self.progress_bar.start()
+            
+            # Generate static image
+            result = self.planning_system.generate_map_visualization(
+                output_path="outputs/gui_static_map",
+                visualization_type="static",
+                config={
+                    "color_scheme": "default"
+                }
+            )
+            
+            if result["success"]:
+                self.current_static_file = result["files"]["static"]
+                self.status_label.config(text="Static image generated successfully")
+                
+                # Load and display image
+                self.load_static_image(self.current_static_file)
+                
+                messagebox.showinfo("Success", "Static image generated successfully!")
+            else:
+                raise Exception(result["error"])
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate static image: {str(e)}")
+            self.status_label.config(text="Failed to generate static image")
+        finally:
+            self.progress_bar.stop()
+
+    def load_static_image(self, image_path):
+        """Load and display a static image."""
+        try:
+            from PIL import Image, ImageTk
+            
+            # Load image
+            image = Image.open(image_path)
+            
+            # Resize to fit canvas
+            canvas_width = self.image_canvas.winfo_width()
+            canvas_height = self.image_canvas.winfo_height()
+            
+            if canvas_width > 1 and canvas_height > 1:
+                # Calculate scaling to fit
+                scale = min(canvas_width / image.width, canvas_height / image.height)
+                new_width = int(image.width * scale)
+                new_height = int(image.height * scale)
+                
+                image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Convert to PhotoImage
+            self.current_image = ImageTk.PhotoImage(image)
+            
+            # Clear canvas and display image
+            self.image_canvas.delete("all")
+            self.image_canvas.create_image(canvas_width//2, canvas_height//2, 
+                                         image=self.current_image, anchor="center")
+            
+        except ImportError:
+            # Fallback if PIL not available
+            self.image_canvas.delete("all")
+            self.image_canvas.create_text(300, 200, 
+                                        text=f"Image generated:\n{image_path}\n\nPIL not available for display",
+                                        font=("Arial", 12), fill="blue")
+        except Exception as e:
+            self.image_canvas.delete("all")
+            self.image_canvas.create_text(300, 200, 
+                                        text=f"Error loading image:\n{str(e)}",
+                                        font=("Arial", 12), fill="red")
+
+    def open_in_browser(self):
+        """Open the interactive map in browser."""
+        if not self.current_map_file:
+            messagebox.showwarning("Warning", "Please generate an interactive map first")
+            return
+        
+        try:
+            result = self.planning_system.open_map_in_browser()
+            if result["success"]:
+                self.status_label.config(text="Map opened in browser")
+            else:
+                raise Exception(result["error"])
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open map in browser: {str(e)}")
+
+    def refresh_interactive_map(self):
+        """Refresh the interactive map."""
+        if self.map_simulator_created:
+            self.generate_interactive_map()
+        else:
+            messagebox.showwarning("Warning", "Please create a map simulation first")
+
+    def save_static_image(self):
+        """Save the static image."""
+        if not hasattr(self, 'current_static_file') or not self.current_static_file:
+            messagebox.showwarning("Warning", "Please generate a static image first")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            title="Save Map Image",
+            defaultextension=".png",
+            filetypes=[("PNG files", "*.png"), ("All files", "*.*")]
+        )
+        
+        if file_path:
+            try:
+                shutil.copy2(self.current_static_file, file_path)
+                messagebox.showinfo("Success", f"Image saved to: {file_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save image: {str(e)}")
+
+    def export_map_data(self):
+        """Export map data."""
+        if not self.map_simulator_created:
+            messagebox.showwarning("Warning", "Please create a map simulation first")
+            return
+        
+        try:
+            # Get map data
+            map_data = self.planning_system.map_simulator.export_map_data()
+            
+            # Save to file
+            file_path = filedialog.asksaveasfilename(
+                title="Export Map Data",
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+            )
+            
+            if file_path:
+                with open(file_path, 'w') as f:
+                    json.dump(map_data, f, indent=2)
+                
+                messagebox.showinfo("Success", f"Map data exported to: {file_path}")
+                
+                # Update data display
+                self.map_data_text.delete(1.0, tk.END)
+                self.map_data_text.insert(1.0, json.dumps(map_data, indent=2))
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export map data: {str(e)}")
+
+    def load_map_data(self):
+        """Load map data."""
+        file_path = filedialog.askopenfilename(
+            title="Load Map Data",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
+        
+        if file_path:
+            try:
+                with open(file_path, 'r') as f:
+                    map_data = json.load(f)
+                
+                # Load into simulator
+                result = self.planning_system.load_map_simulation(file_path)
+                
+                if result["success"]:
+                    self.map_simulator_created = True
+                    messagebox.showinfo("Success", "Map data loaded successfully")
+                    
+                    # Update data display
+                    self.map_data_text.delete(1.0, tk.END)
+                    self.map_data_text.insert(1.0, json.dumps(map_data, indent=2))
+                else:
+                    raise Exception(result["error"])
+                    
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to load map data: {str(e)}")
+
     def setup_layout(self):
         """Setup the main layout."""
         self.notebook.pack(fill="both", expand = True, padx = self._scale_padding(5), pady = self._scale_padding(5))
@@ -1816,6 +3420,10 @@ DISPLAY INFORMATION:
             # Update simulation plan status
             if hasattr(self, 'plan_status'):
                 self.plan_status.config(text="Simulation plan auto-generated from synthetic data", foreground="green")
+            
+            # Auto-sync unified simulation configuration
+            if hasattr(self, 'sync_unified_config_from_data'):
+                self.root.after(100, self.sync_unified_config_from_data)
         except ValueError as e:
             messagebox.showerror("Error", f"Invalid configuration: {str(e)}")
         except Exception as e:
@@ -2449,33 +4057,33 @@ DISPLAY INFORMATION:
 
 Population Demographics:
 ========================
-Total Population: {demo.get('total_population', 0):,}
-├─ Labor Force: {demo.get('labor_force', 0):,} ({((demo.get('labor_force', 0) / demo.get('total_population', 1)) * 100):.1f}%)
-│  ├─ Employed: {demo.get('employed_population', 0):,} ({demo.get('employment_rate', 0)*100:.1f}% of labor force)
-│  └─ Unemployed: {demo.get('unemployed_population', 0):,} ({demo.get('unemployment_rate', 0)*100:.1f}% of labor force)
-└─ Dependents: {demo.get('dependent_population', 0):,} ({demo.get('dependency_ratio', 0)*100:.1f}% of total population)
+Total Population: {int(demo.get('total_population', 0)):,}
+├─ Labor Force: {int(demo.get('labor_force', 0)):,} ({((int(demo.get('labor_force', 0)) / int(demo.get('total_population', 1))) * 100):.1f}%)
+│  ├─ Employed: {int(demo.get('employed_population', 0)):,} ({float(demo.get('employment_rate', 0))*100:.1f}% of labor force)
+│  └─ Unemployed: {int(demo.get('unemployed_population', 0)):,} ({float(demo.get('unemployment_rate', 0))*100:.1f}% of labor force)
+└─ Dependents: {int(demo.get('dependent_population', 0)):,} ({float(demo.get('dependency_ratio', 0))*100:.1f}% of total population)
 
 Regional Distribution:
 =====================
-Urban Population: {regional.get('urban_population', 0):,}
-├─ Cities: {regional.get('num_cities', 0)} ({regional.get('city_population', 0):,} people)
-└─ Towns: {regional.get('num_towns', 0)} ({regional.get('town_population', 0):,} people)
-Rural Population: {regional.get('rural_population', 0):,} ({regional.get('num_rural_areas', 0)} areas)
+Urban Population: {int(regional.get('urban_population', 0)):,}
+├─ Cities: {regional.get('num_cities', 0)} ({int(regional.get('city_population', 0)):,} people)
+└─ Towns: {regional.get('num_towns', 0)} ({int(regional.get('town_population', 0)):,} people)
+Rural Population: {int(regional.get('rural_population', 0)):,} ({regional.get('num_rural_areas', 0)} areas)
 
 Terrain Distribution:
 ====================
-Forest: {terrain.get('forest_percentage', 0):.1f}%
-Mountain: {terrain.get('mountain_percentage', 0):.1f}%
-Water: {terrain.get('water_percentage', 0):.1f}%
-Base Terrain: {terrain.get('base_terrain_percentage', 0):.1f}%
+Forest: {float(terrain.get('forest_percentage', 0)):.1f}%
+Mountain: {float(terrain.get('mountain_percentage', 0)):.1f}%
+Water: {float(terrain.get('water_percentage', 0)):.1f}%
+Base Terrain: {float(terrain.get('base_terrain_percentage', 0)):.1f}%
 
 Economic Scaling:
 ================
-Technology Level: {demo.get('tech_level', 1.0):.2f}
-Total Consumer Demand: {economic.get('total_consumer_demand', 0):,}
-Total Labor Output: {economic.get('total_labor_output', 0):,}
-Demand per Capita: {economic.get('demand_per_capita', 0):.0f}
-Productivity per Worker: {economic.get('productivity_per_worker', 0):.0f}
+Technology Level: {float(demo.get('tech_level', 1.0)):.2f}
+Total Consumer Demand: {int(economic.get('total_consumer_demand', 0)):,}
+Total Labor Output: {int(economic.get('total_labor_output', 0)):,}
+Demand per Capita: {float(economic.get('demand_per_capita', 0)):.0f}
+Productivity per Worker: {float(economic.get('productivity_per_worker', 0)):.0f}
 """
 
         # Add resource allocation information if available
@@ -2488,8 +4096,8 @@ Resource Allocations:
 ====================
 Technology Matrix: {len(resource_allocations.get('technology_matrix', []))}x{len(resource_allocations.get('technology_matrix', [[]])[0]) if resource_allocations.get('technology_matrix') else 0}
 Final Demand: {len(resource_allocations.get('final_demand', []))} sectors
-Total Labor Cost: {resource_allocations.get('total_labor_cost', 0):,.0f}
-Plan Quality Score: {resource_allocations.get('plan_quality_score', 0):.2f}
+Total Labor Cost: {int(resource_allocations.get('total_labor_cost', 0)):,.0f}
+Plan Quality Score: {float(resource_allocations.get('plan_quality_score', 0)):.2f}
 Resource Matrix: {len(resource_allocations.get('resource_matrix', []))} resources
 Max Resources: {len(resource_allocations.get('max_resources', []))} constraints
 Resource Names: {', '.join(resource_allocations.get('resource_names', [])) if resource_allocations.get('resource_names') else 'None'}
@@ -2666,7 +4274,7 @@ Technology Matrix (first 4x4):
         print(f"✓ Scaled economic data with population demographics:")
         print(f"  - Consumer demand scaled to: {total_consumer_demand:,}")
         print(f"  - Labor output scaled to: {total_labor_output:,}")
-        print(f"  - Productivity multiplier: {economic.get('tech_productivity_multiplier', 1.0):.2f}")
+        print(f"  - Productivity multiplier: {float(economic.get('tech_productivity_multiplier', 1.0)):.2f}")
 
     def plan_created_successfully(self):
         """Handle successful plan creation."""
@@ -2676,6 +4284,10 @@ Technology Matrix (first 4x4):
 
         # Update results display
         self.update_results_display()
+        
+        # Auto-sync unified simulation configuration
+        if hasattr(self, 'sync_unified_config_from_data'):
+            self.root.after(100, self.sync_unified_config_from_data)
 
         # Automatically load the plan into the simulator
         self._auto_load_plan_to_simulator()
@@ -2814,7 +4426,7 @@ Technology Matrix (first 4x4):
 
 Total Economic Output: {summary['total_economic_output']:,.2f} units
 Total Labor Cost: {summary['total_labor_cost']:,.2f} person - hours
-Labor Efficiency: {summary['labor_efficiency']:.2f} units / hour
+Labor Efficiency: {summary['labor_efficiency']:.6f} units / hour
 Sector Count: {summary['sector_count']}
 Plan Quality Score: {summary['plan_quality_score']:.2f}
 
@@ -3185,7 +4797,7 @@ ROCm Available: {gpu_info.get('rocm_available', False)}
 GPU Count: {gpu_info.get('gpu_count', 0)}
 
 GPU Names: {', '.join(gpu_info.get('gpu_names', []))}
-GPU Memory: {gpu_info.get('gpu_memory', 0) / (1024**3):.2f} GB
+GPU Memory: {float(gpu_info.get('gpu_memory', 0)) / (1024**3):.2f} GB
 Compute Capability: {gpu_info.get('compute_capability', 'N/A')}
 
 Error: {gpu_info.get('error', 'None')}
@@ -3298,13 +4910,21 @@ Fallback to CPU: {settings_manager.should_fallback_to_cpu()}
             if "error" in benchmark_result and benchmark_result["error"] is not None:
                 result_text = f"Benchmark Error: {benchmark_result['error']}"
             else:
+                gpu_time = benchmark_result.get('gpu_time', 'N/A')
+                cpu_time = benchmark_result.get('cpu_time', 'N/A')
+                speedup = benchmark_result.get('speedup', 'N/A')
+                
+                gpu_time_str = f"{gpu_time:.4f}" if isinstance(gpu_time, (int, float)) else "N/A"
+                cpu_time_str = f"{cpu_time:.4f}" if isinstance(cpu_time, (int, float)) else "N/A"
+                speedup_str = f"{speedup:.2f}" if isinstance(speedup, (int, float)) else "N/A"
+                
                 result_text = f"""Benchmark Results:
 {'='*50}
 
 Operation: {benchmark_result.get('operation', 'N/A')}
-GPU Time: {benchmark_result.get('gpu_time', 'N/A'):.4f} seconds
-CPU Time: {benchmark_result.get('cpu_time', 'N/A'):.4f} seconds
-Speedup: {benchmark_result.get('speedup', 'N/A'):.2f}x
+GPU Time: {gpu_time_str} seconds
+CPU Time: {cpu_time_str} seconds
+Speedup: {speedup_str}x
 GPU Success: {benchmark_result.get('gpu_success', False)}
 CPU Success: {benchmark_result.get('cpu_success', False)}
 
@@ -3317,9 +4937,9 @@ Performance Summary:
                 if "message" not in summary:
                     result_text += f"""Total Benchmarks: {summary.get('total_benchmarks', 0)}
 Successful Benchmarks: {summary.get('successful_benchmarks', 0)}
-Average Speedup: {summary.get('average_speedup', 0):.2f}x
-Maximum Speedup: {summary.get('max_speedup', 0):.2f}x
-Minimum Speedup: {summary.get('min_speedup', 0):.2f}x
+Average Speedup: {float(summary.get('average_speedup', 0)):.2f}x
+Maximum Speedup: {float(summary.get('max_speedup', 0)):.2f}x
+Minimum Speedup: {float(summary.get('min_speedup', 0)):.2f}x
 """
                 else:
                     result_text += summary["message"]
@@ -4740,11 +6360,11 @@ Production Status:
                 if summary:
                     report_content.append("ENHANCED SIMULATION METRICS")
                     report_content.append("-" * 40)
-                    report_content.append(f"• Total Economic Output: ${summary.get('total_economic_output', 0):,.0f}")
+                    report_content.append(f"• Total Economic Output: ${int(summary.get('total_economic_output', 0)):,.0f}")
                     report_content.append(f"• Average Efficiency: {summary.get('average_efficiency', 0):.1%}")
-                    report_content.append(f"• Living Standards Index: {summary.get('living_standards_index', 0):.3f}")
-                    report_content.append(f"• Technology Level: {summary.get('technology_level', 0):.3f}")
-                    report_content.append(f"• Labor Productivity: {summary.get('labor_productivity', 0):.2f}")
+                    report_content.append(f"• Living Standards Index: {float(summary.get('living_standards_index', 0)):.3f}")
+                    report_content.append(f"• Technology Level: {float(summary.get('technology_level', 0)):.3f}")
+                    report_content.append(f"• Labor Productivity: {float(summary.get('labor_productivity', 0)):.2f}")
                     report_content.append(f"• Resource Utilization: {summary.get('resource_utilization', 0):.1%}")
                     report_content.append(f"• Consumer Demand Fulfillment: {summary.get('consumer_demand_fulfillment', 0):.1%}")
                     report_content.append("")

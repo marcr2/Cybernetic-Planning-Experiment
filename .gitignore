@@ -115,13 +115,14 @@ data/processed/
 exports/
 outputs/
 logs/
+config.json
 
 # API keys and sensitive data
 api_keys_config.py
 keys.json
 .encryption_key
 .security_key
-*.key
+.key
 *.pem
 
 # OS specific

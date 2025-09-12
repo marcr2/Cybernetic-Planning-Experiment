@@ -18,6 +18,8 @@ from .core.marxist_economics import MarxistEconomicCalculator
 from .core.cybernetic_feedback import CyberneticFeedbackSystem
 from .core.mathematical_validation import MathematicalValidator
 from .core.leontief import LeontiefModel
+from .core.map_based_simulator import MapBasedSimulator
+from .core.map_visualizer import MapVisualizer, MapVisualizationConfig
 from .agents import ManagerAgent, EconomicsAgent, ResourceAgent, PolicyAgent, WriterAgent
 from .data import IOParser, MatrixBuilder, DataValidator, EnhancedDataLoader
 from .integration import TransportationIntegration, TransportationIntegrationConfig
@@ -59,6 +61,9 @@ class CyberneticPlanningSystem:
         self.marxist_calculator = None
         self.cybernetic_feedback = None
         self.mathematical_validator = MathematicalValidator()
+        
+        # Initialize map-based simulator
+        self.map_simulator = None
         
         # Initialize transportation and distribution integration
         self.transportation_config = TransportationIntegrationConfig(
@@ -179,22 +184,26 @@ class CyberneticPlanningSystem:
             resource_count: Number of resource types
 
         Returns:
-            Synthetic data dictionary
+            Dictionary with success status and synthetic data
         """
-        data = self.matrix_builder.create_synthetic_data(
-            n_sectors = n_sectors, technology_density = technology_density, resource_count = resource_count
-        )
+        try:
+            data = self.matrix_builder.create_synthetic_data(
+                n_sectors = n_sectors, technology_density = technology_density, resource_count = resource_count
+            )
 
-        # Validate synthetic data generation
-        if "final_demand" not in data:
-            raise ValueError("Synthetic data generation failed: missing final_demand")
+            # Validate synthetic data generation
+            if "final_demand" not in data:
+                return {"success": False, "error": "Synthetic data generation failed: missing final_demand"}
 
-        self.current_data = data
+            self.current_data = data
 
-        # Initialize new modules with loaded data
-        self._initialize_new_modules()
+            # Initialize new modules with loaded data
+            self._initialize_new_modules()
 
-        return data
+            return {"success": True, "data": data}
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def load_comprehensive_data(
         self, year: int = 2024, use_real_data: bool = True, eia_api_key: Optional[str] = None
@@ -372,7 +381,7 @@ class CyberneticPlanningSystem:
         # Store in history
         self.plan_history.append(self.current_plan.copy())
 
-        return self.current_plan
+        return {"success": True, "plan": self.current_plan}
 
     def _apply_production_multipliers(self, final_demand: np.ndarray, production_multipliers: Dict[str, float]) -> np.ndarray:
         """
@@ -870,13 +879,47 @@ class CyberneticPlanningSystem:
         if self.current_plan is None:
             return {"error": "No current plan available"}
 
+        # Handle multi-year plan structure
+        if isinstance(self.current_plan, dict) and all(isinstance(k, int) for k in self.current_plan.keys()):
+            # Multi-year plan - use first year's data
+            first_year = min(self.current_plan.keys())
+            year_data = self.current_plan[first_year]
+            total_output = year_data.get("total_output", np.array([]))
+            total_labor_cost = year_data.get("total_labor_cost", 0)
+            plan_quality_score = year_data.get("plan_quality_score", 0)
+            constraint_violations = year_data.get("constraint_violations", {})
+        else:
+            # Single year plan
+            total_output = self.current_plan.get("total_output", np.array([]))
+            total_labor_cost = self.current_plan.get("total_labor_cost", 0)
+            plan_quality_score = self.current_plan.get("plan_quality_score", 0)
+            constraint_violations = self.current_plan.get("constraint_violations", {})
+
+        # Calculate total economic output
+        if hasattr(total_output, 'sum'):
+            total_economic_output = total_output.sum()
+        else:
+            total_economic_output = float(total_output) if total_output else 0.0
+
+        # Calculate labor efficiency
+        if total_labor_cost > 0:
+            labor_efficiency = total_economic_output / total_labor_cost
+        else:
+            labor_efficiency = 0.0
+
+        # Calculate sector count
+        if hasattr(total_output, '__len__'):
+            sector_count = len(total_output)
+        else:
+            sector_count = 1
+
         return {
-            "total_economic_output": np.sum(self.current_plan["total_output"]),
-            "total_labor_cost": self.current_plan["total_labor_cost"],
-            "labor_efficiency": np.sum(self.current_plan["total_output"]) / self.current_plan["total_labor_cost"],
-            "sector_count": len(self.current_plan["total_output"]),
-            "plan_quality_score": self.current_plan.get("plan_quality_score", 0),
-            "constraint_violations": self.current_plan.get("constraint_violations", {}),
+            "total_economic_output": total_economic_output,
+            "total_labor_cost": total_labor_cost,
+            "labor_efficiency": labor_efficiency,
+            "sector_count": sector_count,
+            "plan_quality_score": plan_quality_score,
+            "constraint_violations": constraint_violations,
         }
 
     def get_system_status(self) -> Dict[str, Any]:
@@ -1105,3 +1148,326 @@ class CyberneticPlanningSystem:
     def get_automatic_analyses(self) -> Dict[str, Any]:
         """Get results from automatic analyses run on data load."""
         return getattr(self, 'automatic_analyses', {"error": "No automatic analyses available"})
+    
+    def create_map_based_simulation(self, 
+                                  map_width: int = 200,
+                                  map_height: int = 200,
+                                  terrain_distribution: Optional[Dict[str, float]] = None,
+                                  num_cities: int = 5,
+                                  num_towns: int = 15,
+                                  total_population: int = 1000000,
+                                  rural_population_percent: float = 0.3,
+                                  urban_concentration: str = "medium",
+                                  log_callback: Optional[callable] = None) -> Dict[str, Any]:
+        """
+        Create a map-based economic plan simulator.
+        
+        Args:
+            map_width: Width of the map in tiles
+            map_height: Height of the map in tiles
+            terrain_distribution: Target distribution of terrain types
+            num_cities: Number of cities to generate
+            num_towns: Number of towns to generate
+            total_population: Total population to distribute
+            rural_population_percent: Percentage of population in rural areas
+            urban_concentration: Level of urban concentration ("high", "medium", "low")
+        
+        Returns:
+            Dictionary with simulation creation results
+        """
+        try:
+            # Create map-based simulator
+            self.map_simulator = MapBasedSimulator(
+                map_width=map_width,
+                map_height=map_height,
+                terrain_distribution=terrain_distribution,
+                num_cities=num_cities,
+                num_towns=num_towns,
+                total_population=total_population,
+                rural_population_percent=rural_population_percent,
+                urban_concentration=urban_concentration,
+                log_callback=log_callback
+            )
+            
+            # Generate the map
+            generation_result = self.map_simulator.generate_map()
+            
+            # Integrate with current economic plan if available
+            if self.current_plan:
+                self.map_simulator.integrate_with_economic_plan(self.current_plan)
+            
+            return {
+                "success": True,
+                "message": "Map-based simulation created successfully",
+                "generation_result": generation_result,
+                "map_summary": self.map_simulator.get_map_summary()
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to create map-based simulation: {str(e)}"
+            }
+    
+    def run_map_simulation(self, time_steps: int = 12) -> Dict[str, Any]:
+        """
+        Run the map-based simulation for specified time steps.
+        
+        Args:
+            time_steps: Number of time steps to simulate
+        
+        Returns:
+            Dictionary with simulation results
+        """
+        if not self.map_simulator:
+            return {
+                "success": False,
+                "error": "No map-based simulation created. Please create one first."
+            }
+        
+        try:
+            simulation_results = []
+            
+            for step in range(time_steps):
+                step_result = self.map_simulator.simulate_time_step()
+                simulation_results.append(step_result)
+            
+            # Calculate summary statistics
+            total_logistics_friction = sum(result["total_logistics_friction"] for result in simulation_results)
+            total_disasters = sum(len(result["disaster_events"]["new_disasters"]) for result in simulation_results)
+            
+            return {
+                "success": True,
+                "time_steps_completed": time_steps,
+                "simulation_results": simulation_results,
+                "summary": {
+                    "total_logistics_friction": total_logistics_friction,
+                    "average_logistics_friction": total_logistics_friction / time_steps if time_steps > 0 else 0,
+                    "total_disasters": total_disasters,
+                    "final_time_step": simulation_results[-1]["time_step"] if simulation_results else 0
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Map simulation failed: {str(e)}"
+            }
+    
+    def get_map_simulation_status(self) -> Dict[str, Any]:
+        """Get current status of the map-based simulation."""
+        if not self.map_simulator:
+            return {
+                "available": False,
+                "message": "No map-based simulation created"
+            }
+        
+        return {
+            "available": True,
+            "map_summary": self.map_simulator.get_map_summary(),
+            "current_time_step": self.map_simulator.current_time_step,
+            "active_disasters": len(self.map_simulator.disaster_events)
+        }
+    
+    def export_map_simulation(self, file_path: Union[str, Path]) -> Dict[str, Any]:
+        """
+        Export the map-based simulation data.
+        
+        Args:
+            file_path: Path to save the simulation data
+        
+        Returns:
+            Dictionary with export results
+        """
+        if not self.map_simulator:
+            return {
+                "success": False,
+                "error": "No map-based simulation to export"
+            }
+        
+        try:
+            self.map_simulator.export_map_data(str(file_path))
+            return {
+                "success": True,
+                "message": f"Map simulation exported to {file_path}",
+                "file_path": str(file_path)
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to export map simulation: {str(e)}"
+            }
+    
+    def load_map_simulation(self, file_path: Union[str, Path]) -> Dict[str, Any]:
+        """
+        Load a map-based simulation from file.
+        
+        Args:
+            file_path: Path to the simulation data file
+        
+        Returns:
+            Dictionary with load results
+        """
+        try:
+            # Create a new map simulator and load data
+            self.map_simulator = MapBasedSimulator()
+            self.map_simulator.load_map_data(str(file_path))
+            
+            # Integrate with current economic plan if available
+            if self.current_plan:
+                self.map_simulator.integrate_with_economic_plan(self.current_plan)
+            
+            return {
+                "success": True,
+                "message": f"Map simulation loaded from {file_path}",
+                "map_summary": self.map_simulator.get_map_summary()
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to load map simulation: {str(e)}"
+            }
+    
+    def integrate_map_with_plan(self, plan_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Integrate the map-based simulation with an economic plan.
+        
+        Args:
+            plan_data: Plan data to integrate (uses current plan if None)
+        
+        Returns:
+            Dictionary with integration results
+        """
+        if not self.map_simulator:
+            return {
+                "success": False,
+                "error": "No map-based simulation available"
+            }
+        
+        plan = plan_data or self.current_plan
+        if not plan:
+            return {
+                "success": False,
+                "error": "No economic plan available to integrate"
+            }
+        
+        try:
+            self.map_simulator.integrate_with_economic_plan(plan)
+            
+            return {
+                "success": True,
+                "message": "Map simulation integrated with economic plan",
+                "map_summary": self.map_simulator.get_map_summary(),
+                "plan_sectors": len(plan.get('sectors', [])),
+                "plan_output": plan.get('total_economic_output', 0)
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to integrate map with plan: {str(e)}"
+            }
+    
+    def generate_map_visualization(self, 
+                                 output_path: Optional[str] = None,
+                                 visualization_type: str = "interactive",
+                                 config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Generate map visualization files.
+        
+        Args:
+            output_path: Path to save visualization files (auto-generated if None)
+            visualization_type: Type of visualization ("interactive", "static", "both")
+            config: Visualization configuration options
+        
+        Returns:
+            Dictionary with visualization results
+        """
+        if not self.map_simulator:
+            return {
+                "success": False,
+                "error": "No map-based simulation available. Please create one first."
+            }
+        
+        try:
+            # Set up visualization config
+            viz_config = MapVisualizationConfig()
+            if config:
+                for key, value in config.items():
+                    if hasattr(viz_config, key):
+                        setattr(viz_config, key, value)
+            
+            # Create visualizer
+            visualizer = MapVisualizer(self.map_simulator, viz_config)
+            
+            # Generate output path if not provided
+            if not output_path:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_path = f"outputs/map_visualization_{timestamp}"
+            
+            results = {
+                "success": True,
+                "files": {},
+                "message": "Map visualization generated successfully"
+            }
+            
+            # Generate interactive map
+            if visualization_type in ["interactive", "both"]:
+                interactive_file = visualizer.generate_interactive_map(f"{output_path}.html")
+                results["files"]["interactive"] = interactive_file
+                results["message"] += f"\\nInteractive map: {interactive_file}"
+            
+            # Generate static image
+            if visualization_type in ["static", "both"]:
+                static_file = visualizer.generate_static_image(f"{output_path}.png")
+                results["files"]["static"] = static_file
+                results["message"] += f"\\nStatic image: {static_file}"
+            
+            return results
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to generate map visualization: {str(e)}"
+            }
+    
+    def open_map_in_browser(self) -> Dict[str, Any]:
+        """
+        Generate and open the interactive map in the default browser.
+        
+        Returns:
+            Dictionary with results
+        """
+        if not self.map_simulator:
+            return {
+                "success": False,
+                "error": "No map-based simulation available. Please create one first."
+            }
+        
+        try:
+            import webbrowser
+            import os
+            
+            # Generate interactive map
+            viz_result = self.generate_map_visualization(visualization_type="interactive")
+            
+            if not viz_result["success"]:
+                return viz_result
+            
+            interactive_file = viz_result["files"]["interactive"]
+            
+            # Open in browser
+            file_url = f"file://{os.path.abspath(interactive_file)}"
+            webbrowser.open(file_url)
+            
+            return {
+                "success": True,
+                "message": f"Interactive map opened in browser: {interactive_file}",
+                "file_path": interactive_file,
+                "url": file_url
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to open map in browser: {str(e)}"
+            }
