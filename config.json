@@ -22,7 +22,7 @@
     "solver": "SCS",
     "monitoring": {
       "show_utilization": true,
-      "benchmark_mode": false
+      "benchmark_mode": true
     },
     "fallback_to_cpu": true
   }
